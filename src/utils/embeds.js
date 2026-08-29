@@ -13,7 +13,6 @@ function sanitizeEmbedText(text = '') {
   }
 
   return text
-    .replace(EMOJI_REGEX, '')
     .replace(/[ \t]+/g, ' ')  // Replace consecutive spaces/tabs with single space
     .replace(/[ \t]\n/g, '\n')  // Remove spaces before newlines
     .replace(/\n[ \t]/g, '\n')  // Remove spaces after newlines
@@ -83,8 +82,11 @@ function isImportantFooter(footerText) {
     return false;
   }
 
-  const normalized = footerText.toLowerCase();
-  return /\b(close|closes|closed|expire|expires|available in|page\s+\d+|dashboard closes|ticket id)\b/.test(normalized);
+  // Previously this gated ALL footer text behind a narrow "close/expire/page
+  // number" allowlist — meaning the default "Aether Bot" branded footer,
+  // and every custom footer any command set, silently never rendered. Any
+  // non-empty footer is legitimate; nothing should be filtered here.
+  return true;
 }
 
 const originalSetDescription = EmbedBuilder.prototype.setDescription;
@@ -107,8 +109,8 @@ EmbedBuilder.prototype.setFooter = function(footer) {
   return originalSetFooter.call(this, { text: footerText });
 };
 
-EmbedBuilder.prototype.setTimestamp = function() {
-  return this;
+EmbedBuilder.prototype.setTimestamp = function(time) {
+  return originalSetTimestamp.call(this, time);
 };
 
 export function createEmbed({
@@ -120,7 +122,7 @@ export function createEmbed({
   footer = null,
   thumbnail = null,
   image = null,
-  timestamp = false,
+  timestamp = true,
   url = null
 } = {}) {
   const embed = new EmbedBuilder();

@@ -19,6 +19,7 @@ import randomuser from './modules/randomuser.js';
 import shorten from './modules/shorten.js';
 import time from './modules/time.js';
 import unixtime from './modules/unixtime.js';
+import jsonembed from './modules/jsonembed.js';
 
 const TOOL_MODULES = {
     'base-convert': baseconvert,
@@ -32,6 +33,7 @@ const TOOL_MODULES = {
     shorten,
     time,
     'unix-time': unixtime,
+    'json-embed': jsonembed,
 };
 
 function addSubcommandFor(builder, subName, module) {

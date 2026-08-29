@@ -132,6 +132,7 @@ class ErlcClient {
                 body: body ? JSON.stringify(body) : undefined,
             });
         } catch (networkError) {
+            logger.error(`[ERLC] Network error calling ${method} ${path}: ${networkError.message}`);
             throw new ErlcApiError(`Could not reach the ER:LC API: ${networkError.message}`, { kind: 'network' });
         }
 
@@ -176,6 +177,7 @@ class ErlcClient {
 
         const code = payload?.code ?? null;
         const message = payload?.message || payload?.error || `ER:LC API returned HTTP ${response.status}`;
+        logger.warn(`[ERLC] ${method} ${path} failed: HTTP ${response.status}, code=${code}, message=${message}`);
 
         if (SERVER_OFFLINE_CODES.has(code) || response.status === 422) {
             throw new ErlcApiError('The private server is currently offline (no players in-game).', {

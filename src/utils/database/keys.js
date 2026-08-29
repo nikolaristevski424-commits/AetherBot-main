@@ -318,3 +318,31 @@ export function getLegacyVariantsForCanonical(canonicalKey) {
 
     return variants;
 }
+
+export function getStaffRecordConfigKey(guildId) {
+    return `guild:${guildId}:staffrecords:config`;
+}
+
+export function getInfractionKey(guildId, infractionId) {
+    return `guild:${guildId}:staffrecords:infraction:${infractionId}`;
+}
+
+export function getInfractionPrefix(guildId) {
+    return `guild:${guildId}:staffrecords:infraction:`;
+}
+
+export function getPromotionKey(guildId, promotionId) {
+    return `guild:${guildId}:staffrecords:promotion:${promotionId}`;
+}
+
+export function getPromotionPrefix(guildId) {
+    return `guild:${guildId}:staffrecords:promotion:`;
+}
+
+export function getDisabledCommandsKey() {
+    return 'developer:disabled_commands';
+}
+
+export function getMaintenanceModeKey() {
+    return 'developer:maintenance_mode';
+}

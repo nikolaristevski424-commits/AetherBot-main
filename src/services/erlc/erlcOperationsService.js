@@ -141,6 +141,26 @@ export const castSessionVote = wrapServiceBoundary(async function castSessionVot
     message: 'Failed to record vote', userMessage: 'Failed to record your vote.',
 });
 
+const BOOST_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between boosts, so it can't be used to spam-ping
+
+export const boostSession = wrapServiceBoundary(async function boostSession(guildId) {
+    const state = await getFromDb(getErlcSessionStateKey(guildId), null);
+    if (!state?.active) {
+        throw new AetherError('erlc ops: no active session', ErrorTypes.VALIDATION, 'There\'s no active session to boost.');
+    }
+    const sinceLast = state.lastBoostAt ? Date.now() - state.lastBoostAt : Infinity;
+    if (sinceLast < BOOST_COOLDOWN_MS) {
+        throw new AetherError('erlc ops: boost on cooldown', ErrorTypes.VALIDATION,
+            `Boost is on cooldown — wait ${Math.ceil((BOOST_COOLDOWN_MS - sinceLast) / 60000)} more minute(s).`);
+    }
+    state.lastBoostAt = Date.now();
+    await setInDb(getErlcSessionStateKey(guildId), state);
+    return state;
+}, {
+    service: 'erlcOperationsService', operation: 'boostSession',
+    message: 'Failed to boost session', userMessage: 'Failed to boost the session.',
+});
+
 // ---------- Leave of Absence ----------
 
 export const requestLoa = wrapServiceBoundary(async function requestLoa(guildId, userId, { reason, durationDays }) {

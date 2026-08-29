@@ -19,6 +19,7 @@ import { resolveSlashAccessKey } from '../utils/messageAdapter.js';
 import { isCollectorManagedComponent } from '../utils/collectorComponents.js';
 import { ResponseCoordinator } from '../utils/responseCoordinator.js';
 import { enforceDefaultCommandPermissions } from '../utils/permissionGuard.js';
+import { isCommandDisabledByDeveloper } from '../services/developer/developerService.js';
 
 const COMMAND_ERROR_SUBTYPES = {
   warn: 'warn_failed',
@@ -89,6 +90,15 @@ export default {
                 'Bot is in maintenance mode',
                 ErrorTypes.CONFIGURATION,
                 getBotMessage('maintenanceMode'),
+                withTraceContext({ commandName: interaction.commandName }, interactionTraceContext)
+              );
+            }
+
+            if (!isBotOwner(interaction.user.id) && (await isCommandDisabledByDeveloper(interaction.commandName))) {
+              throw createError(
+                `Command ${interaction.commandName} is temporarily disabled by a developer`,
+                ErrorTypes.CONFIGURATION,
+                'This command is temporarily disabled while we look into an issue with it. Try again later.',
                 withTraceContext({ commandName: interaction.commandName }, interactionTraceContext)
               );
             }

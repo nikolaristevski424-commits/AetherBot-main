@@ -104,6 +104,32 @@ decision, not an accident.
 
 ---
 
+## User-provided reference material (no license concerns identified)
+
+Two pieces of user-provided reference material informed `/infraction`,
+`/promotion`, and the ER:LC session design, with no license terms attached
+(unlike Ducky above) — treated as material the user has rights to use in
+their own bot, consistent with how it was provided:
+
+- **"Infraction + Promo System"** — a small single-server reference (typed
+  punishment levels, human-readable record IDs, a void/undo path). No
+  license file; no code copied — Aether's `/infraction` and `/promotion`
+  are a fresh implementation against Aether's guild-scoped storage.
+- **"Sessions Module"** ("modular-bot") — a purchased-package-style
+  reference bot (its own README describes itself as sold per-server,
+  "drag-and-drop" modules). Its session management module has real
+  capability Aether's `/session` doesn't yet have: a persistent
+  auto-refreshing status panel, a self-serve notification-role toggle,
+  a "session full" state, and DMing voters once a vote threshold is hit.
+  None of that is built yet — noted here so the next pass on `/session`
+  starts from "here's what's missing" instead of re-discovering it.
+
+## Aether Bot Guide / community site
+
+Marketing/setup-guide sites for Aether: `aether-community.lovable.app` and
+`aether-setup-flow.base44.app`. Not a code dependency — noted here since
+they're the "official" links referenced from the README's Links section.
+
 ## Adding future entries
 
 When a new module (ER:LC integration, Roblox verification, anti-raid/anti-nuke,

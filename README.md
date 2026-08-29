@@ -132,7 +132,7 @@ _Add your support server invite here once one exists — set `SUPPORT_SERVER_URL
 
 ## License
 
-Aether Bot is released under the MIT License. See [LICENSE](LICENSE) for details. Aether is built on the open-source TitanBot project by codebymitch — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Aether's original code is proprietary (all rights reserved); the inherited TitanBot foundation remains MIT. See [LICENSE](LICENSE) for the exact split, and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for what's built on what.
 
 ## Thank You
 

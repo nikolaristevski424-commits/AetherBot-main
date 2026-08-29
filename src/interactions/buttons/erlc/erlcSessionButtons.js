@@ -1,47 +1,72 @@
 import {
-    ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags,
+    ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SeparatorBuilder, MessageFlags,
 } from 'discord.js';
-import { castSessionVote, startSession, attachSessionMessage, getSessionState } from '../../../services/erlc/erlcOperationsService.js';
-import { getErlcConfig } from '../../../services/erlc/erlcService.js';
+import { castSessionVote, startSession, attachSessionMessage, getSessionState, boostSession } from '../../../services/erlc/erlcOperationsService.js';
+import { getServerStatus, getErlcConfig } from '../../../services/erlc/erlcService.js';
 import { AetherError, handleInteractionError } from '../../../utils/errorHandler.js';
 import { logger } from '../../../utils/logger.js';
 
-export function buildSessionAnnouncementPanel({ startedByUserId, roleId }) {
-    const container = new ContainerBuilder();
-    const lines = ['## 🟢 Session Starting'];
+// ER:LC private servers don't support a one-click "deep link" straight into
+// a specific server — Roblox requires entering the join code manually via
+// the in-game SERVERS menu. This links to the game itself and displays the
+// code prominently to copy in, which is the actual working flow.
+const ERLC_GAME_URL = 'https://www.roblox.com/games/2534724415/Emergency-Response-Liberty-County';
+
+export function buildSessionAnnouncementPanel({ startedByUserId, roleId, joinKey }) {
+    const container = new ContainerBuilder().setAccentColor(0x57F287);
+    const lines = ['## 🟢  Session is Live!'];
     if (roleId) lines.push(`<@&${roleId}>`);
-    lines.push(
-        '',
-        `Started by <@${startedByUserId}>.`,
-        'Join in-game now! Use `/erlc status` for the current join code.',
-    );
+    lines.push('', `Started by <@${startedByUserId}> — come join in-game!`);
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+
+    if (joinKey) {
+        container.addSeparatorComponents(new SeparatorBuilder());
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `**Join Code**\n\`\`\`${joinKey}\`\`\`\nOpen the game, go to **MENU → SERVERS**, and paste this code.`,
+        ));
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setLabel('Open ER:LC').setStyle(ButtonStyle.Link).setURL(ERLC_GAME_URL),
+        ));
+    }
     return container;
 }
 
 export function buildSessionShutdownPanel({ startedByUserId, startedAt }) {
-    const container = new ContainerBuilder();
+    const container = new ContainerBuilder().setAccentColor(0xED4245);
     const durationMin = Math.round((Date.now() - startedAt) / 60000);
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent([
-        '## 🔴 Session Ended',
-        `Session started by <@${startedByUserId}> has ended (ran ~${durationMin} min).`,
+        '## 🔴  Session Ended',
+        `Session started by <@${startedByUserId}> has ended — ran about ${durationMin} minute(s). Thanks for playing!`,
     ].join('\n')));
     return container;
 }
 
 export function buildSessionVotePanel({ startedByUserId, voters, threshold, roleId }) {
-    const container = new ContainerBuilder();
-    const lines = ['## 🗳️ Session Vote'];
+    const container = new ContainerBuilder().setAccentColor(0x3498DB);
+    const lines = ['## 🗳️  Session Vote'];
     if (roleId) lines.push(`<@&${roleId}>`);
-    lines.push(
-        '',
-        `<@${startedByUserId}> wants to start a session — vote to help make it happen!`,
-        `**${voters.length}/${threshold}** votes`,
-    );
+    lines.push('', `<@${startedByUserId}> wants to start a session — vote to help make it happen!`);
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+    container.addSeparatorComponents(new SeparatorBuilder());
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${voters.length} / ${threshold} votes`));
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('erlc_session_vote').setLabel('Vote').setEmoji('🗳️').setStyle(ButtonStyle.Primary),
     ));
+    return container;
+}
+
+export function buildSessionEndedVotePanel() {
+    const container = new ContainerBuilder().setAccentColor(0x99AAB5);
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent('## 🗳️  Vote Ended\nThis vote is no longer active.'));
+    return container;
+}
+
+export function buildSessionBoostPanel({ roleId }) {
+    const container = new ContainerBuilder().setAccentColor(0xFEE75C);
+    const lines = ['## 📢  Session Needs More Players!'];
+    if (roleId) lines.push(`<@&${roleId}>`);
+    lines.push('', 'The session is running but could use a few more people — come join in!');
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
     return container;
 }
 
@@ -60,9 +85,15 @@ async function vote(interaction) {
             const config = await getErlcConfig(interaction.guildId);
             const { state, roleId } = await startSession(interaction.guild, result.vote.startedBy);
 
-            const panel = (await import('./erlcSessionButtons.js')).buildSessionAnnouncementPanel({
-                startedByUserId: state.startedBy, roleId,
-            });
+            let joinKey = null;
+            try {
+                const status = await getServerStatus(interaction.guildId);
+                joinKey = status?.JoinKey || null;
+            } catch {
+                // Non-fatal — announcement still posts, just without the join code.
+            }
+
+            const panel = buildSessionAnnouncementPanel({ startedByUserId: state.startedBy, roleId, joinKey });
 
             const channel = config?.sessionChannelId
                 ? await interaction.guild.channels.fetch(config.sessionChannelId).catch(() => null)
@@ -74,11 +105,7 @@ async function vote(interaction) {
             }
 
             if (interaction.message) {
-                await interaction.message.edit({
-                    components: [new ContainerBuilder().addTextDisplayComponents(
-                        new TextDisplayBuilder().setContent('## ✅ Vote threshold reached — session started!'),
-                    )],
-                }).catch(() => {});
+                await interaction.message.edit({ components: [buildSessionEndedVotePanel()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
             }
 
             await interaction.editReply({ content: 'Vote recorded — threshold reached, session started!' });
@@ -92,11 +119,17 @@ async function vote(interaction) {
                     voters: result.vote.voters,
                     threshold: result.vote.threshold,
                 })],
+                flags: MessageFlags.IsComponentsV2,
             }).catch(() => {});
         }
         await interaction.editReply({ content: `Vote recorded (${result.vote.voters.length}/${result.vote.threshold}).` });
     } catch (error) {
         if (error instanceof AetherError) {
+            // A stale/expired vote is expected, not a bug — update the panel
+            // to say so instead of leaving a dead button behind.
+            if (interaction.message) {
+                await interaction.message.edit({ components: [buildSessionEndedVotePanel()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            }
             await interaction.editReply({ content: `❌ ${error.userMessage}` });
             return;
         }
