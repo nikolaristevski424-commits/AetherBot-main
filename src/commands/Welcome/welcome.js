@@ -5,6 +5,7 @@ import { formatWelcomeMessage, truncateForEmbedField } from '../../utils/welcome
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
+import autorole from './modules/autorole.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -31,9 +32,22 @@ export default {
                 .addBooleanOption(option =>
                     option.setName('ping')
                         .setDescription('Whether to ping the user in the welcome message')
-                        .setRequired(false))),
+                        .setRequired(false)))
+        .addSubcommandGroup(group =>
+            group
+                .setName('autorole')
+                .setDescription('Manage roles automatically assigned to new members')
+                .addSubcommand(subcommand => subcommand.setName('add').setDescription('Add a role to be automatically assigned to new members')
+                    .addRoleOption(option => option.setName('role').setDescription('The role to add').setRequired(true)))
+                .addSubcommand(subcommand => subcommand.setName('remove').setDescription('Remove a role from auto-assignment')
+                    .addRoleOption(option => option.setName('role').setDescription('The role to remove').setRequired(true)))
+                .addSubcommand(subcommand => subcommand.setName('list').setDescription('List all auto-assigned roles'))),
 
-    async execute(interaction) {
+    async execute(interaction, config, client) {
+        if (interaction.options.getSubcommandGroup(false) === 'autorole') {
+            return autorole.execute(interaction, config, client);
+        }
+
         try {
             const deferSuccess = await InteractionHelper.safeDefer(interaction);
             if (!deferSuccess) {
@@ -49,7 +63,7 @@ export default {
             return;
         }
 
-        const { options, guild, client } = interaction;
+        const { options, guild } = interaction;
 
         if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
             return await replyUserError(interaction, { type: ErrorTypes.PERMISSION, message: 'You need the **Manage Server** permission to use `/welcome`.' });

@@ -144,3 +144,5 @@ dist
 # Database backup artifacts
 backups/
 *.dump
+AetherBot-main/.scratch-tests/
+.scratch-tests/

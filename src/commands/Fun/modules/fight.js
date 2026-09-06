@@ -1,8 +1,8 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { successEmbed, warningEmbed } from '../../utils/embeds.js';
-import { logger } from '../../utils/logger.js';
+import { successEmbed, warningEmbed } from '../../../utils/embeds.js';
+import { logger } from '../../../utils/logger.js';
 
-import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { InteractionHelper } from '../../../utils/interactionHelper.js';
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const EMBED_DESCRIPTION_LIMIT = 4096;
 

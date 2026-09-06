@@ -23,6 +23,7 @@ export default {
             .addChoices(
                 { name: 'Join Spike (mass joins in a short window)', value: 'joinSpike' },
                 { name: 'New Account (accounts younger than X)', value: 'newAccount' },
+                { name: 'Mention Spam (too many @mentions in one message)', value: 'mentionSpam' },
             ))
         .addBooleanOption((opt) => opt.setName('enabled').setDescription('Turn this protection on or off').setRequired(true))
         .addStringOption((opt) => opt
@@ -62,6 +63,9 @@ export default {
             if (protection === 'joinSpike') {
                 if (threshold) updates.threshold = threshold;
                 if (windowSeconds) updates.windowSeconds = windowSeconds;
+            }
+            if (protection === 'mentionSpam' && threshold) {
+                updates.threshold = threshold;
             }
             if (protection === 'newAccount' && minAgeHours) {
                 updates.minAgeHours = minAgeHours;

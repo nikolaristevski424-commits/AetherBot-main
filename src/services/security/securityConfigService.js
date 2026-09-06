@@ -15,11 +15,13 @@ const DEFAULT_CONFIG = Object.freeze({
     antiraid: {
         joinSpike: { enabled: false, threshold: 10, windowSeconds: 30, action: 'alert', alertChannelId: null },
         newAccount: { enabled: false, minAgeHours: 24, action: 'alert', alertChannelId: null },
+        mentionSpam: { enabled: false, threshold: 5, action: 'timeout', alertChannelId: null },
     },
     antinuke: {
         channelDelete: { enabled: false, threshold: 3, windowSeconds: 60, action: 'alert', alertChannelId: null },
         roleDelete: { enabled: false, threshold: 3, windowSeconds: 60, action: 'alert', alertChannelId: null },
         banSpam: { enabled: false, threshold: 3, windowSeconds: 60, action: 'alert', alertChannelId: null },
+        webhookCreate: { enabled: false, threshold: 2, windowSeconds: 60, action: 'alert', alertChannelId: null },
     },
     whitelist: { userIds: [], roleIds: [] },
     quarantineRoleId: null,
@@ -32,11 +34,13 @@ function mergeConfig(existing) {
         antiraid: {
             joinSpike: { ...DEFAULT_CONFIG.antiraid.joinSpike, ...existing.antiraid?.joinSpike },
             newAccount: { ...DEFAULT_CONFIG.antiraid.newAccount, ...existing.antiraid?.newAccount },
+            mentionSpam: { ...DEFAULT_CONFIG.antiraid.mentionSpam, ...existing.antiraid?.mentionSpam },
         },
         antinuke: {
             channelDelete: { ...DEFAULT_CONFIG.antinuke.channelDelete, ...existing.antinuke?.channelDelete },
             roleDelete: { ...DEFAULT_CONFIG.antinuke.roleDelete, ...existing.antinuke?.roleDelete },
             banSpam: { ...DEFAULT_CONFIG.antinuke.banSpam, ...existing.antinuke?.banSpam },
+            webhookCreate: { ...DEFAULT_CONFIG.antinuke.webhookCreate, ...existing.antinuke?.webhookCreate },
         },
         whitelist: {
             userIds: existing.whitelist?.userIds ?? [],

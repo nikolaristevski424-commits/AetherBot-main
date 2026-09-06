@@ -343,6 +343,10 @@ export function getDisabledCommandsKey() {
     return 'developer:disabled_commands';
 }
 
+export function getDisabledCategoriesKey() {
+    return 'developer:disabled_categories';
+}
+
 export function getMaintenanceModeKey() {
     return 'developer:maintenance_mode';
 }

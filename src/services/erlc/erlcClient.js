@@ -106,7 +106,7 @@ class ErlcClient {
             const sinceLast = Date.now() - state.lastCommandAt;
             if (sinceLast < COMMAND_COOLDOWN_MS) {
                 throw new ErlcApiError(
-                    `Commands are limited to 1 per 5 seconds. Wait ${Math.ceil((COMMAND_COOLDOWN_MS - sinceLast) / 1000)}s.`,
+                    `⏱️ Cooldown, not a bug — ER:LC only allows 1 in-game command every 5 seconds per server. Wait ${Math.ceil((COMMAND_COOLDOWN_MS - sinceLast) / 1000)}s and try again.`,
                     { kind: 'rate_limited', retryAfterMs: COMMAND_COOLDOWN_MS - sinceLast },
                 );
             }

@@ -4,7 +4,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { handleInteractionError, AetherError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
 import { createEmbed, successEmbed, infoEmbed } from '../../utils/embeds.js';
 import { isBotOwner } from '../../config/bot.js';
-import { getDisabledCommands, disableCommand, enableCommand } from '../../services/developer/developerService.js';
+import { getDisabledCommands, disableCommand, enableCommand, getDisabledCategories, disableCategory, enableCategory } from '../../services/developer/developerService.js';
 import { STATUS_TEMPLATES } from '../../services/developer/statusTemplates.js';
 
 // Access is entirely code-level (isBotOwner / OWNER_IDS env var) rather than
@@ -22,10 +22,15 @@ function requireDeveloper(interaction) {
 
 async function handleDisable(interaction) {
     const commandName = interaction.options.getString('command', true);
+    const reason = interaction.options.getString('reason');
     await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
-    const disabled = await disableCommand(commandName);
+    const disabled = await disableCommand(commandName, reason);
     await InteractionHelper.safeReply(interaction, {
-        embeds: [successEmbed('Command Disabled', `\`/${commandName}\` is now disabled bot-wide.\nCurrently disabled: ${disabled.map((c) => `\`/${c}\``).join(', ') || 'none'}`)],
+        embeds: [successEmbed('Command Disabled', [
+            `\`/${commandName}\` is now disabled bot-wide.`,
+            reason ? `Reason shown to users: "${reason}"` : 'No reason set — users just see a generic "temporarily disabled" message.',
+            `Currently disabled: ${disabled.map((c) => `\`/${c.name}\``).join(', ') || 'none'}`,
+        ].join('\n'))],
     });
 }
 
@@ -34,17 +39,46 @@ async function handleEnable(interaction) {
     await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
     const disabled = await enableCommand(commandName);
     await InteractionHelper.safeReply(interaction, {
-        embeds: [successEmbed('Command Enabled', `\`/${commandName}\` is enabled again.\nStill disabled: ${disabled.map((c) => `\`/${c}\``).join(', ') || 'none'}`)],
+        embeds: [successEmbed('Command Enabled', `\`/${commandName}\` is enabled again.\nStill disabled: ${disabled.map((c) => `\`/${c.name}\``).join(', ') || 'none'}`)],
     });
 }
 
 async function handleListDisabled(interaction) {
     await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
     const disabled = await getDisabledCommands();
+    const disabledCats = await getDisabledCategories();
     await InteractionHelper.safeReply(interaction, {
-        embeds: [disabled.length
-            ? infoEmbed('Disabled Commands', disabled.map((c) => `\`/${c}\``).join(', '))
-            : infoEmbed('Disabled Commands', 'Nothing is currently disabled.')],
+        embeds: [createEmbed({
+            title: 'Disabled Commands & Categories',
+            color: 'info',
+            fields: [
+                { name: 'Commands', value: disabled.length ? disabled.map((c) => `\`/${c.name}\`${c.reason ? ` — ${c.reason}` : ''}`).join('\n') : 'None', inline: false },
+                { name: 'Categories', value: disabledCats.length ? disabledCats.map((c) => `\`${c.name}\`${c.reason ? ` — ${c.reason}` : ''}`).join('\n') : 'None', inline: false },
+            ],
+        })],
+    });
+}
+
+async function handleDisableCategory(interaction) {
+    const category = interaction.options.getString('category', true);
+    const reason = interaction.options.getString('reason');
+    await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+    const disabled = await disableCategory(category, reason);
+    await InteractionHelper.safeReply(interaction, {
+        embeds: [successEmbed('Category Disabled', [
+            `Every command in **${category}** is now disabled bot-wide.`,
+            reason ? `Reason shown to users: "${reason}"` : 'No reason set.',
+            `Currently disabled categories: ${disabled.map((c) => `\`${c.name}\``).join(', ') || 'none'}`,
+        ].join('\n'))],
+    });
+}
+
+async function handleEnableCategory(interaction) {
+    const category = interaction.options.getString('category', true);
+    await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+    const disabled = await enableCategory(category);
+    await InteractionHelper.safeReply(interaction, {
+        embeds: [successEmbed('Category Enabled', `**${category}** is enabled again.\nStill disabled: ${disabled.map((c) => `\`${c.name}\``).join(', ') || 'none'}`)],
     });
 }
 
@@ -120,10 +154,16 @@ export default {
         .setDescription('Developer-only tools')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand((sub) => sub.setName('disable-command').setDescription('Temporarily disable a command bot-wide')
-            .addStringOption((o) => o.setName('command').setDescription('Command name, without the slash').setRequired(true)))
+            .addStringOption((o) => o.setName('command').setDescription('Command name, without the slash').setRequired(true))
+            .addStringOption((o) => o.setName('reason').setDescription('Shown to anyone who tries to use it while disabled').setRequired(false)))
         .addSubcommand((sub) => sub.setName('enable-command').setDescription('Re-enable a disabled command')
             .addStringOption((o) => o.setName('command').setDescription('Command name, without the slash').setRequired(true)))
-        .addSubcommand((sub) => sub.setName('list-disabled').setDescription('List currently disabled commands'))
+        .addSubcommand((sub) => sub.setName('list-disabled').setDescription('List currently disabled commands and categories'))
+        .addSubcommand((sub) => sub.setName('disable-category').setDescription('Disable every command in a category bot-wide')
+            .addStringOption((o) => o.setName('category').setDescription('Category/folder name, e.g. Economy, ERLC, Moderation').setRequired(true))
+            .addStringOption((o) => o.setName('reason').setDescription('Shown to anyone who tries to use a command in it').setRequired(false)))
+        .addSubcommand((sub) => sub.setName('enable-category').setDescription('Re-enable a disabled category')
+            .addStringOption((o) => o.setName('category').setDescription('Category/folder name').setRequired(true)))
         .addSubcommand((sub) => sub.setName('stats').setDescription('Bot runtime stats'))
         .addSubcommand((sub) => sub.setName('eval').setDescription('Evaluate JS (developer only)')
             .addStringOption((o) => o.setName('code').setDescription('Code to evaluate').setRequired(true)))
@@ -140,6 +180,8 @@ export default {
                 case 'disable-command': return await handleDisable(interaction);
                 case 'enable-command': return await handleEnable(interaction);
                 case 'list-disabled': return await handleListDisabled(interaction);
+                case 'disable-category': return await handleDisableCategory(interaction);
+                case 'enable-category': return await handleEnableCategory(interaction);
                 case 'stats': return await handleStats(interaction);
                 case 'eval': return await handleEval(interaction);
                 case 'status-send': return await handleStatusSend(interaction);

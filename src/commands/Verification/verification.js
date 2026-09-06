@@ -1,5 +1,4 @@
-import { botConfig, getColor } from '../../config/bot.js';
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
+import { botConfig, getColor } from '../../config/bot.js';import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { createEmbed, infoEmbed, successEmbed } from '../../utils/embeds.js';
 import { getGuildConfig, setGuildConfig } from '../../services/config/guildConfig.js';
 import { withErrorHandling, createError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
@@ -8,6 +7,7 @@ import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getWelcomeConfig } from '../../utils/database.js';
 import verificationDashboard from './modules/verification_dashboard.js';
+import autoVerify from './modules/autoVerify.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -60,9 +60,36 @@ export default {
             subcommand
                 .setName("dashboard")
                 .setDescription("Open the verification system configuration dashboard")
-        ),
+        )
+        .addSubcommandGroup(group =>
+            group
+                .setName("auto")
+                .setDescription("Automatic verification based on account criteria")
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName("setup")
+                        .setDescription("Set up automatic verification")
+                        .addRoleOption(option =>
+                            option.setName("role").setDescription("Role to assign to users who meet auto-verify criteria").setRequired(true))
+                        .addStringOption(option =>
+                            option.setName("criteria").setDescription("Criteria for automatic verification")
+                                .addChoices({ name: "Account Age", value: "account_age" }, { name: "No Criteria", value: "none" })
+                                .setRequired(true))
+                        .addIntegerOption(option =>
+                            option.setName("account_age_days").setDescription("Minimum account age in days (required for account age criteria)")
+                                .setMinValue(botConfig.verification?.autoVerify?.minAccountAge ?? 1)
+                                .setMaxValue(botConfig.verification?.autoVerify?.maxAccountAge ?? 365)
+                                .setRequired(false)))
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName("dashboard")
+                        .setDescription("Open the auto-verification dashboard for customization"))),
 
     async execute(interaction, config, client) {
+        if (interaction.options.getSubcommandGroup(false) === "auto") {
+            return autoVerify.execute(interaction, config, client);
+        }
+
         const wrappedExecute = withErrorHandling(async () => {
             const subcommand = interaction.options.getSubcommand();
             const guild = interaction.guild;

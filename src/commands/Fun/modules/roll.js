@@ -1,9 +1,9 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { successEmbed } from '../../utils/embeds.js';
-import { logger } from '../../utils/logger.js';
-import { AetherError, ErrorTypes } from '../../utils/errorHandler.js';
+import { successEmbed } from '../../../utils/embeds.js';
+import { logger } from '../../../utils/logger.js';
+import { AetherError, ErrorTypes } from '../../../utils/errorHandler.js';
 
-import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { InteractionHelper } from '../../../utils/interactionHelper.js';
 export default {
     data: new SlashCommandBuilder()
     .setName("roll")

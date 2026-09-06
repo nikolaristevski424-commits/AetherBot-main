@@ -24,10 +24,13 @@ export function buildSessionAnnouncementPanel({ startedByUserId, roleId, joinKey
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `**Join Code**\n\`\`\`${joinKey}\`\`\`\nOpen the game, go to **MENU → SERVERS**, and paste this code.`,
         ));
-        container.addActionRowComponents(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setLabel('Open ER:LC').setStyle(ButtonStyle.Link).setURL(ERLC_GAME_URL),
-        ));
     }
+
+    const buttons = [];
+    if (joinKey) buttons.push(new ButtonBuilder().setLabel('Open ER:LC').setStyle(ButtonStyle.Link).setURL(ERLC_GAME_URL));
+    if (roleId) buttons.push(new ButtonBuilder().setCustomId('erlc_notify_toggle').setLabel('Notify Me For Sessions').setEmoji('🔔').setStyle(ButtonStyle.Secondary));
+    if (buttons.length) container.addActionRowComponents(new ActionRowBuilder().addComponents(...buttons));
+
     return container;
 }
 
@@ -49,9 +52,9 @@ export function buildSessionVotePanel({ startedByUserId, voters, threshold, role
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
     container.addSeparatorComponents(new SeparatorBuilder());
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${voters.length} / ${threshold} votes`));
-    container.addActionRowComponents(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('erlc_session_vote').setLabel('Vote').setEmoji('🗳️').setStyle(ButtonStyle.Primary),
-    ));
+    const voteButtons = [new ButtonBuilder().setCustomId('erlc_session_vote').setLabel('Vote').setEmoji('🗳️').setStyle(ButtonStyle.Primary)];
+    if (roleId) voteButtons.push(new ButtonBuilder().setCustomId('erlc_notify_toggle').setLabel('Notify Me For Sessions').setEmoji('🔔').setStyle(ButtonStyle.Secondary));
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(...voteButtons));
     return container;
 }
 
@@ -138,6 +141,33 @@ async function vote(interaction) {
     }
 }
 
+async function toggleNotify(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    try {
+        const config = await getErlcConfig(interaction.guildId);
+        if (!config?.sessionRoleId) {
+            await interaction.editReply({ content: 'No session notification role is configured for this server.' });
+            return;
+        }
+
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        const hasRole = member.roles.cache.has(config.sessionRoleId);
+
+        if (hasRole) {
+            await member.roles.remove(config.sessionRoleId, 'Opted out of session notifications');
+            await interaction.editReply({ content: '🔕 You will no longer be pinged for sessions.' });
+        } else {
+            await member.roles.add(config.sessionRoleId, 'Opted in to session notifications');
+            await interaction.editReply({ content: '🔔 You will now be pinged when a session starts.' });
+        }
+    } catch (error) {
+        logger.error('[erlc] Failed to toggle session notification role:', error);
+        await interaction.editReply({ content: '❌ Could not update your notification role — I may be missing permission to manage that role.' });
+    }
+}
+
 export default [
     { name: 'erlc_session_vote', execute: vote },
+    { name: 'erlc_notify_toggle', execute: toggleNotify },
 ];

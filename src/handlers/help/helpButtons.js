@@ -40,41 +40,8 @@ export const helpBackButton = {
 export const helpBugReportButton = {
     name: BUG_REPORT_BUTTON_ID,
     async execute(interaction, client) {
-        const bugReportUrl = client?.config?.links?.bugReport;
-
-        const bugRow = bugReportUrl
-            ? new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setLabel('🐛 Report Bug')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(bugReportUrl),
-            )
-            : null;
-
-        const bugReportEmbed = createEmbed({
-            title: '🐛 Bug Report',
-            description: (bugReportUrl
-                ? 'Found a bug? Please report it using the link below!\n\n'
-                : 'Found a bug? Let the server staff know.\n\n') +
-                '**When reporting a bug, please include:**\n' +
-                '• 📝 Detailed description of the issue\n' +
-                '• 📋 Steps to reproduce the problem\n' +
-                '• 📸 Screenshots if applicable\n' +
-                '• 💻 Your bot version and environment\n\n' +
-                'This helps us fix issues faster and more effectively!',
-            color: 'error'
-        });
-        bugReportEmbed.setFooter({
-            text: 'Aether Bug Reporting System',
-            iconURL: client.user.displayAvatarURL()
-        });
-        bugReportEmbed.setTimestamp();
-
-        await interaction.reply({
-            embeds: [bugReportEmbed],
-            components: bugRow ? [bugRow] : [],
-            flags: MessageFlags.Ephemeral
-        });
+        const { buildBugReportModal } = await import('../../interactions/modals/bugreport/bugReportModal.js');
+        await interaction.showModal(buildBugReportModal());
     },
 };
 

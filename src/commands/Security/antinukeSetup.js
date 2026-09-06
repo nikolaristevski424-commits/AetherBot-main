@@ -24,6 +24,7 @@ export default {
                 { name: 'Channel Delete (mass channel deletion)', value: 'channelDelete' },
                 { name: 'Role Delete (mass role deletion)', value: 'roleDelete' },
                 { name: 'Ban Spam (mass bans outside the bot)', value: 'banSpam' },
+                { name: 'Webhook Create (unexpected new webhooks)', value: 'webhookCreate' },
             ))
         .addBooleanOption((opt) => opt.setName('enabled').setDescription('Turn this protection on or off').setRequired(true))
         .addStringOption((opt) => opt

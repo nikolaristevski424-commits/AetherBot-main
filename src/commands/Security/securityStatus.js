@@ -30,6 +30,7 @@ export default {
                         value: [
                             protectionLine('Join Spike', config.antiraid.joinSpike, `${config.antiraid.joinSpike.threshold}/${config.antiraid.joinSpike.windowSeconds}s`),
                             protectionLine('New Account', config.antiraid.newAccount, `<${config.antiraid.newAccount.minAgeHours}h old`),
+                            protectionLine('Mention Spam', config.antiraid.mentionSpam, `${config.antiraid.mentionSpam.threshold} mentions/msg`),
                         ].join('\n'),
                         inline: false,
                     },
@@ -39,6 +40,7 @@ export default {
                             protectionLine('Channel Delete', config.antinuke.channelDelete, `${config.antinuke.channelDelete.threshold}/${config.antinuke.channelDelete.windowSeconds}s`),
                             protectionLine('Role Delete', config.antinuke.roleDelete, `${config.antinuke.roleDelete.threshold}/${config.antinuke.roleDelete.windowSeconds}s`),
                             protectionLine('Ban Spam', config.antinuke.banSpam, `${config.antinuke.banSpam.threshold}/${config.antinuke.banSpam.windowSeconds}s`),
+                            protectionLine('Webhook Create', config.antinuke.webhookCreate, `${config.antinuke.webhookCreate.threshold}/${config.antinuke.webhookCreate.windowSeconds}s`),
                         ].join('\n'),
                         inline: false,
                     },
