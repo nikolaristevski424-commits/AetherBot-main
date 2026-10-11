@@ -7,11 +7,10 @@ import {
     getErlcConfig,
     setErlcServerKey,
     clearErlcConfig,
+    updateErlcConfigSettings,
     getServerStatus,
     runServerCommand,
 } from '../../services/erlc/erlcService.js';
-import { setInDb } from '../../utils/database.js';
-import { getErlcConfigKey } from '../../utils/database/keys.js';
 
 // Roblox player/staff strings from the API come as "Username:Id" — split
 // that out for nicer display rather than showing the raw combined string.
@@ -49,7 +48,7 @@ async function handleSetup(interaction) {
     if (loaRole) extra.loaRoleId = loaRole.id;
     if (onDutyRole) extra.onDutyRoleId = onDutyRole.id;
     if (Object.keys(extra).length > 0) {
-        await setInDb(getErlcConfigKey(interaction.guildId), { ...config, ...extra });
+        await updateErlcConfigSettings(interaction.guildId, extra);
     }
 
     await InteractionHelper.safeReply(interaction, {

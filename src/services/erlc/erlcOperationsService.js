@@ -12,7 +12,6 @@
 import { getFromDb, setInDb, deleteFromDb } from '../../utils/database.js';
 import { db } from '../../utils/database/wrapper.js';
 import {
-    getErlcConfigKey,
     getErlcSessionStateKey,
     getErlcSessionVoteKey,
     getErlcLoaKey,
@@ -21,13 +20,14 @@ import {
     getErlcShiftTotalKey,
     getErlcShiftTotalPrefix,
 } from '../../utils/database/keys.js';
+import { getErlcConfig } from './erlcService.js';
 import { AetherError, ErrorTypes, wrapServiceBoundary } from '../../utils/errorHandler.js';
 import { logger } from '../../utils/logger.js';
 
 const VOTE_TTL_SECONDS = 10 * 60; // votes auto-expire after 10 minutes of inactivity
 
 async function requireErlcConfig(guildId) {
-    const config = await getFromDb(getErlcConfigKey(guildId), null);
+    const config = await getErlcConfig(guildId);
     if (!config?.serverKey) {
         throw new AetherError('erlc ops: not configured', ErrorTypes.VALIDATION,
             "ER:LC isn't set up for this server yet. Run `/erlc setup` first.");

@@ -9,6 +9,7 @@
 import { getFromDb, setInDb, deleteFromDb } from '../../utils/database.js';
 import { getErlcConfigKey, getErlcStatusMessageKey } from '../../utils/database/keys.js';
 import { erlcClient, ErlcApiError } from './erlcClient.js';
+import { decryptErlcKey, encryptErlcKey, isEncryptedErlcKey } from './erlcKeyEncryption.js';
 import { AetherError, ErrorTypes, wrapServiceBoundary } from '../../utils/errorHandler.js';
 import { logger } from '../../utils/logger.js';
 
@@ -42,12 +43,42 @@ function toAetherError(error, { operation }) {
 }
 
 export const getErlcConfig = wrapServiceBoundary(async function getErlcConfig(guildId) {
-    return await getFromDb(getErlcConfigKey(guildId), null);
+    const config = await getFromDb(getErlcConfigKey(guildId), null);
+    if (!config?.serverKey) return config;
+
+    const serverKey = decryptErlcKey(config.serverKey);
+    if (!isEncryptedErlcKey(config.serverKey) && process.env.ERLC_KEY_ENCRYPTION_SECRET) {
+        await persistErlcConfig(guildId, { ...config, serverKey });
+    }
+    return { ...config, serverKey };
 }, {
     service: 'erlcService',
     operation: 'getErlcConfig',
     message: 'Failed to read ER:LC configuration',
     userMessage: 'Failed to load the ER:LC configuration for this server.',
+});
+
+async function persistErlcConfig(guildId, config) {
+    const storedConfig = config?.serverKey
+        ? { ...config, serverKey: encryptErlcKey(config.serverKey) }
+        : config;
+    await setInDb(getErlcConfigKey(guildId), storedConfig);
+}
+
+export const updateErlcConfigSettings = wrapServiceBoundary(async function updateErlcConfigSettings(guildId, updates) {
+    const existing = await getErlcConfig(guildId);
+    if (!existing?.serverKey) {
+        throw new AetherError('erlcService: no server key configured', ErrorTypes.VALIDATION,
+            'ER:LC isn\'t set up for this server yet. Run `/erlc setup` first.');
+    }
+    const config = { ...existing, ...updates };
+    await persistErlcConfig(guildId, config);
+    return config;
+}, {
+    service: 'erlcService',
+    operation: 'updateErlcConfigSettings',
+    message: 'Failed to update ER:LC settings',
+    userMessage: 'Failed to update the ER:LC settings.',
 });
 
 /**
@@ -61,7 +92,15 @@ export const setErlcServerKey = wrapServiceBoundary(async function setErlcServer
         throw toAetherError(error, { operation: 'setErlcServerKey' });
     }
 
-    const existing = await getFromDb(getErlcConfigKey(guildId), null);
+    const storedConfig = await getFromDb(getErlcConfigKey(guildId), null);
+    let existing = storedConfig;
+    if (storedConfig?.serverKey) {
+        try {
+            existing = { ...storedConfig, serverKey: decryptErlcKey(storedConfig.serverKey) };
+        } catch {
+            existing = storedConfig;
+        }
+    }
     if (existing?.serverKey && existing.serverKey !== serverKey) {
         erlcClient.forgetKey(existing.serverKey);
     }
@@ -73,7 +112,7 @@ export const setErlcServerKey = wrapServiceBoundary(async function setErlcServer
         configuredBy: configuredByUserId,
         configuredAt: Date.now(),
     };
-    await setInDb(getErlcConfigKey(guildId), config);
+    await persistErlcConfig(guildId, config);
     return config;
 }, {
     service: 'erlcService',
@@ -98,7 +137,7 @@ export const clearErlcConfig = wrapServiceBoundary(async function clearErlcConfi
 });
 
 async function requireConfig(guildId) {
-    const config = await getFromDb(getErlcConfigKey(guildId), null);
+    const config = await getErlcConfig(guildId);
     if (!config?.serverKey) {
         throw new AetherError(
             'erlcService: no server key configured',

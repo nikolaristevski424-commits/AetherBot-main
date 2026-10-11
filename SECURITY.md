@@ -44,6 +44,7 @@ Aether is operated as a hosted service — server admins add the bot to their Di
 - Postgres is never exposed to the public internet — internal network / VPC only.
 - Postgres runs with authentication, strong passwords, and network restrictions.
 - Secrets stay out of the repository (env vars / secret manager, never committed).
+- ER:LC private-server API keys are encrypted at rest when `ERLC_KEY_ENCRYPTION_SECRET` is configured. Keep this secret backed up; changing it without migrating stored keys makes them unreadable.
 - The bot's Discord intents and permissions are restricted to the minimum required.
 - Dependency and secret-scanning alerts enabled on the repo, with push protection.
 - Tokens and API keys are rotated on any suspected compromise.
