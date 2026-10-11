@@ -29,7 +29,7 @@
         <button class="rail-link" data-view="erlc" title="ER:LC" aria-label="ER:LC"><span class="rail-icon">◉</span><span>ER:LC</span></button>
         <button class="rail-link" data-view="settings" title="Settings" aria-label="Settings"><span class="rail-icon">⚙</span><span>Settings</span></button>
       </nav>
-      <div class="rail-bottom"><span class="live-dot"></span><span>LIVE</span></div>
+      <div class="rail-bottom"><span id="navStatusDot" class="live-dot idle"></span><span id="navStatusLabel">NO DATA</span></div>
     </aside>
 
     <section class="workspace">
@@ -39,7 +39,7 @@
           <label class="server-select-wrap" for="serverSelect"><span>SERVER</span><select id="serverSelect" aria-label="Select Discord server"></select></label>
           <div class="sync-state"><i id="syncIndicator" class="status-dot"></i><span id="lastUpdateLabel">Connecting</span></div>
           <button id="refreshButton" class="icon-button refresh-button" type="button" title="Refresh CAD data" aria-label="Refresh CAD data">↻</button>
-          <div class="user-chip"><img id="userAvatar" alt="" hidden><span id="userInitials" class="avatar-fallback">A</span><span id="userName">Operator</span></div>
+          <div class="user-chip"><img id="userAvatar" alt="" hidden><span id="userInitials" class="avatar-fallback">A</span><span id="userName"></span></div>
           <button id="logoutButton" class="icon-button" type="button" title="Sign out" aria-label="Sign out">↗</button>
         </div>
       </header>
@@ -75,7 +75,7 @@
             <section class="section-block unit-section">
               <div class="section-heading"><div><p class="eyebrow">FIELD ROSTER</p><h2>Units</h2></div></div>
               <form id="unitForm" class="unit-form">
-                <label>Callsign<input id="callsignInput" maxlength="24" placeholder="e.g. 2-Adam-14" autocomplete="off"></label>
+                <label>Callsign<input id="callsignInput" maxlength="24" placeholder="Enter callsign" autocomplete="off"></label>
                 <label>Status<select id="unitStatusSelect"><option value="available">Available</option><option value="busy">Busy</option><option value="on_scene">On scene</option><option value="off_duty">Off duty</option></select></label>
                 <button class="button button-secondary" type="submit">Update unit</button>
               </form>
@@ -113,7 +113,7 @@
           </div>
           <section id="commandSection" class="section-block command-section" hidden>
             <div class="section-heading"><div><p class="eyebrow">AUTHORIZED OPERATOR</p><h2>ER:LC command</h2></div></div>
-            <form id="commandForm" class="command-form"><label class="visually-hidden" for="commandInput">ER:LC command</label><input id="commandInput" maxlength="200" placeholder=":h Dispatch message" autocomplete="off" required><button class="button button-danger" type="submit">Send command</button></form>
+            <form id="commandForm" class="command-form"><label class="visually-hidden" for="commandInput">ER:LC command</label><input id="commandInput" maxlength="200" placeholder="Enter ER:LC command" autocomplete="off" required><button class="button button-danger" type="submit">Send command</button></form>
           </section>
         </section>
 
@@ -130,17 +130,17 @@
           <section id="settingsReadOnly" class="section-block" hidden><p class="empty-state">Only a server manager can change CAD access roles.</p></section>
         </section>
       </div>
-      <footer class="footer"><span>AETHER CAD</span><span id="footerServer">Select a server</span><span>OPERATIONS CONSOLE</span></footer>
+      <footer class="footer"><span>AETHER CAD</span><span id="footerServer">No server selected</span><span>OPERATIONS CONSOLE</span></footer>
     </section>
   </div>
 
   <dialog id="callDialog" class="call-dialog">
     <form id="callForm" method="dialog">
       <div class="dialog-heading"><div><p class="eyebrow">DISPATCH ENTRY</p><h2>New call</h2></div><button id="closeDialogButton" class="icon-button" type="button" aria-label="Close">×</button></div>
-      <label>Incident title<input id="callTitle" maxlength="100" required placeholder="Traffic stop"></label>
-      <label>Location<input id="callLocation" maxlength="100" required placeholder="Route 55 / Westbound"></label>
+      <label>Incident title<input id="callTitle" maxlength="100" required placeholder="Incident title"></label>
+      <label>Location<input id="callLocation" maxlength="100" required placeholder="Street or postal location"></label>
       <label>Priority<select id="callPriority"><option value="normal">Routine</option><option value="urgent">Urgent</option></select></label>
-      <label>Details<textarea id="callDetails" maxlength="1000" rows="4" placeholder="Additional information"></textarea></label>
+      <label>Details<textarea id="callDetails" maxlength="1000" rows="4" placeholder="Caller or incident details"></textarea></label>
       <div class="dialog-actions"><button id="cancelCallButton" class="button button-secondary" type="button">Cancel</button><button class="button button-primary" type="submit">Create call</button></div>
     </form>
   </dialog>

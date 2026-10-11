@@ -20,6 +20,13 @@ function showNotice(message, isError = false) {
   appNotice.hidden = !message;
 }
 
+function setNavStatus(state) {
+  const labels = { live: 'LIVE', stale: 'STALE', offline: 'OFFLINE', idle: 'NO DATA', error: 'ERROR' };
+  const dot = document.querySelector('#navStatusDot');
+  dot.className = `live-dot ${state}`;
+  document.querySelector('#navStatusLabel').textContent = labels[state] || labels.idle;
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     credentials: 'same-origin',
@@ -143,6 +150,7 @@ function renderPlayers(players, syncedAt, serverOnline, staff, events) {
   const isFresh = Boolean(syncedAt && Date.now() - syncedAt <= 90_000);
   const statusLabel = serverOnline === false ? 'Offline' : !syncedAt ? 'Waiting for sync' : isFresh ? 'Live tracking' : 'Snapshot stale';
   const onlineStaff = players.filter((player) => player.isStaff).length;
+  setNavStatus(serverOnline === false ? 'offline' : !syncedAt ? 'idle' : isFresh ? 'live' : 'stale');
   document.querySelector('#playerCount').textContent = syncedAt ? players.length : '—';
   document.querySelector('#onlinePlayerCount').textContent = syncedAt ? players.length : '—';
   document.querySelector('#onlineStaffCount').textContent = syncedAt ? onlineStaff : '—';
@@ -267,6 +275,7 @@ async function refreshData() {
     document.querySelector('#syncIndicator').classList.add('error');
     document.querySelector('#syncIndicator').classList.remove('ready');
     document.querySelector('#lastUpdateLabel').textContent = 'Refresh failed';
+    setNavStatus('error');
     showNotice(error.message, true);
   } finally {
     refreshInFlight = false;
@@ -358,7 +367,7 @@ document.querySelector('#callForm').addEventListener('submit', async (event) => 
     document.querySelector('#callDialog').close();
     event.currentTarget.reset();
     await refreshData();
-  } catch (error) { showNotice(error.message, true); }
+  } catch (error) { setNavStatus('error'); showNotice(error.message, true); }
 });
 document.querySelector('#callsList').addEventListener('click', handleAction);
 document.querySelector('#callSearch').addEventListener('input', () => renderCalls(currentData?.state.calls || []));
