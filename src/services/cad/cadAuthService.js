@@ -4,6 +4,7 @@ const SESSION_COOKIE = 'aether_cad_session';
 const STATE_COOKIE = 'aether_cad_oauth_state';
 const SESSION_TTL_MS = 6 * 60 * 60 * 1000;
 const STATE_TTL_MS = 10 * 60 * 1000;
+const MAX_ACTIVE_SESSIONS = 2000;
 
 function base64url(value) {
     return Buffer.from(value).toString('base64url');
@@ -128,8 +129,14 @@ export class CadAuthService {
         const guilds = await guildsResponse.json();
         if (!user?.id || !Array.isArray(guilds)) throw new Error('Discord returned an invalid CAD account response.');
 
+        const now = Date.now();
+        for (const [sessionId, session] of this.sessions) {
+            if (session.expiresAt <= now) this.sessions.delete(sessionId);
+        }
+        if (this.sessions.size >= MAX_ACTIVE_SESSIONS) throw new Error('CAD is temporarily at capacity. Try again later.');
+
         const sessionId = randomBytes(32).toString('base64url');
-        const expiresAt = Date.now() + SESSION_TTL_MS;
+        const expiresAt = now + SESSION_TTL_MS;
         const profile = {
             id: user.id,
             username: user.global_name || user.username || 'Discord user',

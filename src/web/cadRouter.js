@@ -1,20 +1,22 @@
 import express from 'express';
+import { rateLimit } from 'express-rate-limit';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logger } from '../utils/logger.js';
-import { getServerStatus, runServerCommand } from '../services/erlc/erlcService.js';
+import { runServerCommand } from '../services/erlc/erlcService.js';
 import {
     createCadCall,
     getCadGuildAccess,
     getCadState,
+    isAssignableCadRole,
     isValidUnitStatus,
     listCadGuildAccess,
     recordCadCommand,
-    saveCadPlayers,
     setCadGuildConfig,
     updateCadCall,
     updateCadUnit,
 } from '../services/cad/cadService.js';
+import { syncCadGuild } from '../services/cad/cadTrackingService.js';
 import { CadAuthService } from '../services/cad/cadAuthService.js';
 
 const router = express.Router();
@@ -28,6 +30,13 @@ const auth = new CadAuthService({
     redirectUri: process.env.CAD_REDIRECT_URI,
     sessionSecret: process.env.CAD_SESSION_SECRET,
     secureCookies: process.env.NODE_ENV === 'production',
+});
+const commandRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 12,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: { error: 'ER:LC command limit reached. Try again shortly.' },
 });
 
 router.use((req, res, next) => {
@@ -44,6 +53,13 @@ router.use((req, res, next) => {
 router.get('/', (req, res) => res.sendFile(path.join(webDirectory, 'cad', 'index.html')));
 router.use('/assets', express.static(path.join(webDirectory, 'cad', 'assets'), { fallthrough: false, maxAge: '1h' }));
 router.use('/api', express.json({ limit: '32kb', strict: true }));
+router.use('/auth', rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: { error: 'Too many authentication attempts' },
+}));
 
 router.get('/auth/config', (req, res) => res.json({ enabled: auth.configured }));
 
@@ -133,6 +149,7 @@ router.get('/api/guilds/:guildId', async (req, res) => {
     const access = await requireGuild(req, res);
     if (!access) return;
     const state = await getCadState(req.params.guildId);
+    if (!access.isManager) state.audit = [];
     return res.json({
         guild: { id: access.guild.id, name: access.guild.name, icon: access.guild.iconURL({ size: 64 }) },
         permissions: { manager: access.isManager, dispatch: access.canDispatch, commands: access.canCommand },
@@ -156,7 +173,7 @@ router.put('/api/guilds/:guildId/settings', async (req, res) => {
     if (!access) return;
     const { dispatchRoleIds, commandRoleIds } = req.body || {};
     const roleLists = [dispatchRoleIds, commandRoleIds];
-    if (roleLists.some((list) => !Array.isArray(list) || list.length > 20 || list.some((id) => typeof id !== 'string' || !idPattern.test(id) || !access.guild.roles.cache.has(id)))) {
+    if (roleLists.some((list) => !Array.isArray(list) || list.length > 20 || list.some((id) => typeof id !== 'string' || !idPattern.test(id) || !isAssignableCadRole(access.guild, id)))) {
         return res.status(400).json({ error: 'Choose valid roles from this Discord server.' });
     }
     try {
@@ -171,17 +188,12 @@ router.post('/api/guilds/:guildId/sync-players', async (req, res) => {
     const access = await requireGuild(req, res, 'dispatch');
     if (!access) return;
     try {
-        const result = await getServerStatus(req.params.guildId, ['Players', 'Staff']);
-        const players = (result.Players || []).slice(0, 100).map((player) => ({
-            player: String(player.Player || '').slice(0, 64),
-            team: String(player.Team || '').slice(0, 48),
-            callsign: String(player.Callsign || '').slice(0, 24),
-            wantedStars: Number(player.WantedStars) || 0,
-        }));
-        const sync = await saveCadPlayers(req.params.guildId, req.cadSession.profile, players);
-        return res.json({ players, ...sync });
+        const result = await syncCadGuild(req.params.guildId, req.cadSession.profile);
+        if (!result) return res.status(409).json({ error: 'Connect ER:LC with `/erlc setup` before syncing players.' });
+        if (result.skipped) return res.status(202).json({ syncing: true });
+        return res.json(result);
     } catch (error) {
-        return res.status(502).json({ error: error.userMessage || 'ER:LC player sync failed. Check that the private server is online.' });
+        return res.status(502).json({ error: error.userMessage || 'ER:LC player sync failed. Check the private-server connection.' });
     }
 });
 
@@ -206,15 +218,23 @@ router.patch('/api/guilds/:guildId/calls/:callId', async (req, res) => {
     const access = await requireGuild(req, res, 'dispatch');
     if (!access) return;
     const { status, assignedUnitIds } = req.body || {};
+    if (status === undefined && assignedUnitIds === undefined) {
+        return res.status(400).json({ error: 'Provide a call status or unit assignment to update.' });
+    }
     if ((status !== undefined && !callStatuses.has(status))
         || (assignedUnitIds !== undefined && (!Array.isArray(assignedUnitIds) || assignedUnitIds.length > 20 || assignedUnitIds.some((id) => !idPattern.test(id))))) {
         return res.status(400).json({ error: 'Invalid call status or unit assignment.' });
     }
-    if (assignedUnitIds) {
+    let existingCall;
+    if (assignedUnitIds !== undefined || status === 'assigned') {
         const state = await getCadState(req.params.guildId);
+        existingCall = state.calls.find((call) => call.id === req.params.callId);
+        if (!existingCall) return res.status(404).json({ error: 'CAD call not found.' });
         const unitIds = new Set(state.units.map((unit) => unit.userId));
-        if (assignedUnitIds.some((id) => !unitIds.has(id))) return res.status(400).json({ error: 'Assignments must reference CAD units.' });
+        if (assignedUnitIds?.some((id) => !unitIds.has(id))) return res.status(400).json({ error: 'Assignments must reference CAD units.' });
     }
+    const effectiveAssignments = assignedUnitIds ?? existingCall?.assignedUnitIds;
+    if (status === 'assigned' && !effectiveAssignments?.length) return res.status(400).json({ error: 'Assign at least one unit before marking a call assigned.' });
     try {
         const call = await updateCadCall(req.params.guildId, req.cadSession.profile, req.params.callId, { status, assignedUnitIds });
         if (!call) return res.status(404).json({ error: 'CAD call not found.' });
@@ -243,7 +263,7 @@ router.put('/api/guilds/:guildId/units/me', async (req, res) => {
     }
 });
 
-router.post('/api/guilds/:guildId/commands', async (req, res) => {
+router.post('/api/guilds/:guildId/commands', commandRateLimit, async (req, res) => {
     const access = await requireGuild(req, res, 'command');
     if (!access) return;
     const command = req.body?.command;

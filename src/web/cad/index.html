@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#152521">
+  <meta name="theme-color" content="#49359B">
   <title>Aether CAD</title>
   <link rel="stylesheet" href="/cad/assets/styles.css">
   <script src="/cad/assets/app.js" type="module"></script>
@@ -25,9 +25,9 @@
     <aside class="rail">
       <a class="wordmark" href="/cad/" aria-label="Aether CAD home">A<span>.</span></a>
       <nav class="rail-nav" aria-label="CAD sections">
-        <button class="rail-link active" data-view="dispatch" title="Dispatch" aria-label="Dispatch"><span class="rail-icon">D</span><span>Dispatch</span></button>
-        <button class="rail-link" data-view="erlc" title="ER:LC" aria-label="ER:LC"><span class="rail-icon">E</span><span>ER:LC</span></button>
-        <button class="rail-link" data-view="settings" title="Settings" aria-label="Settings"><span class="rail-icon">S</span><span>Settings</span></button>
+        <button class="rail-link active" data-view="dispatch" title="Dispatch" aria-label="Dispatch"><span class="rail-icon">⌖</span><span>Dispatch</span></button>
+        <button class="rail-link" data-view="erlc" title="ER:LC" aria-label="ER:LC"><span class="rail-icon">◉</span><span>ER:LC</span></button>
+        <button class="rail-link" data-view="settings" title="Settings" aria-label="Settings"><span class="rail-icon">⚙</span><span>Settings</span></button>
       </nav>
       <div class="rail-bottom"><span class="live-dot"></span><span>LIVE</span></div>
     </aside>
@@ -37,6 +37,8 @@
         <div class="breadcrumb"><span>AETHER</span><span class="crumb-divider">/</span><strong>CAD</strong></div>
         <div class="topbar-actions">
           <label class="server-select-wrap" for="serverSelect"><span>SERVER</span><select id="serverSelect" aria-label="Select Discord server"></select></label>
+          <div class="sync-state"><i id="syncIndicator" class="status-dot"></i><span id="lastUpdateLabel">Connecting</span></div>
+          <button id="refreshButton" class="icon-button refresh-button" type="button" title="Refresh CAD data" aria-label="Refresh CAD data">↻</button>
           <div class="user-chip"><img id="userAvatar" alt="" hidden><span id="userInitials" class="avatar-fallback">A</span><span id="userName">Operator</span></div>
           <button id="logoutButton" class="icon-button" type="button" title="Sign out" aria-label="Sign out">↗</button>
         </div>
@@ -53,13 +55,22 @@
             <div class="metric"><span>OPEN CALLS</span><strong id="openCallCount">0</strong></div>
             <div class="metric"><span>UNITS ON DUTY</span><strong id="unitCount">0</strong></div>
             <div class="metric"><span>ER:LC PLAYERS</span><strong id="playerCount">—</strong></div>
-            <div class="metric metric-status"><span>SERVER LINK</span><strong id="serverLinkStatus"><i class="status-dot"></i> Not synced</strong></div>
+            <div class="metric"><span>URGENT CALLS</span><strong id="urgentCallCount">0</strong></div>
           </div>
 
           <div class="dispatch-grid">
             <section class="section-block call-section">
               <div class="section-heading"><div><p class="eyebrow">ACTIVE INCIDENTS</p><h2>Call queue</h2></div><span id="callQueueCount" class="count-label">0</span></div>
-              <div id="callsList" class="call-list"><p class="empty-state">No active calls.</p></div>
+              <div class="queue-toolbar">
+                <label class="search-field"><span aria-hidden="true">⌕</span><input id="callSearch" type="search" placeholder="Search calls or locations" aria-label="Search calls or locations"></label>
+                <div id="callFilters" class="segmented-control" role="group" aria-label="Filter calls">
+                  <button class="filter-button active" type="button" data-filter="active">Active</button>
+                  <button class="filter-button" type="button" data-filter="open">Open</button>
+                  <button class="filter-button" type="button" data-filter="assigned">Assigned</button>
+                  <button class="filter-button" type="button" data-filter="closed">Closed</button>
+                </div>
+              </div>
+              <div id="callsList" class="call-list" aria-live="polite"><p class="empty-state">No active calls.</p></div>
             </section>
             <section class="section-block unit-section">
               <div class="section-heading"><div><p class="eyebrow">FIELD ROSTER</p><h2>Units</h2></div></div>
@@ -78,10 +89,28 @@
             <div><p class="eyebrow">LIVE GAME CONNECTION</p><h1>ER:LC</h1></div>
             <button id="syncPlayersButton" class="button button-primary" type="button"><span aria-hidden="true">↻</span> Sync players</button>
           </div>
-          <section class="section-block player-section">
-            <div class="section-heading"><div><p class="eyebrow">PRIVATE SERVER</p><h2>Connected players</h2></div><span id="playerSyncTime" class="muted small">Not synced</span></div>
-            <div class="table-scroll"><table><thead><tr><th>PLAYER</th><th>TEAM</th><th>CALLSIGN</th><th>WANTED</th></tr></thead><tbody id="playersTable"><tr><td colspan="4" class="empty-state">Sync to load ER:LC players.</td></tr></tbody></table></div>
-          </section>
+          <div class="tracker-strip">
+            <div class="tracker-stat"><span>IN GAME</span><strong id="onlinePlayerCount">—</strong></div>
+            <div class="tracker-stat"><span>STAFF ONLINE</span><strong id="onlineStaffCount">—</strong></div>
+            <div class="tracker-stat tracker-state"><span>SERVER</span><strong id="serverLinkStatus"><i class="status-dot"></i> Waiting for sync</strong></div>
+            <div class="tracker-stat tracker-state"><span>LAST SNAPSHOT</span><strong id="playerSyncTime">Not synced</strong></div>
+          </div>
+          <div class="erlc-grid">
+            <section class="section-block player-section">
+              <div class="section-heading"><div><p class="eyebrow">LIVE PRIVATE SERVER</p><h2>Player roster</h2></div><span id="rosterCount" class="count-label">0</span></div>
+              <div class="table-scroll"><table><thead><tr><th>PLAYER</th><th>TEAM / ACCESS</th><th>CALLSIGN</th><th>LOCATION</th><th>SESSION</th><th>WANTED</th></tr></thead><tbody id="playersTable"><tr><td colspan="6" class="empty-state">Waiting for the first ER:LC sync.</td></tr></tbody></table></div>
+            </section>
+            <aside class="erlc-aside">
+              <section class="section-block staff-section">
+                <div class="section-heading"><div><p class="eyebrow">SERVER ROSTER</p><h2>Staff</h2></div></div>
+                <div id="staffRosterList" class="staff-roster"><p class="empty-state">Staff data appears after sync.</p></div>
+              </section>
+              <section class="section-block activity-section">
+                <div class="section-heading"><div><p class="eyebrow">PLAYER MOVEMENT</p><h2>Join / leave activity</h2></div></div>
+                <div id="playerActivityList" class="activity-list"><p class="empty-state">No player activity recorded.</p></div>
+              </section>
+            </aside>
+          </div>
           <section id="commandSection" class="section-block command-section" hidden>
             <div class="section-heading"><div><p class="eyebrow">AUTHORIZED OPERATOR</p><h2>ER:LC command</h2></div></div>
             <form id="commandForm" class="command-form"><label class="visually-hidden" for="commandInput">ER:LC command</label><input id="commandInput" maxlength="200" placeholder=":h Dispatch message" autocomplete="off" required><button class="button button-danger" type="submit">Send command</button></form>

@@ -11,6 +11,8 @@ let currentUser = null;
 let currentGuild = null;
 let currentData = null;
 let guilds = [];
+let currentCallFilter = 'active';
+let refreshInFlight = false;
 
 function showNotice(message, isError = false) {
   appNotice.textContent = message;
@@ -38,6 +40,17 @@ function escapeHtml(value) {
 function formatTime(timestamp) {
   if (!timestamp) return '—';
   return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(timestamp);
+}
+
+function formatDuration(durationMs) {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return '—';
+  const totalMinutes = Math.floor(durationMs / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 function setView(name) {
@@ -74,28 +87,37 @@ function renderGuildOptions() {
 }
 
 function renderCalls(calls) {
-  const activeCalls = calls.filter((call) => call.status !== 'closed').sort((left, right) => {
+  const activeCalls = calls.filter((call) => call.status !== 'closed');
+  document.querySelector('#urgentCallCount').textContent = activeCalls.filter((call) => call.priority === 'urgent').length;
+  const query = document.querySelector('#callSearch').value.trim().toLowerCase();
+  const filteredCalls = calls.filter((call) => {
+    if (currentCallFilter === 'active' && call.status === 'closed') return false;
+    if (currentCallFilter !== 'active' && call.status !== currentCallFilter) return false;
+    if (!query) return true;
+    return [call.title, call.location, call.details, call.createdByName, ...(call.assignedUnitIds || [])]
+      .some((value) => String(value || '').toLowerCase().includes(query));
+  }).sort((left, right) => {
     if (left.priority !== right.priority) return left.priority === 'urgent' ? -1 : 1;
     return left.createdAt - right.createdAt;
   });
   document.querySelector('#openCallCount').textContent = activeCalls.length;
-  document.querySelector('#callQueueCount').textContent = activeCalls.length;
+  document.querySelector('#callQueueCount').textContent = filteredCalls.length;
   const list = document.querySelector('#callsList');
-  if (!activeCalls.length) {
-    list.innerHTML = '<p class="empty-state">No active calls.</p>';
+  if (!filteredCalls.length) {
+    list.innerHTML = `<p class="empty-state">${query ? 'No calls match this search.' : 'No calls in this view.'}</p>`;
     return;
   }
-  list.innerHTML = activeCalls.map((call) => `
-    <article class="call-row ${call.priority === 'urgent' ? 'urgent' : ''}">
+  list.innerHTML = filteredCalls.map((call) => `
+    <article class="call-row ${call.priority === 'urgent' ? 'urgent' : ''} ${call.status === 'closed' ? 'closed' : ''}">
       <span class="call-bar" aria-hidden="true"></span>
       <div class="call-main">
         <h3 class="call-title">${escapeHtml(call.title)}</h3>
-        <div class="call-meta"><span>${escapeHtml(call.location)}</span><span>${formatTime(call.createdAt)}</span><span>${call.status === 'assigned' ? 'Assigned' : 'Open'}</span></div>
+        <div class="call-meta"><span>${escapeHtml(call.location)}</span><span>${formatTime(call.createdAt)}</span><span>${call.status === 'assigned' ? 'Assigned' : escapeHtml(call.status)}</span></div>
         ${call.details ? `<p class="call-details">${escapeHtml(call.details)}</p>` : ''}
       </div>
       <div class="call-actions">
         ${call.status === 'open' ? `<button class="mini-button" data-action="assign-me" data-id="${escapeHtml(call.id)}">Assign me</button>` : ''}
-        <button class="mini-button close-call" data-action="close-call" data-id="${escapeHtml(call.id)}">Close</button>
+        ${call.status === 'closed' ? `<button class="mini-button" data-action="reopen-call" data-id="${escapeHtml(call.id)}">Reopen</button>` : `<button class="mini-button close-call" data-action="close-call" data-id="${escapeHtml(call.id)}">Close</button>`}
       </div>
     </article>`).join('');
 }
@@ -117,16 +139,69 @@ function renderUnits(units) {
   }
 }
 
-function renderPlayers(players, syncedAt) {
+function renderPlayers(players, syncedAt, serverOnline, staff, events) {
+  const isFresh = Boolean(syncedAt && Date.now() - syncedAt <= 90_000);
+  const statusLabel = serverOnline === false ? 'Offline' : !syncedAt ? 'Waiting for sync' : isFresh ? 'Live tracking' : 'Snapshot stale';
+  const onlineStaff = players.filter((player) => player.isStaff).length;
   document.querySelector('#playerCount').textContent = syncedAt ? players.length : '—';
-  document.querySelector('#playerSyncTime').textContent = syncedAt ? `Last sync ${formatTime(syncedAt)}` : 'Not synced';
-  document.querySelector('#serverLinkStatus').innerHTML = `<i class="status-dot ${syncedAt ? 'ready' : ''}"></i> ${syncedAt ? 'Connected' : 'Not synced'}`;
+  document.querySelector('#onlinePlayerCount').textContent = syncedAt ? players.length : '—';
+  document.querySelector('#onlineStaffCount').textContent = syncedAt ? onlineStaff : '—';
+  document.querySelector('#rosterCount').textContent = syncedAt ? players.length : '0';
+  document.querySelector('#playerSyncTime').textContent = syncedAt ? formatTime(syncedAt) : 'Not synced';
+  document.querySelector('#serverLinkStatus').innerHTML = `<i class="status-dot ${serverOnline === false ? 'offline' : isFresh ? 'ready' : ''}"></i> ${statusLabel}`;
   const table = document.querySelector('#playersTable');
   if (!players.length) {
-    table.innerHTML = `<tr><td colspan="4" class="empty-state">${syncedAt ? 'No players in the ER:LC server.' : 'Sync to load ER:LC players.'}</td></tr>`;
-    return;
+    table.innerHTML = `<tr><td colspan="6" class="empty-state">${syncedAt ? serverOnline === false ? 'The private server is offline.' : 'No players in the ER:LC server.' : 'Waiting for the first ER:LC sync.'}</td></tr>`;
+  } else {
+    table.innerHTML = players.slice().sort((left, right) => {
+      if (left.isStaff !== right.isStaff) return left.isStaff ? -1 : 1;
+      return left.player.localeCompare(right.player);
+    }).map((player) => {
+      const robloxId = String(player.robloxId || '');
+      const playerName = escapeHtml(player.player || 'Unknown player');
+      const profile = /^\d+$/.test(robloxId)
+        ? `<a class="player-profile" href="https://www.roblox.com/users/${encodeURIComponent(robloxId)}/profile" target="_blank" rel="noopener noreferrer">${playerName}</a>`
+        : `<strong>${playerName}</strong>`;
+      const staffBadge = player.isStaff ? `<span class="staff-badge">${escapeHtml(player.staffRole || 'Staff')}</span>` : '';
+      const sessionDuration = Date.now() - (player.firstSeenAt || syncedAt || Date.now());
+      const coordinates = Number.isFinite(player.locationX) && Number.isFinite(player.locationZ)
+        ? `X ${player.locationX.toFixed(0)} / Z ${player.locationZ.toFixed(0)}`
+        : '';
+      return `<tr class="${player.isStaff ? 'player-is-staff' : ''}">
+        <td>${profile}${staffBadge}<small class="player-id">${robloxId ? `ID ${escapeHtml(robloxId)}` : ''}</small></td>
+        <td><strong>${escapeHtml(player.team || 'Unknown')}</strong><small class="player-permission">${escapeHtml(player.permission || 'Normal')}</small></td>
+        <td>${escapeHtml(player.callsign || '—')}</td>
+        <td>${escapeHtml(player.location || 'Location unavailable')}<small class="player-coordinates">${coordinates}</small></td>
+        <td>${formatDuration(sessionDuration)}</td>
+        <td class="${player.wantedStars > 0 ? 'wanted' : ''}">${player.wantedStars > 0 ? `${escapeHtml(player.wantedStars)} ★` : '—'}</td>
+      </tr>`;
+    }).join('');
   }
-  table.innerHTML = players.map((player) => `<tr><td><strong>${escapeHtml(player.player || 'Unknown')}</strong></td><td>${escapeHtml(player.team || '—')}</td><td>${escapeHtml(player.callsign || '—')}</td><td class="${player.wantedStars > 0 ? 'wanted' : ''}">${player.wantedStars > 0 ? `${escapeHtml(player.wantedStars)} ★` : '—'}</td></tr>`).join('');
+
+  const staffList = document.querySelector('#staffRosterList');
+  if (!staff.length) {
+    staffList.innerHTML = '<p class="empty-state">No configured ER:LC staff found.</p>';
+  } else {
+    staffList.innerHTML = staff.slice().sort((left, right) => left.role.localeCompare(right.role) || left.username.localeCompare(right.username)).map((member) => `
+      <div class="staff-row"><div><strong>${escapeHtml(member.username)}</strong><small>${escapeHtml(member.robloxId)}</small></div><span class="staff-badge">${escapeHtml(member.role)}</span></div>`).join('');
+  }
+
+  const activityList = document.querySelector('#playerActivityList');
+  const recentEvents = events.slice().sort((left, right) => right.at - left.at).slice(0, 24);
+  if (!recentEvents.length) {
+    activityList.innerHTML = '<p class="empty-state">Join and leave events will appear here.</p>';
+  } else {
+    activityList.innerHTML = recentEvents.map((event) => {
+      const joined = event.type === 'joined';
+      const action = joined ? 'Joined' : 'Left';
+      const detail = joined ? (event.team || 'Entered server') : `Session ${formatDuration(event.durationMs)}`;
+      return `<div class="activity-event ${joined ? 'joined' : 'left'}">
+        <span class="activity-mark" aria-hidden="true">${joined ? '+' : '−'}</span>
+        <div class="activity-copy"><strong>${escapeHtml(event.player)}</strong><small>${action} · ${escapeHtml(detail)}</small></div>
+        <time>${formatTime(event.at)}</time>
+      </div>`;
+    }).join('');
+  }
 }
 
 function renderSettings(data) {
@@ -157,8 +232,11 @@ function renderData(data) {
   document.querySelector('#syncPlayersButton').hidden = !data.permissions.dispatch;
   renderCalls(data.state.calls || []);
   renderUnits(data.state.units || []);
-  renderPlayers(data.state.players || [], data.state.playerSyncAt);
+  renderPlayers(data.state.players || [], data.state.playerSyncAt, data.state.serverOnline, data.state.staff || [], data.state.playerEvents || []);
   renderSettings(data);
+  document.querySelector('#syncIndicator').classList.add('ready');
+  document.querySelector('#syncIndicator').classList.remove('error');
+  document.querySelector('#lastUpdateLabel').textContent = `Updated ${formatTime(Date.now())}`;
   if (!data.permissions.dispatch && data.permissions.commands) setView('erlc');
   if (data.permissions.manager && !data.permissions.dispatch && !data.permissions.commands) setView('settings');
 }
@@ -179,11 +257,20 @@ async function loadGuildData() {
 }
 
 async function refreshData() {
+  if (refreshInFlight || !currentGuild) return;
+  refreshInFlight = true;
+  const refreshButton = document.querySelector('#refreshButton');
   try {
     const data = await api(`/cad/api/guilds/${encodeURIComponent(currentGuild)}`);
     renderData(data);
   } catch (error) {
+    document.querySelector('#syncIndicator').classList.add('error');
+    document.querySelector('#syncIndicator').classList.remove('ready');
+    document.querySelector('#lastUpdateLabel').textContent = 'Refresh failed';
     showNotice(error.message, true);
+  } finally {
+    refreshInFlight = false;
+    refreshButton.disabled = false;
   }
 }
 
@@ -203,6 +290,8 @@ async function handleAction(action) {
         method: 'PATCH',
         body: JSON.stringify({ status: 'assigned', assignedUnitIds: [...new Set([...(call?.assignedUnitIds || []), currentUser.id])] }),
       });
+    } else if (target.dataset.action === 'reopen-call') {
+      await api(`/cad/api/guilds/${currentGuild}/calls/${callId}`, { method: 'PATCH', body: JSON.stringify({ status: 'open' }) });
     }
     await refreshData();
   } catch (error) {
@@ -272,6 +361,17 @@ document.querySelector('#callForm').addEventListener('submit', async (event) => 
   } catch (error) { showNotice(error.message, true); }
 });
 document.querySelector('#callsList').addEventListener('click', handleAction);
+document.querySelector('#callSearch').addEventListener('input', () => renderCalls(currentData?.state.calls || []));
+document.querySelector('#callFilters').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-filter]');
+  if (!button) return;
+  currentCallFilter = button.dataset.filter;
+  for (const filterButton of document.querySelectorAll('.filter-button')) {
+    filterButton.classList.toggle('active', filterButton === button);
+  }
+  renderCalls(currentData?.state.calls || []);
+});
+document.querySelector('#refreshButton').addEventListener('click', refreshData);
 document.querySelector('#unitForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
@@ -333,4 +433,10 @@ async function loadRoles() {
 }
 
 document.querySelector('[data-view="settings"]').addEventListener('click', loadRoles);
+setInterval(() => {
+  if (!appView.hidden && document.visibilityState === 'visible') refreshData();
+}, 15000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !appView.hidden) refreshData();
+});
 initialize();

@@ -2,6 +2,8 @@
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import express from 'express';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 import cron from 'node-cron';
 
 import config from './config/application.js';
@@ -15,6 +17,7 @@ import { loadCommands, registerCommands as registerSlashCommands } from './handl
 import { runSafeTask, handleTaskError, ErrorCodes } from './utils/errorHandler.js';
 import { initializeMusic } from './services/music/riffySetup.js';
 import { shutdownMusic } from './services/music/playerHandler.js';
+import { syncAllCadGuilds } from './services/cad/cadTrackingService.js';
 import { createCadRouter } from './web/cadRouter.js';
 import pkg from '../package.json' with { type: 'json' };
 import { EXPECTED_SCHEMA_VERSION, EXPECTED_SCHEMA_LABEL } from './config/database/schemaVersion.js';
@@ -115,48 +118,46 @@ class AetherClient extends Client {
     const configuredPort = Number(this.config.api?.port || process.env.PORT || 3000);
     const maxPortRetryAttempts = Number(process.env.PORT_RETRY_ATTEMPTS || 5);
     const host = process.env.WEB_HOST || '0.0.0.0';
-    const corsOrigin = this.config.api?.cors?.origin || '*';
+    const corsOrigin = this.config.api?.cors?.origin || [];
+    const allowedOrigins = (Array.isArray(corsOrigin) ? corsOrigin : [corsOrigin])
+      .filter((origin) => typeof origin === 'string' && origin.length > 0 && origin !== '*');
     app.disable('x-powered-by');
+    app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
     
     app.use((req, res, next) => {
-      const allowedOrigins = Array.isArray(corsOrigin) ? corsOrigin : [corsOrigin];
       const origin = req.headers.origin;
-      
-      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-        res.header('Access-Control-Allow-Origin', origin || '*');
+
+      if (origin && allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.vary('Origin');
       }
-      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      
+
       if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
+        if (!origin || !allowedOrigins.includes(origin)) return res.sendStatus(403);
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        return res.sendStatus(204);
       }
       next();
     });
 
-    const requestCounts = new Map();
     const windowMs = this.config.api?.rateLimit?.windowMs || 60000;
     const maxRequests = this.config.api?.rateLimit?.max || 100;
-    
-    app.use((req, res, next) => {
-      const ip = req.ip;
-      const now = Date.now();
-      const windowStart = now - windowMs;
-      
-      if (!requestCounts.has(ip)) {
-        requestCounts.set(ip, []);
-      }
-      
-      const times = requestCounts.get(ip).filter(t => t > windowStart);
-      
-      if (times.length >= maxRequests) {
-        return res.status(429).json({ error: 'Too many requests' });
-      }
-      
-      times.push(now);
-      requestCounts.set(ip, times);
-      next();
-    });
+    app.use(rateLimit({
+      windowMs,
+      limit: maxRequests,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      message: { error: 'Too many requests' },
+    }));
+
+    app.use('/cad/auth', rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 20,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      message: { error: 'Too many authentication attempts' },
+    }));
 
     app.use('/cad', createCadRouter(this));
 
@@ -255,6 +256,8 @@ class AetherClient extends Client {
     cron.schedule('0 6 * * *', runSafeTask('birthday_check', () => checkBirthdays(this)));
     cron.schedule('* * * * *', runSafeTask('giveaway_check', () => checkGiveaways(this)));
     cron.schedule('*/15 * * * *', runSafeTask('counter_update', () => this.updateAllCounters()));
+    cron.schedule('*/30 * * * * *', runSafeTask('cad_player_tracking', () => syncAllCadGuilds(this)));
+    void syncAllCadGuilds(this);
   }
 
   async updateAllCounters() {

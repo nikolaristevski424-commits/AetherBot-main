@@ -46,7 +46,8 @@ Aether offers a complete suite of tools for Discord server management and commun
 
 ### Aether CAD
 - **Dispatch Board** - Create and manage calls and unit status
-- **ER:LC Sync** - Bring private-server player data into CAD
+- **Live ER:LC Tracking** - Refresh players every 30 seconds with team, staff role, callsign, location, wanted status, and session time
+- **Join/Leave History** - Preserve ER:LC movement events with timestamps
 - **Role-Gated Commands** - Send audited ER:LC commands from CAD
 
 ### Server Stats
@@ -105,7 +106,7 @@ The CAD dashboard is served by the bot at `/cad`. To enable Discord sign-in:
 1. In the Discord Developer Portal, add `https://your-domain.example/cad/auth/callback` as an OAuth2 redirect URI and copy the application OAuth2 client secret.
 2. Set `CAD_DISCORD_CLIENT_SECRET`, `CAD_REDIRECT_URI` (the exact public callback URL), a stable random `CAD_SESSION_SECRET`, and a separate stable random `ERLC_KEY_ENCRYPTION_SECRET`, each at least 32 characters. Generate each with `node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"`.
 3. Serve the bot over HTTPS in production, then open `https://your-domain.example/cad` and sign in with Discord. Server managers can assign separate dispatch and ER:LC command roles in CAD Settings.
-4. Connect the ER:LC private server with `/erlc setup`. CAD player sync and commands use that guild's existing ER:LC connection.
+4. Connect the ER:LC private server with `/erlc setup`. CAD polls the documented Players, Staff, and JoinLogs API fields every 30 seconds; the manual Sync action is also available in the dashboard.
 
 Keep both secrets stable and backed up. Replacing the CAD session secret invalidates active sessions; replacing the ER:LC encryption secret requires migrating stored keys. Existing plaintext ER:LC keys are encrypted the next time the bot reads their configuration. OAuth secrets belong in the deployment environment, never in source control.
 
