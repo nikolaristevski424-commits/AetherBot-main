@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#152521">
+  <title>Aether CAD</title>
+  <link rel="stylesheet" href="/cad/assets/styles.css">
+  <script src="/cad/assets/app.js" type="module"></script>
+</head>
+<body>
+  <main id="loginView" class="login-view" hidden>
+    <section class="login-panel">
+      <p class="eyebrow">AETHER / OPERATIONS</p>
+      <h1>CAD<span>.</span></h1>
+      <p class="login-copy">Computer-aided dispatch</p>
+      <p id="loginError" class="notice" role="status" hidden></p>
+      <a id="loginButton" class="button button-primary" href="/cad/auth/login">Continue with Discord</a>
+      <p id="setupNotice" class="muted small" hidden>CAD sign-in is not configured on this bot yet.</p>
+    </section>
+    <div class="login-mark" aria-hidden="true">A</div>
+  </main>
+
+  <div id="appView" class="app-shell" hidden>
+    <aside class="rail">
+      <a class="wordmark" href="/cad/" aria-label="Aether CAD home">A<span>.</span></a>
+      <nav class="rail-nav" aria-label="CAD sections">
+        <button class="rail-link active" data-view="dispatch" title="Dispatch" aria-label="Dispatch"><span class="rail-icon">D</span><span>Dispatch</span></button>
+        <button class="rail-link" data-view="erlc" title="ER:LC" aria-label="ER:LC"><span class="rail-icon">E</span><span>ER:LC</span></button>
+        <button class="rail-link" data-view="settings" title="Settings" aria-label="Settings"><span class="rail-icon">S</span><span>Settings</span></button>
+      </nav>
+      <div class="rail-bottom"><span class="live-dot"></span><span>LIVE</span></div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div class="breadcrumb"><span>AETHER</span><span class="crumb-divider">/</span><strong>CAD</strong></div>
+        <div class="topbar-actions">
+          <label class="server-select-wrap" for="serverSelect"><span>SERVER</span><select id="serverSelect" aria-label="Select Discord server"></select></label>
+          <div class="user-chip"><img id="userAvatar" alt="" hidden><span id="userInitials" class="avatar-fallback">A</span><span id="userName">Operator</span></div>
+          <button id="logoutButton" class="icon-button" type="button" title="Sign out" aria-label="Sign out">↗</button>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <div id="appNotice" class="notice" role="status" hidden></div>
+        <section id="view-dispatch" class="view">
+          <div class="page-heading">
+            <div><p class="eyebrow">FIELD OPERATIONS <span id="todayLabel"></span></p><h1>Dispatch</h1></div>
+            <button id="newCallButton" class="button button-primary" type="button"><span aria-hidden="true">+</span> New call</button>
+          </div>
+          <div class="metric-strip">
+            <div class="metric"><span>OPEN CALLS</span><strong id="openCallCount">0</strong></div>
+            <div class="metric"><span>UNITS ON DUTY</span><strong id="unitCount">0</strong></div>
+            <div class="metric"><span>ER:LC PLAYERS</span><strong id="playerCount">—</strong></div>
+            <div class="metric metric-status"><span>SERVER LINK</span><strong id="serverLinkStatus"><i class="status-dot"></i> Not synced</strong></div>
+          </div>
+
+          <div class="dispatch-grid">
+            <section class="section-block call-section">
+              <div class="section-heading"><div><p class="eyebrow">ACTIVE INCIDENTS</p><h2>Call queue</h2></div><span id="callQueueCount" class="count-label">0</span></div>
+              <div id="callsList" class="call-list"><p class="empty-state">No active calls.</p></div>
+            </section>
+            <section class="section-block unit-section">
+              <div class="section-heading"><div><p class="eyebrow">FIELD ROSTER</p><h2>Units</h2></div></div>
+              <form id="unitForm" class="unit-form">
+                <label>Callsign<input id="callsignInput" maxlength="24" placeholder="e.g. 2-Adam-14" autocomplete="off"></label>
+                <label>Status<select id="unitStatusSelect"><option value="available">Available</option><option value="busy">Busy</option><option value="on_scene">On scene</option><option value="off_duty">Off duty</option></select></label>
+                <button class="button button-secondary" type="submit">Update unit</button>
+              </form>
+              <div id="unitsList" class="unit-list"><p class="empty-state">No units signed in.</p></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="view-erlc" class="view" hidden>
+          <div class="page-heading">
+            <div><p class="eyebrow">LIVE GAME CONNECTION</p><h1>ER:LC</h1></div>
+            <button id="syncPlayersButton" class="button button-primary" type="button"><span aria-hidden="true">↻</span> Sync players</button>
+          </div>
+          <section class="section-block player-section">
+            <div class="section-heading"><div><p class="eyebrow">PRIVATE SERVER</p><h2>Connected players</h2></div><span id="playerSyncTime" class="muted small">Not synced</span></div>
+            <div class="table-scroll"><table><thead><tr><th>PLAYER</th><th>TEAM</th><th>CALLSIGN</th><th>WANTED</th></tr></thead><tbody id="playersTable"><tr><td colspan="4" class="empty-state">Sync to load ER:LC players.</td></tr></tbody></table></div>
+          </section>
+          <section id="commandSection" class="section-block command-section" hidden>
+            <div class="section-heading"><div><p class="eyebrow">AUTHORIZED OPERATOR</p><h2>ER:LC command</h2></div></div>
+            <form id="commandForm" class="command-form"><label class="visually-hidden" for="commandInput">ER:LC command</label><input id="commandInput" maxlength="200" placeholder=":h Dispatch message" autocomplete="off" required><button class="button button-danger" type="submit">Send command</button></form>
+          </section>
+        </section>
+
+        <section id="view-settings" class="view" hidden>
+          <div class="page-heading"><div><p class="eyebrow">ACCESS CONTROL</p><h1>CAD settings</h1></div></div>
+          <section id="settingsFormSection" class="section-block settings-section" hidden>
+            <div class="section-heading"><div><p class="eyebrow">DISCORD ROLE MAPPING</p><h2>Operator access</h2></div></div>
+            <form id="settingsForm" class="settings-form">
+              <label>Dispatch roles<select id="dispatchRoles" multiple size="7" aria-describedby="dispatchRoleHint"></select><span id="dispatchRoleHint" class="muted small">Members can access dispatch, calls, units, and player sync.</span></label>
+              <label>ER:LC command roles<select id="commandRoles" multiple size="7" aria-describedby="commandRoleHint"></select><span id="commandRoleHint" class="muted small">Members can send commands to the linked private server.</span></label>
+              <div class="settings-actions"><p class="muted small">Server managers always retain access.</p><button class="button button-primary" type="submit">Save access</button></div>
+            </form>
+          </section>
+          <section id="settingsReadOnly" class="section-block" hidden><p class="empty-state">Only a server manager can change CAD access roles.</p></section>
+        </section>
+      </div>
+      <footer class="footer"><span>AETHER CAD</span><span id="footerServer">Select a server</span><span>OPERATIONS CONSOLE</span></footer>
+    </section>
+  </div>
+
+  <dialog id="callDialog" class="call-dialog">
+    <form id="callForm" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">DISPATCH ENTRY</p><h2>New call</h2></div><button id="closeDialogButton" class="icon-button" type="button" aria-label="Close">×</button></div>
+      <label>Incident title<input id="callTitle" maxlength="100" required placeholder="Traffic stop"></label>
+      <label>Location<input id="callLocation" maxlength="100" required placeholder="Route 55 / Westbound"></label>
+      <label>Priority<select id="callPriority"><option value="normal">Routine</option><option value="urgent">Urgent</option></select></label>
+      <label>Details<textarea id="callDetails" maxlength="1000" rows="4" placeholder="Additional information"></textarea></label>
+      <div class="dialog-actions"><button id="cancelCallButton" class="button button-secondary" type="button">Cancel</button><button class="button button-primary" type="submit">Create call</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

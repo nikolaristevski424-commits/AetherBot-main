@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/app.js",
+    "test": "node --test",
     "migrate": "node scripts/migrate.js apply",
     "migrate:check": "node scripts/migrate.js check",
     "migrate:status": "node scripts/migrate.js status",
