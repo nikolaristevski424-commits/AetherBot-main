@@ -31,7 +31,9 @@
       <button class="nav-item" data-view="bolos"><span>◎</span> BOLO alerts</button>
       <div class="nav-label sublabel">INTEGRATIONS</div>
       <button class="nav-item" data-view="erlc"><span>✧</span> ER:LC live</button>
+      <button class="nav-item" data-view="commands"><span>⌘</span> ER:LC commands</button>
       <button class="nav-item" data-view="activity"><span>☷</span> Activity log</button>
+      <button class="nav-item" data-view="settings"><span>⚙</span> Access settings</button>
     </nav>
     <div class="sidebar-bottom"><div class="side-status"><i id="sideDot" class="dot"></i><div><b id="sideLabel">CONNECTED</b><small>Discord authenticated</small></div></div><a href="/cad/legacy" class="legacy">↗ Previous CAD interface</a></div>
   </aside>
@@ -76,6 +78,27 @@
         <div class="metrics erlc-metrics"><article><span>SERVER</span><strong id="erlcStatus" class="metric-text">Unknown</strong><small>From latest sync</small></article><article><span>PLAYERS IN GAME</span><strong id="erlcCount">—</strong><small>Last known snapshot</small></article><article><span>STAFF ONLINE</span><strong id="erlcStaff">—</strong><small>Reported by ER:LC</small></article><article><span>LAST SYNC</span><strong id="erlcSync" class="metric-text">Never</strong><small>Auto tracking enabled by bot</small></article></div>
         <section class="panel"><div class="panel-head"><div><span class="eyebrow">CONNECTED PLAYERS</span><h2>Live player roster</h2></div></div><div class="table-wrap"><table><thead><tr><th>PLAYER</th><th>TEAM</th><th>CALLSIGN</th><th>LOCATION</th><th>STAFF</th></tr></thead><tbody id="playerRows"></tbody></table></div></section>
         <section class="panel activity-panel"><div class="panel-head"><div><span class="eyebrow">SESSION HISTORY</span><h2>Player activity</h2></div></div><div class="stack" id="playerEvents"></div></section>
+      </section>
+
+      <section id="view-commands" class="view" hidden>
+        <div class="page-title"><div><span class="eyebrow">ER:LC / COMMAND CENTER</span><h1>Server commands<span>.</span></h1><p>Send authorized commands to your linked ER:LC private server.</p></div></div>
+        <div class="two-col"><section class="panel">
+          <div class="panel-head"><div><span class="eyebrow">SECURE COMMAND ACCESS</span><h2>Execute command</h2></div></div>
+          <form id="commandForm" class="form-stack">
+            <label>ER:LC COMMAND<input id="commandInput" maxlength="200" autocomplete="off" required placeholder="Enter one ER:LC command"></label>
+            <small class="form-help">Actions are subject to your Discord roles, rate limits and the existing CAD audit trail.</small>
+            <button class="primary-btn" type="submit">Review & send command →</button>
+          </form>
+        </section><section class="panel information"><span class="eyebrow">BEFORE YOU SEND</span><h3>Operations are logged.</h3><p>Commands affect the connected ER:LC private server. Confirm the target server and review each command carefully. Only operators with command access or server management rights can use this tool.</p></section></div>
+      </section>
+
+      <section id="view-settings" class="view" hidden>
+        <div class="page-title"><div><span class="eyebrow">ADMINISTRATION / AUTHORIZATION</span><h1>Access settings<span>.</span></h1><p>Choose which Discord roles can dispatch calls and run ER:LC commands.</p></div></div>
+        <section class="panel"><div class="panel-head"><div><span class="eyebrow">ROLE-BASED ACCESS</span><h2>Operator permissions</h2></div></div>
+        <form id="rolesForm" class="form-stack"><div class="two-col">
+          <label>DISPATCH ROLES<select id="dispatchRoles" size="8" multiple aria-label="Discord roles permitted to dispatch"></select><small class="form-help">Can create incidents, assign units, update duty status, publish BOLOs and sync players.</small></label>
+          <label>ER:LC COMMAND ROLES<select id="commandRoles" size="8" multiple aria-label="Discord roles permitted to execute ER:LC commands"></select><small class="form-help">Can send commands to your linked ER:LC private server.</small></label>
+        </div><div class="settings-foot"><p>Hold Ctrl (Windows) or Command (Mac) to select more than one role. Server managers always retain full access.</p><button class="primary-btn" type="submit">Save role permissions →</button></div></form></section>
       </section>
 
       <section id="view-activity" class="view" hidden><div class="page-title"><div><span class="eyebrow">SYSTEM / ACCOUNTABILITY</span><h1>Activity history<span>.</span></h1><p>Recent operator activity; visible only to server managers.</p></div></div><section class="panel"><div class="panel-head"><div><span class="eyebrow">AUDIT LOG</span><h2>Recorded actions</h2></div></div><div class="stack" id="auditList"></div></section></section>
