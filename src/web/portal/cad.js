@@ -66,8 +66,10 @@ function setPermissions(p) {
   const canWrite = Boolean(p?.dispatch);
   $$('.dispatch-only').forEach(el => { el.hidden = !canWrite; });
   $('#unitReadOnly').hidden = canWrite;
-  $$('[data-view="activity"]').forEach(el => { el.hidden = !p?.manager; });
-  if (!p?.manager && activeView === 'activity') navigate('overview');
+  $('[data-view="activity"], [data-view="settings"]').forEach(el => { el.hidden = !p?.manager; });
+  $('[data-view="commands"]').forEach(el => { el.hidden = !(p?.manager || p?.commands); });
+  if ((!p?.manager && ['activity','settings'].includes(activeView)) ||
+      (!(p?.manager || p?.commands) && activeView === 'commands')) navigate('overview');
 }
 function itemMain(title, subtitle, details) {
   const main = node('div', 'item-main');
@@ -263,6 +265,7 @@ async function refreshData() {
     if (stamp !== generation || requested !== guildId) return;
     board = response;
     render();
+    if (activeView === 'settings' && board.permissions.manager) await loadSettings();
     setConnection(true);
     notice('');
   } catch (error) { if (stamp === generation) { setConnection(false); notice(error.message); } }
@@ -279,7 +282,35 @@ function setGuild(id) {
   if (!guilds.some(g => g.id === id)) return;
   guildId = id; generation++; board = null;
   $('#guildSelect').value = id;
-  refreshData();
+  if (fetching) {
+    // Discard the previous guild's response, then load the newly selected server.
+    const next = () => { if (!fetching && guildId === id) refreshData(); else setTimeout(next, 50); };
+    next();
+  } else refreshData();
+}
+async function loadSettings() {
+  if (!guildId || !board?.permissions?.manager) return;
+  try {
+    const requestedGuild = guildId;
+    const [details, available] = await Promise.all([
+      api('/cad/api/guilds/' + requestedGuild),
+      api('/cad/api/guilds/' + requestedGuild + '/roles'),
+    ]);
+    if (requestedGuild !== guildId) return;
+    for (const [id, values] of [
+      ['dispatchRoles', details.config?.dispatchRoleIds || []],
+      ['commandRoles', details.config?.commandRoleIds || []],
+    ]) {
+      const select = $('#' + id);
+      select.replaceChildren();
+      const chosen = new Set(values);
+      for (const role of (available.roles || [])) {
+        const option = node('option', '', role.name);
+        option.value = role.id; option.selected = chosen.has(role.id);
+        select.append(option);
+      }
+    }
+  } catch (error) { notice('Role settings could not be loaded: ' + error.message); }
 }
 async function initialize() {
   const authError = new URLSearchParams(location.search).get('authError');
@@ -306,7 +337,10 @@ async function initialize() {
     } catch {}
   }
 }
-for (const button of $$('[data-view]')) button.addEventListener('click', () => navigate(button.dataset.view));
+for (const button of $('[data-view]')) button.addEventListener('click', () => {
+  navigate(button.dataset.view);
+  if (button.dataset.view === 'settings') loadSettings();
+});
 for (const button of $$('[data-jump]')) button.addEventListener('click', () => navigate(button.dataset.jump));
 for (const button of $$('[data-open]')) button.addEventListener('click', () => {
   if (!board?.permissions?.dispatch) return;
@@ -354,6 +388,34 @@ $('#boloForm').addEventListener('submit', async event => {
     }) });
     $('#boloDialog').close(); event.currentTarget.reset();
     await refreshData(); notice('BOLO published.', 'success');
+  } catch (error) { notice(error.message); }
+  finally { submit.disabled = false; }
+});
+$('#commandForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!board?.permissions?.commands && !board?.permissions?.manager) return notice('ER:LC command permission is required.');
+  const command = $('#commandInput').value.trim();
+  if (!command || command.length > 200) return notice('Enter a valid single-line ER:LC command.');
+  if (!confirm('Send this command to the selected ER:LC private server?\n\n' + command)) return;
+  const submit = event.currentTarget.querySelector('[type=submit]'); submit.disabled = true;
+  try {
+    await api('/cad/api/guilds/' + guildId + '/commands', { method:'POST', body: JSON.stringify({ command }) });
+    $('#commandInput').value = '';
+    notice('ER:LC command sent and recorded.', 'success');
+  } catch (error) { notice(error.message); }
+  finally { submit.disabled = false; }
+});
+$('#rolesForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!board?.permissions?.manager) return notice('Only server managers may change CAD permissions.');
+  const selected = id => [...$('#' + id).selectedOptions].map(option => option.value);
+  const submit = event.currentTarget.querySelector('[type=submit]'); submit.disabled = true;
+  try {
+    await api('/cad/api/guilds/' + guildId + '/settings', { method:'PUT', body: JSON.stringify({
+      dispatchRoleIds: selected('dispatchRoles'), commandRoleIds: selected('commandRoles'),
+    }) });
+    await refreshData();
+    notice('Role permissions saved.', 'success');
   } catch (error) { notice(error.message); }
   finally { submit.disabled = false; }
 });
