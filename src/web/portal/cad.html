@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0e1b"><meta name="robots" content="noindex,nofollow">
+<title>Aether Command — CAD</title>
+<link rel="icon" href="/portal/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/portal/cad.css">
+<script src="/portal/cad.js" defer></script>
+</head>
+<body>
+<div class="login-screen" id="loginScreen" hidden>
+  <a class="back-site" href="/">← Aether homepage</a><div class="login-glow"></div>
+  <div class="login-card"><div class="login-emblem">Æ</div><div class="eyebrow">AETHER COMMAND / SECURE ACCESS</div>
+    <h1>Control starts<br><span>here.</span></h1><p>Sign in with Discord to open your server's dispatch center. Access is controlled by Discord roles.</p>
+    <div class="login-alert" id="loginError" role="alert" hidden></div>
+    <a class="primary-btn login-button" id="loginButton" href="/cad/auth/login">Continue with Discord <span>↗</span></a>
+    <small id="setupError" hidden>CAD OAuth is not configured on this bot host.</small>
+    <div class="login-footer">SECURE SESSION <span>•</span> ROLE-GATED ACCESS <span>•</span> AUDITED OPERATIONS</div>
+  </div>
+</div>
+
+<div id="app" class="layout" hidden>
+  <aside class="sidebar" aria-label="Main CAD navigation">
+    <a href="/" class="wordmark"><span class="logo">Æ</span><span>AETHER<small>COMMAND CENTER</small></span></a>
+    <div class="nav-label">WORKSPACE</div>
+    <nav id="nav">
+      <button class="nav-item active" data-view="overview"><span>▦</span> Overview</button>
+      <button class="nav-item" data-view="incidents"><span>⌁</span> Dispatch board</button>
+      <button class="nav-item" data-view="units"><span>◇</span> Units & roster</button>
+      <button class="nav-item" data-view="bolos"><span>◎</span> BOLO alerts</button>
+      <div class="nav-label sublabel">INTEGRATIONS</div>
+      <button class="nav-item" data-view="erlc"><span>✧</span> ER:LC live</button>
+      <button class="nav-item" data-view="activity"><span>☷</span> Activity log</button>
+    </nav>
+    <div class="sidebar-bottom"><div class="side-status"><i id="sideDot" class="dot"></i><div><b id="sideLabel">CONNECTED</b><small>Discord authenticated</small></div></div><a href="/cad/legacy" class="legacy">↗ Previous CAD interface</a></div>
+  </aside>
+  <div class="main-shell">
+    <header class="topbar">
+      <div class="breadcrumbs"><span>AETHER</span><span>/</span><strong id="breadcrumb">OVERVIEW</strong></div>
+      <div class="top-actions">
+        <label class="guild-picker"><span>SERVER</span><select id="guildSelect" aria-label="Select Discord server"></select></label>
+        <div class="connected-chip"><i class="dot"></i><span id="connectionLabel">Connected</span></div>
+        <button class="icon-button" id="refreshButton" title="Refresh" aria-label="Refresh data">↻</button>
+        <div class="account"><span id="accountAvatar" class="account-avatar">Æ</span><span id="accountName"></span></div>
+        <button class="icon-button" id="logoutButton" title="Sign out" aria-label="Sign out">⇥</button>
+      </div>
+    </header>
+    <main class="workspace">
+      <div class="notice" id="notice" role="status" hidden></div>
+      <section id="view-overview" class="view">
+        <div class="page-title"><div><span class="eyebrow">OPERATIONS / MISSION CONTROL</span><h1>Command overview<span>.</span></h1><p>Everything happening in your server, all in one place.</p></div><button class="primary-btn dispatch-only" data-open="incident" type="button">+ Create incident</button></div>
+        <div class="metrics"><article><span>OPEN INCIDENTS</span><strong id="metricIncidents">—</strong><small>Requiring attention</small><i>⌁</i></article><article><span>ON-DUTY UNITS</span><strong id="metricUnits">—</strong><small>Signed into CAD</small><i>◇</i></article><article><span>HIGH PRIORITY</span><strong id="metricHigh">—</strong><small>High & critical calls</small><i>!</i></article><article><span>ER:LC PLAYERS</span><strong id="metricPlayers">—</strong><small id="metricPlayersSub">Waiting for sync</small><i>✧</i></article></div>
+        <div class="overview-grid">
+          <section class="panel"><div class="panel-head"><div><span class="eyebrow">LIVE DISPATCH</span><h2>Active incidents</h2></div><button class="inline-link" data-jump="incidents">View all →</button></div><div id="overviewIncidents" class="stack"></div></section>
+          <div class="overview-aside"><section class="panel"><div class="panel-head"><div><span class="eyebrow">FIELD STATUS</span><h2>Available units</h2></div><button class="inline-link" data-jump="units">View roster →</button></div><div id="overviewUnits" class="stack"></div></section><section class="panel dark-panel"><span class="eyebrow">OPERATIONS TIP</span><h3>Keep your teams in sync.</h3><p>Update your unit status before taking a call. Only on-duty units can be assigned to incidents.</p><button class="inline-link" data-jump="units">Manage your unit →</button></section></div>
+        </div>
+      </section>
+
+      <section id="view-incidents" class="view" hidden>
+        <div class="page-title"><div><span class="eyebrow">DISPATCH CENTER / INCIDENTS</span><h1>Incident board<span>.</span></h1><p>Track calls from initial report through resolution.</p></div><button class="primary-btn dispatch-only" data-open="incident">+ New incident</button></div>
+        <section class="panel"><div class="toolbar"><input id="incidentSearch" type="search" placeholder="Search calls, reference or location…" aria-label="Search incidents"><div class="segmented" id="incidentFilters" aria-label="Filter incidents"><button class="selected" data-filter="active">Active</button><button data-filter="pending">Pending</button><button data-filter="dispatched">Dispatched</button><button data-filter="on_scene">On scene</button><button data-filter="closed">Closed</button></div></div><div id="incidentList" class="incident-list"></div></section>
+      </section>
+
+      <section id="view-units" class="view" hidden>
+        <div class="page-title"><div><span class="eyebrow">FIELD OPERATIONS / ROSTER</span><h1>Duty roster<span>.</span></h1><p>Your team, their callsigns, and real-time availability.</p></div></div>
+        <div class="two-col"><section class="panel"><div class="panel-head"><div><span class="eyebrow">PERSONAL DUTY</span><h2>Set your status</h2></div></div><form id="unitForm" class="form-stack dispatch-only"><label>CALLSIGN<input name="callsign" id="callsign" placeholder="e.g. 1-Adam-12" maxlength="24" required autocomplete="off"></label><label>DUTY STATUS<select id="unitStatus"><option value="available">Available</option><option value="busy">Busy</option><option value="on_scene">On scene</option><option value="off_duty">Off duty</option></select></label><button class="primary-btn" type="submit">Save duty status →</button></form><div id="unitReadOnly" class="empty" hidden>You need dispatch permissions to update your status.</div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">DISPATCH ROSTER</span><h2>Signed-in units</h2></div><span id="unitTotal" class="counter">0</span></div><div id="unitList" class="stack"></div></section></div>
+      </section>
+
+      <section id="view-bolos" class="view" hidden>
+        <div class="page-title"><div><span class="eyebrow">INTELLIGENCE / BULLETINS</span><h1>BOLO alerts<span>.</span></h1><p>Operational notices visible only to authorized members of this server.</p></div><button class="primary-btn dispatch-only" data-open="bolo">+ New BOLO</button></div><section class="panel"><div class="panel-head"><div><span class="eyebrow">ACTIVE BULLETINS</span><h2>Be on the lookout</h2></div><span id="boloTotal" class="counter">0</span></div><div id="boloList" class="stack"></div></section>
+      </section>
+
+      <section id="view-erlc" class="view" hidden>
+        <div class="page-title"><div><span class="eyebrow">ER:LC INTEGRATION / LIVE DATA</span><h1>Private server<span>.</span></h1><p>Player roster and join/leave tracking from your existing ER:LC integration.</p></div><button class="primary-btn dispatch-only" id="syncPlayers">↻ Sync ER:LC</button></div>
+        <div class="metrics erlc-metrics"><article><span>SERVER</span><strong id="erlcStatus" class="metric-text">Unknown</strong><small>From latest sync</small></article><article><span>PLAYERS IN GAME</span><strong id="erlcCount">—</strong><small>Last known snapshot</small></article><article><span>STAFF ONLINE</span><strong id="erlcStaff">—</strong><small>Reported by ER:LC</small></article><article><span>LAST SYNC</span><strong id="erlcSync" class="metric-text">Never</strong><small>Auto tracking enabled by bot</small></article></div>
+        <section class="panel"><div class="panel-head"><div><span class="eyebrow">CONNECTED PLAYERS</span><h2>Live player roster</h2></div></div><div class="table-wrap"><table><thead><tr><th>PLAYER</th><th>TEAM</th><th>CALLSIGN</th><th>LOCATION</th><th>STAFF</th></tr></thead><tbody id="playerRows"></tbody></table></div></section>
+        <section class="panel activity-panel"><div class="panel-head"><div><span class="eyebrow">SESSION HISTORY</span><h2>Player activity</h2></div></div><div class="stack" id="playerEvents"></div></section>
+      </section>
+
+      <section id="view-activity" class="view" hidden><div class="page-title"><div><span class="eyebrow">SYSTEM / ACCOUNTABILITY</span><h1>Activity history<span>.</span></h1><p>Recent operator activity; visible only to server managers.</p></div></div><section class="panel"><div class="panel-head"><div><span class="eyebrow">AUDIT LOG</span><h2>Recorded actions</h2></div></div><div class="stack" id="auditList"></div></section></section>
+      <footer class="workspace-footer"><span>AETHER COMMAND / CAD V2</span><span id="footerTime"></span><a href="/" class="inline-link">Back to website ↗</a></footer>
+    </main>
+  </div>
+</div>
+<dialog id="incidentDialog" class="modal"><form id="incidentForm" class="modal-content"><div class="modal-head"><div><span class="eyebrow">DISPATCH / INTAKE</span><h2>Create incident</h2></div><button type="button" data-close class="icon-button">✕</button></div><label>INCIDENT TITLE<input id="incidentTitle" maxlength="100" placeholder="e.g. Traffic collision" required></label><label>LOCATION<input id="incidentLocation" maxlength="120" placeholder="Postal code, street or location" required></label><label>PRIORITY<select id="incidentPriority"><option value="routine">Routine</option><option value="high">High priority</option><option value="critical">Critical response</option></select></label><label>NOTES<textarea id="incidentDetails" maxlength="1500" rows="4" placeholder="Dispatch details (avoid sensitive personal information)"></textarea></label><div class="modal-actions"><button type="button" data-close class="secondary-btn">Cancel</button><button type="submit" class="primary-btn">Create incident →</button></div></form></dialog>
+<dialog id="boloDialog" class="modal"><form id="boloForm" class="modal-content"><div class="modal-head"><div><span class="eyebrow">INTELLIGENCE / NOTICE</span><h2>Issue BOLO</h2></div><button type="button" data-close class="icon-button">✕</button></div><label>SUBJECT<input id="boloSubject" maxlength="100" placeholder="Vehicle or incident description" required></label><label>DETAILS<textarea id="boloDescription" maxlength="700" rows="5" placeholder="Details for responding units. Do not enter sensitive real-person data." required></textarea></label><div class="modal-actions"><button type="button" data-close class="secondary-btn">Cancel</button><button type="submit" class="primary-btn">Publish bulletin →</button></div></form></dialog>
+</body>
+</html>

@@ -156,3 +156,53 @@ Aether's original code is proprietary (all rights reserved); the inherited Titan
 Thank you for choosing Aether for your Discord server! We're constantly working to improve and add new features based on community feedback.
 
 *Last updated: Aug 2026*
+
+
+## Aether Command website and new CAD (v2)
+
+Aether now serves its public website at \`/\` and a **new CAD v2** at \`/cad/\`.
+The new portal uses static HTML, CSS, and JavaScript (no additional framework
+or build command), running on the bot's existing Express HTTP port.
+
+- **Public:** \`/\`, \`/setup\`, \`/features\`, \`/status\`, \`/api/public/config\`, \`/api/public/overview\`.
+- **New CAD:** \`/cad/\` with a new incident queue, duty roster, assignments,
+  BOLO bulletins, audit history, and the existing ER:LC player telemetry.
+- **Legacy rollback UI:** \`/cad/legacy\`. The old CAD API and all old CAD
+  records are preserved. The new CAD v2 state is intentionally independent
+  under the per-guild \`cad:v2\` storage key. Old incidents do **not**
+  automatically appear in v2; operators should finish or archive legacy calls
+  before transitioning.
+- **Authentication:** Existing server-side Discord OAuth, HttpOnly cookies,
+  same-origin mutation checks, and Discord guild role checks guard all CAD v2
+  endpoints. Server managers can use the existing role configuration in the
+  legacy CAD interface until v2 role-settings UI ships.
+- **Data:** Dispatch/BOLO/audit data is stored through Aether's existing
+  persistence adapter. Use a persistent database/volume. The in-process write
+  lock is designed for a **single bot instance**; deployments running multiple
+  app replicas must add DB-transactional locks before enabling v2 writes.
+
+### Production setup
+
+1. Deploy the Node.js bot behind HTTPS with a single public domain, using
+   the same process/port for the site and CAD. Do **not** deploy only the
+   static \`src/web/portal\` directory to Vercel, because the CAD API requires
+   the running Discord bot and private storage.
+2. Set \`AETHER_PUBLIC_URL=https://your-domain.example\` (without a path).
+   Supply your regular \`CLIENT_ID\`, \`DISCORD_TOKEN\`, \`CAD_DISCORD_CLIENT_SECRET\`,
+   \`CAD_SESSION_SECRET\`, and \`CAD_REDIRECT_URI\` in the host's **secret
+   environment settings**, not GitHub. Keep existing session and ER:LC
+   encryption secrets stable.
+3. Add \`https://your-domain.example/cad/auth/callback\` to Discord's OAuth2
+   redirects and set \`CAD_REDIRECT_URI\` to that exact URL.
+4. In Discord run \`/configwizard\`, then \`/erlc setup\` as needed. Configure
+   dispatch roles in \`/cad/legacy\` (server managers retain access).
+5. Test \`/\`, \`/api/public/overview\`, \`/cad/\`, sign-in, role isolation,
+   incident lifecycle, BOLO archiving, unit assignments, and player syncing
+   **before** migrating operational use.
+6. Roll back the UI at any time using \`/cad/legacy\`; do not delete v2 records
+   unless you explicitly intend to purge the new CAD's state.
+
+The site's status panel reports actual runtime data and shows unavailable rather
+than inventing uptime or server statistics. The invite CTA is generated from
+\`CLIENT_ID\` and does not request blanket Administrator permissions. Confirm
+the bot's required permissions in Discord's installation settings.

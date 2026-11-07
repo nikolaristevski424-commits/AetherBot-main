@@ -2,6 +2,7 @@
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import express from 'express';
+import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import cron from 'node-cron';
@@ -19,7 +20,6 @@ import { initializeMusic } from './services/music/riffySetup.js';
 import { shutdownMusic } from './services/music/playerHandler.js';
 import { syncAllCadGuilds } from './services/cad/cadTrackingService.js';
 import { createCadRouter } from './web/cadRouter.js';
-import pkg from '../package.json' with { type: 'json' };
 import { EXPECTED_SCHEMA_VERSION, EXPECTED_SCHEMA_LABEL } from './config/database/schemaVersion.js';
 
 class AetherClient extends Client {
@@ -159,6 +159,39 @@ class AetherClient extends Client {
       message: { error: 'Too many authentication attempts' },
     }));
 
+    // Public marketing website and the replacement dispatch console share this bot host.
+    // Do not expose bot tokens, ER:LC private keys or guild membership details here.
+    const portalDirectory = fileURLToPath(new URL('./web/portal/', import.meta.url));
+    const siteFile = fileURLToPath(new URL('./web/portal/index.html', import.meta.url));
+    const siteCsp = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+    app.use('/portal', express.static(portalDirectory, { index: false, fallthrough: false, maxAge: '1h' }));
+    app.get('/api/public/config', (req, res) => {
+      res.set('Cache-Control', 'no-store');
+      const id = String(this.config.bot.clientId || '');
+      const inviteUrl = /^\d{17,20}$/.test(id)
+        ? 'https://discord.com/oauth2/authorize?client_id=' + id + '&scope=bot%20applications.commands'
+        : null;
+      const support = this.config.links?.supportServer;
+      const supportUrl = typeof support === 'string' && /^https:\/\/(discord\.gg|discord\.com)\/[a-zA-Z0-9/_-]+$/.test(support)
+        ? support : null;
+      res.json({ inviteUrl, supportUrl });
+    });
+    app.get('/api/public/overview', (req, res) => {
+      res.set('Cache-Control', 'no-store');
+      const ready = this.isReady();
+      const ping = this.ws?.ping;
+      res.json({
+        ready,
+        servers: ready ? this.guilds.cache.size : null,
+        commands: ready ? this.commands.size : null,
+        uptimeSeconds: ready ? Math.floor((this.uptime || 0) / 1000) : null,
+        gatewayPingMs: ready && Number.isFinite(ping) ? ping : null,
+      });
+    });
+    app.get(['/', '/features', '/setup', '/status'], (req, res) => {
+      res.set({ 'Content-Security-Policy': siteCsp, 'Cache-Control': 'no-cache' });
+      res.sendFile(siteFile);
+    });
     app.use('/cad', createCadRouter(this));
 
     app.get('/health', (req, res) => {
@@ -204,14 +237,6 @@ class AetherClient extends Client {
         ready: false,
         reason: !this.isReady() ? 'Bot not Ready' : 'Database degraded',
         metrics,
-      });
-    });
-
-    app.get('/', (req, res) => {
-      res.status(200).json({ 
-        message: 'Aether System Online',
-        version: pkg.version,
-        timestamp: new Date().toISOString()
       });
     });
 

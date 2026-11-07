@@ -18,6 +18,7 @@ import {
 } from '../services/cad/cadService.js';
 import { syncCadGuild } from '../services/cad/cadTrackingService.js';
 import { CadAuthService } from '../services/cad/cadAuthService.js';
+import { createCadV2Router } from './cadV2Router.js';
 
 const router = express.Router();
 let discordClient;
@@ -50,7 +51,9 @@ router.use((req, res, next) => {
     next();
 });
 
-router.get('/', (req, res) => res.sendFile(path.join(webDirectory, 'cad', 'index.html')));
+router.get('/', (req, res) => res.sendFile(path.join(webDirectory, 'portal', 'cad.html')));
+// Legacy UI stays accessible for rollback; all legacy API routes remain unchanged.
+router.get('/legacy', (req, res) => res.sendFile(path.join(webDirectory, 'cad', 'index.html')));
 router.use('/assets', express.static(path.join(webDirectory, 'cad', 'assets'), { fallthrough: false, maxAge: '1h' }));
 router.use('/api', express.json({ limit: '32kb', strict: true }));
 router.use('/auth', rateLimit({
@@ -105,6 +108,9 @@ router.use('/api', (req, res, next) => {
     if (!origin || origin !== allowedOrigin) return res.status(403).json({ error: 'CAD request origin is not allowed.' });
     next();
 });
+
+// V2 runs behind the existing signed Discord session and same-origin write checks.
+router.use('/api/v2', createCadV2Router(() => discordClient));
 
 router.get('/api/session', (req, res) => res.json({ user: req.cadSession.profile }));
 

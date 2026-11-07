@@ -30,6 +30,13 @@ export default {
             const guildCount = client.guilds.cache.size;
             const memberCount = client.guilds.cache.reduce((sum, g) => sum + (g.memberCount || 0), 0);
 
+            const rawSite = process.env.AETHER_PUBLIC_URL || '';
+            let siteUrl = null;
+            try {
+                const parsed = new URL(rawSite);
+                if (parsed.protocol === 'https:') siteUrl = parsed.origin;
+            } catch { /* Website URL is optional until deployed. */ }
+
             const embed = createEmbed({
                 title: `🌌 ${client.user.username}`,
                 description: 'An all-in-one Discord bot for moderation, economy, ER:LC, Roblox verification, and server security.',
@@ -43,7 +50,7 @@ export default {
                     { name: 'Members (cached)', value: `${memberCount.toLocaleString()}`, inline: true },
                     { name: 'Ping', value: `${client.ws.ping}ms`, inline: true },
                     { name: 'Creator', value: 'Aether Development Team', inline: true },
-                    { name: 'Links', value: '[Website](https://aether-community.lovable.app) • [Setup Guide](https://aether-setup-flow.base44.app)', inline: false },
+                    ...(siteUrl ? [{ name: 'Links', value: `[Website](${siteUrl}) • [Setup Guide](${siteUrl}/setup) • [CAD](${siteUrl}/cad/)`, inline: false }] : []),
                 ],
             });
 
