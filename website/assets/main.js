@@ -1,3 +1,4 @@
+document.documentElement.classList.add('js');
 const el = selector => document.querySelector(selector);
 const all = selector => Array.from(document.querySelectorAll(selector));
 const APP_FEATURES = Object.freeze({
