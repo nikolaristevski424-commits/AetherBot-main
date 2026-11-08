@@ -18,7 +18,7 @@ if (!token || !isSnowflake(clientId || '')) throw new Error('Set DISCORD_TOKEN a
 if (!websiteIntegrationEnabled) console.warn('[AdvertiseHERE] Website integration disabled: configure AD_SHARED_SECRET (32+ characters) when ready. Discord commands will still work.');
 const store = new ListingStore(defaultStorePath());
 await store.load();
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds], allowedMentions: { parse: [] } });
 
 const categories = CATEGORIES.map(x=>({ name: x === 'roleplay' ? 'ER:LC / Roleplay' : x[0].toUpperCase() + x.slice(1), value: x }));
 const commands = [
