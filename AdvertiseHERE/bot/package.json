@@ -1,0 +1,9 @@
+{
+ "name":"advertisehere-discord-bot",
+ "version":"0.1.0",
+ "private":true,
+ "type":"module",
+ "engines":{"node":">=22"},
+ "scripts":{"start":"node src/index.js","register":"node scripts/register.js","migrate":"node scripts/migrate.js","test":"node --test"},
+ "dependencies":{"discord.js":"^14.26.4","dotenv":"^17.2.3","pg":"^8.16.3"}
+}
