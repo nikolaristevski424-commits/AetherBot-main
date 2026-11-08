@@ -10,7 +10,6 @@ export default function handler(request, response) {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('scope', 'identify');
   url.searchParams.set('state', state);
-  url.searchParams.set('prompt', 'none');
   response.setHeader('Set-Cookie', cookie);
   response.setHeader('Cache-Control', 'no-store');
   return response.redirect(302, url.toString());

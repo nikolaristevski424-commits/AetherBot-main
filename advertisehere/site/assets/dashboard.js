@@ -1,8 +1,9 @@
 (async()=>{
  const ah=window.AdvertiseHERE,$=id=>document.getElementById(id),notify=(text,kind='info')=>{$('feedback').hidden=false;$('feedback').textContent=text;$('feedback').dataset.kind=kind;};
- const auth=await ah.getJson('/api/auth/me');
+ const [auth,config]=await Promise.all([ah.getJson('/api/auth/me'),ah.getJson('/api/config')]);
+ if(config.inviteUrl){ $('connectBotButton').href=config.inviteUrl; $('connectBotButton').hidden=false; }
  if(!auth.authenticated){ $('signedOut').hidden=false; $('signedIn').hidden=true;
-   if(!auth.configured) notify('Discord sign-in is not configured yet. The website is live, but its owner dashboard is pending setup.');
+   if(!auth.configured) { notify('Discord sign-in is not configured yet. The website is live, but its owner dashboard is pending setup.'); $('signinButton').replaceWith(Object.assign(document.createElement('span'), {className:'btn btn-outline btn-large',textContent:'Discord sign-in coming soon'})); }
    if(new URLSearchParams(location.search).has('error')) notify('Discord sign-in could not be completed. Check your OAuth configuration and try again.','error');
    return;
  }

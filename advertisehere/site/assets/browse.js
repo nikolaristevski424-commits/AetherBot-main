@@ -4,7 +4,7 @@
   if(!grid) return;
   const data=await ah.getJson('/api/listings');
   let listings=Array.isArray(data.listings)?data.listings:[];
-  if(data.httpStatus!==200) grid.innerHTML=ah.emptyState('Directory connection pending','The new Discord bot backend is not connected yet. Your community listings will appear here once it is running.','<a class="btn btn-primary" href="/dashboard/">Manage your server ↗</a>');
+  if(data.httpStatus!==200) { grid.innerHTML=ah.emptyState('Directory connection pending','The new Discord bot backend is not connected yet. Your community listings will appear here once it is running.','<a class="btn btn-primary" href="/dashboard/">Manage your server ↗</a>'); count.textContent='Directory not connected'; }
   const params=new URLSearchParams(location.search);
   if(params.has('category'))category.value=params.get('category');
   function draw(){
