@@ -38,3 +38,22 @@ test('store persists, queues and bumps safely',async()=>{
   const t=new ListingStore(path);await t.load();assert.equal(t.get(guildId).bumpCount,1);
  }finally {await rm(dir,{recursive:true,force:true});}
 });
+
+test('moderation queue, events and guild suspension are persisted',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'ah-review-'));
+ try{
+  const file=join(dir,'data.json');const store=new ListingStore(file);await store.load();
+  const data={guildId,title:'A trusted community',description:'A great server for testing staff review features.',category:'social',invite:'https://discord.gg/abcde'};
+  await store.upsert(data,ownerId,{memberCount:42});
+  assert.equal(store.pending().length,1);
+  assert.equal(store.audit[0].type,'listing.submitted');
+  await store.moderate(guildId,'approved',ownerId);
+  assert.equal(store.pending().length,0);
+  await store.suspend(guildId);
+  assert.equal(store.get(guildId).status,'suspended');
+  assert.equal(store.list().length,0);
+  const reload=new ListingStore(file);await reload.load();
+  assert.equal(reload.get(guildId).status,'suspended');
+  assert.equal(reload.audit.length,3);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});

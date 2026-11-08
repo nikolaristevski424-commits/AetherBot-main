@@ -15,7 +15,7 @@ const websiteIntegrationEnabled = typeof secret === 'string' && secret.length >=
 const staff = new Set((process.env.AD_OWNER_IDS || process.env.OWNER_IDS || '').split(',').map(x=>x.trim()).filter(isSnowflake));
 const port = Number(process.env.PORT || 3000);
 if (!token || !isSnowflake(clientId || '')) throw new Error('Set DISCORD_TOKEN and CLIENT_ID on Wispbyte.');
-if (!websiteIntegrationEnabled) console.warn('[AdvertiseHERE] Website integration disabled: configure AD_SHARED_SECRET (32+ characters) when ready. Discord commands will still work.');
+if (!websiteIntegrationEnabled) console.warn('[AdvertiseHERE] Website connection disabled until AD_SHARED_SECRET is set.');
 const store = new ListingStore(defaultStorePath());
 await store.load();
 const client = new Client({ intents: [GatewayIntentBits.Guilds], allowedMentions: { parse: [] } });
@@ -33,6 +33,8 @@ const commands = [
   new SlashCommandBuilder().setName('ad-review').setDescription('AdvertiseHERE platform team: approve or reject a listing.')
     .addStringOption(o=>o.setName('guild_id').setDescription('Discord guild ID').setRequired(true))
     .addStringOption(o=>o.setName('decision').setDescription('Moderation decision').setRequired(true).addChoices({name:'Approve',value:'approved'},{name:'Reject',value:'rejected'})),
+  new SlashCommandBuilder().setName('ad-stats').setDescription('View real AdvertiseHERE listing and bump statistics.'),
+  new SlashCommandBuilder().setName('ad-pending').setDescription('AdvertiseHERE team: view pending listing submissions.'),
   new SlashCommandBuilder().setName('ad-help').setDescription('See AdvertiseHERE listing and bumping commands.'),
 ];
 
@@ -59,10 +61,24 @@ async function validateGuildInvite(guildId, inviteUrl) {
 }
 function errorReply(error) { return typeof error?.message === 'string' ? error.message.slice(0,200) : 'Could not complete that action.'; }
 
+client.on('guildDelete', async guild => {
+  try { await store.suspend(guild.id); } catch(error){ console.error('[AdvertiseHERE] Could not suspend removed guild:', error.message); }
+});
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
   try {
     if (interaction.commandName === 'ad-help') return interaction.reply({ content: `**AdvertiseHERE** — ${web}\n\`/list-server\` — submit a listing (Manage Server)\n\`/bump\` — refresh your approved listing every 2 hours\n\`/listing\` — see your listing\n\`/top-servers\` — discover communities`, flags: MessageFlags.Ephemeral });
+    if (interaction.commandName === 'ad-stats') {
+      const stats = store.stats();
+      return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xd10b14).setTitle('AdvertiseHERE · Live statistics')
+        .addFields({name:'Approved communities',value:String(stats.approvedListings),inline:true},{name:'Pending review',value:String(stats.pendingListings),inline:true},{name:'Successful bumps',value:String(stats.totalBumps),inline:true})
+        .setFooter({text:'Real data from the AdvertiseHERE listing database'})] });
+    }
+    if (interaction.commandName === 'ad-pending') {
+      if (!staff.has(interaction.user.id)) return interaction.reply({ content:'Platform staff only.',flags:MessageFlags.Ephemeral });
+      const queue=store.pending().slice(0,15);
+      return interaction.reply({ content: queue.length ? queue.map(l=>`**${l.title.replaceAll('`', '')}** · ${l.guildId} · ${l.category}`).join('\n') : 'No pending listings.',flags:MessageFlags.Ephemeral });
+    }
     if (interaction.commandName === 'top-servers') {
       const top = store.list().slice(0,10);
       return interaction.reply({ content: top.length ? top.map((l,i)=>`${i+1}. **${l.title}** — ${l.invite}`).join('\n') : `No approved listings yet. Visit ${web} to get started.`, flags: MessageFlags.Ephemeral });
@@ -107,7 +123,7 @@ app.use(express.json({limit:'16kb',strict:true,verify:(req,res,buf)=>{req.rawBod
 const seen = new Map();
 app.get('/health', (req,res)=>res.json({ ready: client.isReady(), service:'AdvertiseHERE bot', websiteIntegrationConfigured:websiteIntegrationEnabled }));
 app.use('/internal', (req,res,next)=>{
-  if (!websiteIntegrationEnabled) return res.status(503).json({ error: 'Website integration is not configured.' });
+  if (!websiteIntegrationEnabled) return res.status(503).json({error:'Website integration is not configured.'});
   if (!['GET','POST'].includes(req.method)) return res.sendStatus(405);
   const stamp = req.get('X-AH-Timestamp'),nonce=req.get('X-AH-Nonce'),signed=req.get('X-AH-Signature');
   if (!/^\d{13}$/.test(stamp||'') || Math.abs(Date.now()-Number(stamp))>60_000 || !/^[a-f0-9]{32}$/.test(nonce||'') || !/^[a-f0-9]{64}$/.test(signed||'')) return res.sendStatus(401);
@@ -120,8 +136,19 @@ app.use('/internal', (req,res,next)=>{
   seen.set(nonce,Date.now()+60_000);
   next();
 });
-app.get('/internal/health', (req,res)=>res.json({ready:client.isReady(),...store.stats()}));
+app.get('/internal/health', (req,res)=>res.json({ready:client.isReady(), connectedGuilds:client.guilds.cache.size, ...store.stats()}));
 app.get('/internal/listings', (req,res)=>res.json({configured:true,listings:store.list(),stats:store.stats()}));
+app.get('/internal/pending/:actorId', (req,res)=>{
+  if (!isSnowflake(req.params.actorId) || !staff.has(req.params.actorId)) return res.sendStatus(403);
+  return res.json({listings:store.pending(),stats:store.stats()});
+});
+app.post('/internal/review', async (req,res)=>{
+  const {actorId,guildId,decision}=req.body||{};
+  if (!isSnowflake(actorId) || !staff.has(actorId)) return res.sendStatus(403);
+  if (!isSnowflake(guildId) || !['approved','rejected'].includes(decision)) return res.status(400).json({error:'Invalid moderation request'});
+  try { return res.json({listing:await store.moderate(guildId,decision,actorId)}); }
+  catch(error){return res.status(400).json({error:errorReply(error)});}
+});
 app.get('/internal/my-guilds/:actorId', async (req,res)=>{
   if (!isSnowflake(req.params.actorId)) return res.status(400).json({error:'Invalid account'});
   const guilds=[];

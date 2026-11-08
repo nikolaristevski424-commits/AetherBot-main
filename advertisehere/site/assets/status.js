@@ -11,6 +11,10 @@
       el('statusHeading').textContent=connected?'Website and bot API connected':'Website online · bot integration pending';
       el('statusDescription').textContent=connected?'Live health from the connected Discord bot and website.':'The website is online. Discord features require the new Wispbyte bot and environment variables; this is not proof the old bot is offline.';
       el('checkedAt').textContent=new Date(data.checkedAt).toLocaleString();
+      const stats=data.bot?.stats; const fmt=n=>Number.isSafeInteger(n)&&n>=0?n.toLocaleString():'—';
+      el('healthListings').textContent=connected?fmt(stats?.approvedListings):'—';
+      el('healthBumps').textContent=connected?fmt(stats?.totalBumps):'—';
+      el('healthGuilds').textContent=connected?fmt(stats?.connectedGuilds):'—';
     }catch{el('webHealth').textContent='Health check failed';el('webDot').className='status-icon offline';}
   }
   await refresh();setInterval(refresh,60_000);

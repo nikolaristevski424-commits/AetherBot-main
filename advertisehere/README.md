@@ -1,6 +1,6 @@
 # AdvertiseHERE — Website + Discord bot
 
-**Aether is being replaced with AdvertiseHERE in this same GitHub repository and Discord application.** AdvertiseHERE is a directory/advertising platform for Discord communities, including ER:LC servers. It uses the supplied red **AD** logo. The old Aether code is retained under `src/` for rollback only; after merging this branch, the root `npm start` launches the new bot.
+**New product, new brand.** AdvertiseHERE is a separate directory/advertising platform for Discord communities, including ER:LC servers. It uses the supplied red **AD** logo. The old Aether code is retained under `src/` for rollback only; after merging this branch, the root `npm start` launches the new bot.
 
 ## Architecture
 
@@ -15,7 +15,7 @@
 - Owner dashboard signs in with Discord using OAuth `identify`, lists bot-connected guilds the user can manage and submits listing edits for review.
 - Website bump button calls the **same store and two-hour cooldown** as the bot `/bump` command.
 - Website browse page filters real approved listings; shows an explicit empty/connection state until bot is running.
-- Bot commands: `/list-server`, `/bump`, `/listing`, `/top-servers`, `/ad-review`, `/ad-help`.
+- Bot commands: `/list-server`, `/bump`, `/listing`, `/top-servers`, `/ad-review`, `/ad-pending`, `/ad-stats`, `/ad-help`.
 - Staff approval via `/ad-review` only for IDs in `AD_OWNER_IDS`.
 - Invite validation checks the invite's actual Discord guild before saving.
 - Status reports connection truthfully; no invented listings, paid placements, or uptime history.
@@ -25,12 +25,12 @@
 Start command after merging the new entrypoint: `npm start` (or `node advertisehere/bot/index.js`). Set:
 
 ```dotenv
-DISCORD_TOKEN=                              # Keep existing Aether bot token if reusing the same Discord application — never send in chat
-CLIENT_ID=                                  # Existing Aether application ID (same bot, rebranded)
+DISCORD_TOKEN=                              # NEW AdvertiseHERE bot token — never send in chat
+CLIENT_ID=                                  # application ID for the NEW Discord app
 PORT=13017                                  # use your actual Wispbyte assigned port, if different
 WEB_HOST=0.0.0.0
 AD_PUBLIC_ORIGIN=https://advertisehere.vercel.app
-AD_SHARED_SECRET=                           # optional at bot startup; required to connect website (>=32 characters)
+AD_SHARED_SECRET=                           # strong random shared key, >=32 characters
 AD_OWNER_IDS=                               # comma-separated Discord user IDs of platform reviewers
 AD_DATA_DIR=./data                         # must be persistent writable storage
 AD_REGISTER_COMMANDS=true
@@ -44,7 +44,7 @@ Project: `advertisehere`, root directory `advertisehere/site/` if linked to Git,
 
 ```dotenv
 AH_PUBLIC_ORIGIN=https://advertisehere.vercel.app
-AH_DISCORD_CLIENT_ID=                      # Same existing Discord application ID as Wispbyte CLIENT_ID
+AH_DISCORD_CLIENT_ID=                      # NEW Discord app's client/application ID
 AH_DISCORD_CLIENT_SECRET=                  # OAuth2 Client Secret (NOT bot token)
 AH_COOKIE_SECRET=                          # separate random >=32-character value
 AH_BOT_API_ORIGIN=https://YOUR-PUBLIC-HTTPS-BOT-API-HOST
@@ -61,13 +61,13 @@ Add this under your new AdvertiseHERE Discord application → OAuth2 → Redirec
 
 The serverless Vercel callback is **implemented** and uses OAuth authorization code, state validation and signed session cookies. The OAuth client ID/secret must belong to the *same Discord application* as the running bot. Add Guilds intent only if you need it; current bot uses the nonprivileged `Guilds` gateway intent.
 
-### Rebrand the existing Aether Discord application (no new bot required)
+### Discord application migration
 
-Reuse the existing Aether `DISCORD_TOKEN` and `CLIENT_ID` from Wispbyte. Rename the existing Discord application and upload the red AdvertiseHERE logo in the Discord Developer Portal; this keeps your existing server installations and bot permissions. Vercel OAuth `AH_DISCORD_CLIENT_ID` and `AH_DISCORD_CLIENT_SECRET` must be from that **same** application. On successful startup, the new bot's global slash-command registration **replaces the old Aether slash commands** with the AdvertiseHERE command set. Existing Aether commands and CAD no longer run under `npm start`. The old `src/` code and `start:aether-legacy` script are retained for rollback, not as active features.
+The repo still contains original Aether source for rollback. For clean branding, **create a new Discord application/bot** and configure its name/icon via Discord Developer Portal. Installing a new app in communities requires each server owner to grant permissions to the *new* bot. Don't reuse or publish the old Aether token.
 
 ### Test procedure
 
-1. `node --test advertisehere/tests/core.test.js` and `node --check advertisehere/bot/index.js`. Back up your current Wispbyte data and environment before changing the running service.
+1. `node --test advertisehere/tests/core.test.js` and `node --check advertisehere/bot/index.js`.
 2. On Wispbyte, configure env vars, deploy and verify `GET https://YOUR-BOT-API/health` returns `{ready:true}`.
 3. On Vercel, configure encrypted env vars, redeploy, check `/api/health` shows the bot connected.
 4. Register the exact OAuth callback, sign in via `/dashboard/`, confirm your guild shows only with Manage Server permission.
@@ -79,6 +79,12 @@ Reuse the existing Aether `DISCORD_TOKEN` and `CLIENT_ID` from Wispbyte. Rename 
 
 Until final launch the previous Aether app is preserved as `npm run start:aether-legacy` (`node src/app.js`). This is intentionally not a production deletion/migration; keep a backup of your old Wispbyte environment and data before switching the live startup command.
 
-### Startup with existing Wispbyte environment
+## AdvertiseHERE 3.1 additions
 
-The Discord bot starts with the existing `DISCORD_TOKEN`/`CLIENT_ID` even before `AD_SHARED_SECRET` is set. In that case, `/internal/*` is disabled with HTTP 503 and only Discord commands are available. Once you add the same 32+-character shared secret to Wispbyte (`AD_SHARED_SECRET`) and Vercel (`AH_SHARED_SECRET`) and verify public HTTPS forwarding, the website can list and bump through its signed backend. Never expose secrets in client-side scripts or chat.
+- An authenticated [staff review desk](https://advertisehere.vercel.app/staff/) allows team members in `AD_OWNER_IDS` to inspect pending listings and approve or reject them from the website. Server-side role/ID enforcement occurs on Wispbyte, not in the browser.
+- Approved listings can be searched, filtered, and sorted. Homepage/status counts show only measured data; unconfigured systems show unavailable values instead of fake traffic.
+- When the bot is removed from a server, the listing is suspended and disappears from public discovery. A moderated history (up to 500 records) remains in the persistent local listing database.
+- `/ad-pending` and `/ad-stats` expose the moderation queue and verified listing/bump counts through Discord.
+- Added privacy and platform rules pages, accessible focus styling, optional reduced motion, and stricter security headers.
+
+**Data backup:** `AD_DATA_DIR` must point to persistent storage on Wispbyte. Back up its `advertisehere-listings.json` regularly, especially before updates. The database stores submitted listings and activity; it is not the original Aether database. The old Aether code is preserved in the Git backup branch `archive/aether-original-2026-11-08`, not in the cleaned production source.
