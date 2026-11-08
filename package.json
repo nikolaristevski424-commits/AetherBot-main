@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node advertisehere/bot/index.js",
-    "test": "node --test",
+    "test": "node --test advertisehere/tests/core.test.js",
     "migrate": "node scripts/migrate.js apply",
     "migrate:check": "node scripts/migrate.js check",
     "migrate:status": "node scripts/migrate.js status",
@@ -16,7 +16,8 @@
     "restore:db": "node scripts/restore.js",
     "backup:drill": "node scripts/restore-drill.js",
     "start:aether-legacy": "node src/app.js",
-    "test:advertisehere": "node --test advertisehere/tests/core.test.js"
+    "test:advertisehere": "node --test advertisehere/tests/core.test.js",
+    "test:aether-legacy": "node --test test/*.test.js"
   },
   "dependencies": {
     "@discordjs/rest": "^2.6.1",
