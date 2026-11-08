@@ -1,9 +1,9 @@
 name: AdvertiseHERE tests
 on:
   push:
-    branches: [feat/advertisehere-rebrand]
+    branches: [main, feat/advertisehere-rebrand]
   pull_request:
-    paths: ['advertisehere/**', 'package.json']
+    paths: ['advertisehere/**', 'package.json', 'README.md', '.env.example']
 permissions:
   contents: read
 jobs:
