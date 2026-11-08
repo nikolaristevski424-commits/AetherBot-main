@@ -1,158 +1,59 @@
-# Aether Bot - Ultimate Discord Bot
+# AdvertiseHERE
+**AdvertiseHERE is the replacement for the former Aether Discord bot in this repository.** The default `npm start` now starts the advertising and discovery bot, not the former Aether moderation/CAD bot.
 
-**Aether** is a powerful, feature-rich Discord bot designed to enhance your server experience with comprehensive moderation tools, engaging economy systems, utility features, and much more. Built with modern Discord.js v14, with file-based storage by default (PostgreSQL supported as an opt-in upgrade) for reliable data persistence.
+**Website:** https://advertisehere.vercel.app/ · [Browse servers](https://advertisehere.vercel.app/browse/) · [Owner dashboard](https://advertisehere.vercel.app/dashboard/) · [Status](https://advertisehere.vercel.app/status/)
 
-[![Support Server](https://img.shields.io/badge/-Support%20Server-%235865F2?logo=discord&logoColor=white&style=flat-square&logoWidth=20)](#support)
-[![Discord.js](https://img.shields.io/npm/v/discord.js?style=flat-square&labelColor=%23202225&color=%23202225&logo=npm&logoColor=white&logoWidth=20)](https://www.npmjs.com/package/discord.js)
-![PostgreSQL](https://img.shields.io/badge/-PostgreSQL%20optional-%23336791?logo=postgresql&logoColor=white&style=flat-square&logoWidth=20)
+## Active bot
 
-## Table of Contents
+The new bot is at `advertisehere/bot/index.js` and includes:
+- `/list-server`: submit the current Discord server and verify the invite belongs to it.
+- `/bump`: bump an approved listing (shared **two-hour cooldown** with the website).
+- `/listing`: show current listing status.
+- `/top-servers`: show approved listings.
+- `/ad-review`: platform staff moderation, restricted by `AD_OWNER_IDS`.
+- `/ad-help`: documentation and website links.
 
-- [Features Overview](#features-overview)
-- [Quick Setup](#quick-setup)
-- [Manual Installation Steps](#manual-installation-steps)
-- [Support](#support)
-- [Required Bot Intents](#bot-intents)
-- [Contributing](CONTRIBUTING.md)
+The website and Discord commands share one persisted listing store on the Wispbyte host. Listings are reviewed before appearing publicly. The website uses Discord login and authenticated, signed backend requests; it **never** receives the Discord bot token.
 
-<a name="features-overview"></a>
-## Features Overview
+## Rebrand your existing Discord application — do not create another bot
 
-Aether offers a complete suite of tools for Discord server management and community engagement:
+You can keep your current Aether Discord bot application, token, client ID, and existing server installations. Rename the existing application **AdvertiseHERE** and change its icon in the [Discord Developer Portal](https://discord.com/developers/applications). The code replaces the old global slash command set on startup; old Aether commands will stop working. Configure `AD_OWNER_IDS` to enable listing approvals.
 
-<table>
-<tr>
-<td width="50%" valign="top">
+**Important:** Back up the Wispbyte data directory and environment before updating your live service. Existing Aether server settings, CAD records, and economy data are **not** migrated to the new advertising-listing format.
 
-### Moderation & Administration
-- **Mass Actions** - Bulk ban/kick capabilities
-- **User Notes** - Keep detailed moderation records
-- **Case Management** - View and track all mod actions
+## Wispbyte
 
-### Economy System
-- **Shop & Inventory** - Buy and manage items
-- **Gambling** - Risk it for rewards
-- **Pay System** - Transfer money between users
+Install existing dependencies with `npm ci` and run `npm start`. Keep `DISCORD_TOKEN` and `CLIENT_ID` from the current application; copy the other keys in [`.env.example`](.env.example). Set `PORT` to the port Wispbyte assigns (previously **13017**), and set `AD_DATA_DIR` to a writable persistent folder. The bot can run Discord commands before website integration is configured; `/internal/*` stays disabled until `AD_SHARED_SECRET` is provided.
 
-### Fun & Entertainment
-- **Random Facts** - Learn something new
-- **Wanted Poster** - Create fun wanted images
-- **Text Reversal** - Reverse any text
+## Vercel website and OAuth
 
-### Advanced Ticket System
-- **Claim & Priority** - Staff ticket management
-- **Ticket Limits** - Prevent spam
-- **Transcript System** - Save ticket history
+Keep the existing `advertisehere` Vercel project. The production site source is at `advertisehere/site/`, with its own `api/` routes.
 
-### Aether CAD
-- **Dispatch Board** - Create and manage calls and unit status
-- **Live ER:LC Tracking** - Refresh players every 30 seconds with team, staff role, callsign, location, wanted status, and session time
-- **Join/Leave History** - Preserve ER:LC movement events with timestamps
-- **Role-Gated Commands** - Send audited ER:LC commands from CAD
+Discord OAuth2 redirect URI (register on the **same existing Discord application**):
 
-### Server Stats
-- **Member Counter** - Live member count channels
-- **Voice Counters** - Track voice stats
-- **Dynamic Updates** - Real-time channel updates
+```text
+https://advertisehere.vercel.app/api/auth/callback
+```
 
-### Reaction Roles
-- **Role Assignment** - Self-assignable roles
-- **Emoji Selection** - Reaction-based system
-- **Multi-role Support** - Multiple role options
+Vercel environment variables:
+- `AH_PUBLIC_ORIGIN=https://advertisehere.vercel.app`
+- `AH_DISCORD_CLIENT_ID` = same `CLIENT_ID` used on Wispbyte.
+- `AH_DISCORD_CLIENT_SECRET` = that application's **OAuth client secret**.
+- `AH_COOKIE_SECRET` = a separate secure random secret of 32+ characters.
+- `AH_SHARED_SECRET` = exactly the same 32+ character value as Wispbyte `AD_SHARED_SECRET`.
+- `AH_BOT_API_ORIGIN` = the public **HTTPS origin** of the Wispbyte API, without a path or port.
 
-</td>
-<td width="50%" valign="top">
+`aether.wispbyte.app:13017` is a host-and-port allocation, **not proof of a public HTTPS reverse proxy**. Verify that `https://aether.wispbyte.app/health` reaches the running bot before using that HTTPS origin in Vercel. Do not point Vercel at a plain HTTP origin, or paste the Discord token into Vercel.
 
-### Leveling & XP System
-- **XP Tracking** - Automatic message-based XP
-- **Level Roles** - Auto-assign roles by level
-- **Custom Configuration** - Personalize leveling
+After entering Vercel environment variables, redeploy the website. Test Discord login, a pending submission, staff approval, website bump, Discord bump, and the shared cooldown.
 
-### Giveaways & Events
-- **Multiple Winners** - Support multi-winner giveaways
-- **Auto Picking** - Automatic winner selection
-- **Reroll System** - Pick new winners if needed
+## Development, tests, rollback
 
-### Birthday System
-- **Birthday Tracking** - Never miss a birthday
-- **Auto Announcements** - Celebrate automatically
-- **Timezone Support** - Accurate worldwide tracking
+```bash
+npm ci
+npm run test:advertisehere
+node --check advertisehere/bot/index.js
+npm start
+```
 
-### Utility Tools
-- **Report System** - Report issues to staff
-- **Todo Lists** - Personal task management
-- **First Message** - Jump to channel's first message
-
-### Welcome System
-- **Welcome Messages** - Greet new members
-- **Auto Roles** - Assign roles on join
-- **Custom Embeds** - Personalized messages
-  
-### Music
-- **24/7 Mode** - Play music 24/7
-- **Interative Button System** - Manage music through buttons
-- **Supports EVERY platform** - Supports spotify, deezer, youtube, apple music
-  
-</td>
-</tr>
-</table>
-
-<a name="quick-setup"></a>
-
-## Aether CAD Setup
-
-The CAD dashboard is served by the bot at `/cad`. To enable Discord sign-in:
-
-1. In the Discord Developer Portal, add `https://your-domain.example/cad/auth/callback` as an OAuth2 redirect URI and copy the application OAuth2 client secret.
-2. Set `CAD_DISCORD_CLIENT_SECRET`, `CAD_REDIRECT_URI` (the exact public callback URL), a stable random `CAD_SESSION_SECRET`, and a separate stable random `ERLC_KEY_ENCRYPTION_SECRET`, each at least 32 characters. Generate each with `node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"`.
-3. Serve the bot over HTTPS in production, then open `https://your-domain.example/cad` and sign in with Discord. Server managers can assign separate dispatch and ER:LC command roles in CAD Settings.
-4. Connect the ER:LC private server with `/erlc setup`. CAD polls the documented Players, Staff, and JoinLogs API fields every 30 seconds; the manual Sync action is also available in the dashboard.
-
-Keep both secrets stable and backed up. Replacing the CAD session secret invalidates active sessions; replacing the ER:LC encryption secret requires migrating stored keys. Existing plaintext ER:LC keys are encrypted the next time the bot reads their configuration. OAuth secrets belong in the deployment environment, never in source control.
-
-## Required Bot Intents
-Aether requires the following Discord intents:
-- **Guilds**
-- **Guild Messages**
-- **Message Content**
-- **Guild Members**
-- **Guild Message Reactions**
-- **Guild Voice States**
-- **Direct Messages**
-- **Bot**
-- **Applications.commands**
-
-### Required Permissions
-- **View Channels**
-- **Send Messages**
-- **Embed Links**
-- **Attach Files**
-- **Read Message History**
-- **Manage Messages**
-- **Manage Channels**
-- **Manage Roles**
-- **Kick Members**
-- **Manage Messages**
-- **Ban Members**
-- **Moderate Members**
-- **Connect**
-
-<a name="support"></a>
-## Support
-
-_Add your support server invite here once one exists — set `SUPPORT_SERVER_URL` (and optionally `BUG_REPORT_URL`) in your environment, and the `/support` command and help-menu buttons will pick it up automatically. No code changes needed._
-
-## Links
-
-- Website: https://aether-community.lovable.app
-- Setup guide: https://aether-setup-flow.base44.app
-
-## License
-
-Aether's original code is proprietary (all rights reserved); the inherited TitanBot foundation remains MIT. See [LICENSE](LICENSE) for the exact split, and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for what's built on what.
-
-## Thank You
-
-Thank you for choosing Aether for your Discord server! We're constantly working to improve and add new features based on community feedback.
-
-*Last updated: Aug 2026*
+The former Aether implementation is retained under `src/` for rollback only, and can be invoked with `npm run start:aether-legacy`. It is not part of the AdvertiseHERE bot's active startup. Keep the legacy code only until this replacement is validated on Wispbyte. See [full setup and security notes](advertisehere/README.md).
