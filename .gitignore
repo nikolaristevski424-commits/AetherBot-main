@@ -146,3 +146,6 @@ backups/
 *.dump
 AetherBot-main/.scratch-tests/
 .scratch-tests/
+
+# AdvertiseHERE persisted listing data
+/data/advertisehere-listings.json
