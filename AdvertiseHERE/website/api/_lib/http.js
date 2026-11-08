@@ -12,6 +12,7 @@ export function fail(res,error){const status=[400,401,403,404,409,429,503].inclu
 }
 export function parseBody(req){
   const length=Number(req.headers['content-length']); if(Number.isFinite(length)&&length>12_000){const e=new Error('Request too large');e.status=400;throw e;}
+  if(req.body && JSON.stringify(req.body).length>12000){const e=new Error('Request too large');e.status=400;throw e;}
   if(!req.body||typeof req.body!=='object'||Array.isArray(req.body)){const e=new Error('Expected a JSON object');e.status=400;throw e;}
   return req.body;
 }

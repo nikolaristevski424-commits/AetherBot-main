@@ -3,7 +3,7 @@ import {db} from './db.js';
 let running=false;
 const invite=code=>`https://discord.gg/${code}`;
 async function sendTo(client,channelId,embed){
- if(!/^\d{17,20}$/.test(channelId||''))return false;
+ if(!/^\d{17,20}$/.test(channelId||''))throw new Error('Announcement channel is not configured');
  const channel=await client.channels.fetch(channelId).catch(()=>null);
  if(!channel?.isTextBased?.()||typeof channel.send!=='function')throw new Error('Configured channel not found or not text-based');
  await channel.send({embeds:[embed],allowedMentions:{parse:[]}});return true;

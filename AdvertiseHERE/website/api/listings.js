@@ -26,6 +26,8 @@ export default async function handler(req,res){setSecurity(res);
   const guilds=await authorizedGuilds(session.accessToken);
   if(!guilds.some(g=>g.id===data.guildId)){const e=new Error('Manage Server permission is required for this server');e.status=403;throw e;}
   const result=await transaction(async db=>{
+   const recent=await db.query("SELECT COUNT(*)::int AS count FROM ah_audit WHERE actor_discord_id=$1 AND action IN ('listing.submitted','listing.updated') AND created_at>NOW()-INTERVAL '1 hour'",[session.discord_id]);
+   if(recent.rows[0].count>=6){const e=new Error('You have reached the submission limit (6 per hour)');e.status=429;throw e;}
    const existing=await db.query('SELECT id,owner_discord_id FROM ah_listings WHERE guild_id=$1 FOR UPDATE',[data.guildId]);
    if(existing.rows.length&&existing.rows[0].owner_discord_id!==session.discord_id){const e=new Error('Another account owns this listing. Contact staff.');e.status=403;throw e;}
    const r=await db.query(`INSERT INTO ah_listings(guild_id,owner_discord_id,name,summary,description,category,invite_code,icon_url,banner_url)
