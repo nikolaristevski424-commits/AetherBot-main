@@ -1,21 +1,31 @@
-(async()=>{
-  const el=id=>document.getElementById(id);
-  async function refresh(){
-    try{
-      const r=await fetch('/api/health',{cache:'no-store'});if(!r.ok)throw new Error('website API unreachable');const data=await r.json();
-      el('webHealth').textContent='Operational';el('webDot').className='status-icon online';
-      const connected=data.bot?.connected===true;
-      el('botHealth').textContent=connected?'Online':(data.bot?.status==='not-connected'?'Not connected':'Unavailable');
-      el('botDot').className='status-icon '+(connected?'online':'offline');
-      el('authHealth').textContent=data.discordOAuthConfigured?'Configured':'Setup required';el('authDot').className='status-icon '+(data.discordOAuthConfigured?'online':'');
-      el('statusHeading').textContent=connected?'Website and bot API connected':'Website online · bot integration pending';
-      el('statusDescription').textContent=connected?'Live health from the connected Discord bot and website.':'The website is online. Discord features require the new Wispbyte bot and environment variables; this is not proof the old bot is offline.';
-      el('checkedAt').textContent=new Date(data.checkedAt).toLocaleString();
-      const stats=data.bot?.stats; const fmt=n=>Number.isSafeInteger(n)&&n>=0?n.toLocaleString():'—';
-      el('healthListings').textContent=connected?fmt(stats?.approvedListings):'—';
-      el('healthBumps').textContent=connected?fmt(stats?.totalBumps):'—';
-      el('healthGuilds').textContent=connected?fmt(stats?.connectedGuilds):'—';
-    }catch{el('webHealth').textContent='Health check failed';el('webDot').className='status-icon offline';}
+(() => {
+  const ah = window.AdvertiseHERE, $ = id => document.getElementById(id);
+  const state = (id, dot, label, kind) => {
+    const el = $(id); el.className = `service-badge ${kind}`;
+    el.innerHTML = `<i id="${dot}"></i> ${ah.escapeHtml(label)}`;
+  };
+  async function refresh() {
+    $('statusHeading').textContent = 'Checking service health…';
+    const h = await ah.getJson('/api/health');
+    const good = h.httpStatus === 200 && h.website === 'online';
+    state('webHealth', 'webDot', good ? 'Operational' : 'Check failed', good ? 'online' : 'unknown');
+    if (!good) {
+      state('botHealth','botDot','Unknown','unknown');state('authHealth','authDot','Unknown','unknown');
+      $('statusHeading').textContent='Status could not be verified.';
+      $('statusDescription').textContent='The health endpoint is not responding. Please retry.';
+      return;
+    }
+    const bot = h.bot || {};
+    state('botHealth','botDot', bot.connected ? 'Connected' : bot.status === 'not-connected' || bot.status === 'not-configured' ? 'Not connected' : 'Unable to verify', bot.connected ? 'online' : 'unknown');
+    state('authHealth','authDot',h.discordOAuthConfigured ? 'Configured' : 'Setup required', h.discordOAuthConfigured ? 'online' : 'unknown');
+    $('checkedAt').textContent = h.checkedAt ? new Date(h.checkedAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : 'Just now';
+    $('statusHeading').textContent = bot.connected && h.discordOAuthConfigured ? 'Core services connected.' : 'Some integrations need setup.';
+    $('statusDescription').textContent = bot.connected ? 'Verified live bot response received.' : 'Website is responding. Discord integration has not yet been verified.';
+    const stats = bot.connected ? bot.stats : null;
+    $('healthListings').textContent = stats ? ah.formatCount(stats.approvedListings) : '—';
+    $('healthBumps').textContent = stats ? ah.formatCount(stats.totalBumps) : '—';
+    $('healthGuilds').textContent = stats ? ah.formatCount(stats.connectedGuilds) : '—';
   }
-  await refresh();setInterval(refresh,60_000);
+  $('refreshHealth')?.addEventListener('click', refresh);
+  refresh();
 })();
