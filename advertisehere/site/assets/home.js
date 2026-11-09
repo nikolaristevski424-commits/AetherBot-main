@@ -1,20 +1,23 @@
 (() => {
- const $=id=>document.getElementById(id);
- const ah=window.AdvertiseHERE;
- const fmt=n=>Number.isSafeInteger(n)&&n>=0?n.toLocaleString(): '—';
- Promise.all([ah.getJson('/api/listings'),ah.getJson('/api/health')]).then(([listings,health])=>{
-  const cards=$('homeListings');
-  if(listings.httpStatus===200 && Array.isArray(listings.listings) && listings.listings.length){
-    cards.innerHTML=listings.listings.slice(0,3).map(ah.listingCard).join('');
-  } else if(listings.httpStatus!==200){
-    cards.innerHTML=ah.emptyState('Discovery is warming up','The bot connection is being configured. Verified communities will appear here when the directory is online.','<a class="btn btn-outline" href="/status/">View connection status ↗</a>');
-  }
-  const stats=health.bot?.stats;
-  if(health.bot?.connected && stats){
-    $('statListings').textContent=fmt(stats.approvedListings);
-    $('statBumps').textContent=fmt(stats.totalBumps);
-    $('statConnected').textContent=fmt(stats.connectedGuilds);
-    $('statNote').textContent='Live counts from the connected bot.';
-  }
- }).catch(()=>{});
+  const ah = window.AdvertiseHERE;
+  const cards = document.getElementById('homeListings');
+  const fmt = ah.formatCount;
+  Promise.all([ah.getJson('/api/listings'), ah.getJson('/api/health')]).then(([directory, health]) => {
+    if (directory.httpStatus === 200 && Array.isArray(directory.listings) && directory.listings.length) {
+      cards.innerHTML = directory.listings.slice(0, 3).map(ah.listingCard).join('');
+    } else if (directory.httpStatus !== 200) {
+      cards.innerHTML = ah.emptyState('The directory is opening soon.', 'The live Discord listing connection is not configured yet. You can still explore the website and read how listing works.', '<a class="btn btn-outline" href="/status/">View connection status ↗</a>');
+    } else {
+      cards.innerHTML = ah.emptyState('Your community could be the first.', 'No approved listings are currently available. Submit a server for review to get started.', '<a class="btn btn-primary" href="/dashboard/">Submit a listing ↗</a>');
+    }
+    const stats = health.bot?.stats;
+    if (health.bot?.connected && stats) {
+      document.getElementById('statListings').textContent = fmt(stats.approvedListings);
+      document.getElementById('statBumps').textContent = fmt(stats.totalBumps);
+      document.getElementById('statConnected').textContent = fmt(stats.connectedGuilds);
+      document.getElementById('statNote').textContent = 'Live counts from the connected AdvertiseHERE bot.';
+    }
+  }).catch(() => {
+    cards.innerHTML = ah.emptyState('Directory unavailable', 'We could not check the directory right now. Try again in a little while.', '<a class="btn btn-outline" href="/status/">Check status ↗</a>');
+  });
 })();

@@ -1,36 +1,60 @@
 (() => {
   document.documentElement.classList.add('js');
-  const menuBtn = document.querySelector('#menuToggle');
-  const mobileNav = document.querySelector('#mobileNav');
-  menuBtn?.addEventListener('click', () => {
-    const next = mobileNav.hasAttribute('hidden');
-    mobileNav.toggleAttribute('hidden', !next);
-    menuBtn.setAttribute('aria-expanded', String(next));
+  const menu = document.getElementById('menuToggle');
+  const mobile = document.getElementById('mobileNav');
+  function closeMenu() { if (!mobile) return; mobile.hidden = true; menu?.setAttribute('aria-expanded', 'false'); }
+  menu?.addEventListener('click', () => {
+    if (!mobile) return;
+    mobile.hidden = !mobile.hidden;
+    menu.setAttribute('aria-expanded', String(!mobile.hidden));
   });
-  document.querySelectorAll('#mobileNav a').forEach(link => link.addEventListener('click', () => {
-    mobileNav.setAttribute('hidden', '');
-    menuBtn?.setAttribute('aria-expanded', 'false');
-  }));
-  document.querySelectorAll('[data-year]').forEach(el => el.textContent = new Date().getFullYear());
-  const observer = 'IntersectionObserver' in window ? new IntersectionObserver(items => {
-    for (const item of items) if (item.isIntersecting) { item.target.classList.add('revealed'); observer.unobserve(item.target); }
-  }, { threshold: 0.09, rootMargin: '0px 0px -25px 0px' }) : null;
-  document.querySelectorAll('[data-reveal]').forEach(el => observer ? observer.observe(el) : el.classList.add('revealed'));
+  mobile?.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); });
+  document.querySelectorAll('[data-year]').forEach(el => { el.textContent = String(new Date().getFullYear()); });
+  const prefersReducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reveal = document.querySelectorAll('[data-reveal]');
+  if ('IntersectionObserver' in window && !prefersReducedMotion) {
+    const obs = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) { e.target.classList.add('revealed'); obs.unobserve(e.target); }
+    }, { threshold: 0.06, rootMargin: '0px 0px -15px 0px' });
+    reveal.forEach(el => obs.observe(el));
+  } else reveal.forEach(el => el.classList.add('revealed'));
 })();
-const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const labelCategory = s => ({roleplay:'ER:LC / Roleplay',gaming:'Gaming',creative:'Creative',development:'Development',social:'Social',other:'Other'}[s] || 'Community');
-function listingCard(listing) {
-  const title=escapeHtml(listing.title), category=escapeHtml(labelCategory(listing.category)), description=escapeHtml(listing.description);
-  const invite = typeof listing.invite==='string' && /^https:\/\/discord\.gg\/[a-zA-Z0-9-]{2,64}$/.test(listing.invite) ? listing.invite : '#';
-  const members = Number.isInteger(listing.memberCount) && listing.memberCount >= 0 ? `${listing.memberCount.toLocaleString()} members` : 'Discord community';
-  return `<article class="listing-card"><div class="listing-top"><div class="listing-avatar">${title[0] || 'A'}</div><div><h3 class="listing-title">${title}</h3><div class="listing-category">${category}</div></div></div><p class="listing-desc">${description}</p><div class="listing-bottom"><small>${members} · ${Number(listing.bumpCount || 0)} bumps</small><a href="${escapeHtml(invite)}" target="_blank" rel="noopener noreferrer nofollow">Join server ↗</a></div></article>`;
+
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const labelCategory = key => ({ roleplay:'ER:LC & roleplay', gaming:'Gaming', creative:'Creative studios', development:'Development', social:'Social', other:'Other' }[key] || 'Community');
+const formatCount = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString() : '—';
+function verifiedInvite(value) { return typeof value === 'string' && /^https:\/\/discord\.gg\/[a-zA-Z0-9-]{2,64}$/.test(value) ? value : null; }
+function listingCard(item) {
+  const title = escapeHtml(item.title || 'Discord community');
+  const initials = escapeHtml((item.title || 'AD').slice(0, 2).toUpperCase());
+  const desc = escapeHtml(item.description || 'Discover this community on Discord.');
+  const cat = escapeHtml(labelCategory(item.category));
+  const invite = verifiedInvite(item.invite);
+  const memberCount = Number.isSafeInteger(item.memberCount) && item.memberCount >= 0 ? `${formatCount(item.memberCount)} members` : 'Members not reported';
+  const bumpCount = Number.isSafeInteger(item.bumpCount) && item.bumpCount >= 0 ? `${formatCount(item.bumpCount)} bumps` : 'Bumps unavailable';
+  const action = invite ? `<a href="${escapeHtml(invite)}" target="_blank" rel="noopener noreferrer nofollow">Join community ↗</a>` : '<span>Invite unavailable</span>';
+  return `<article class="listing-card"><div class="listing-card-head"><div class="listing-avatar">${initials}</div><div><h3>${title}</h3><p>${cat}</p></div></div><p class="listing-description">${desc}</p><div class="listing-foot"><span>${memberCount} · ${bumpCount}</span>${action}</div></article>`;
 }
-function emptyState(title, message, cta = '') {
-  return `<div class="empty-state"><div class="empty-symbol">◌</div><h3>${escapeHtml(title)}</h3><p>${escapeHtml(message)}</p>${cta}</div>`;
+function emptyState(title, message, action = '') {
+  return `<div class="empty-state"><span class="empty-icon" aria-hidden="true">✳</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(message)}</p>${action}</div>`;
 }
-async function getJson(path, options) {
-  const r = await fetch(path, { cache:'no-store', ...options });
-  let j;try{j=await r.json();}catch{j={error:'Unexpected response from server'};}
-  return {...j, httpStatus:r.status};
+async function getJson(path, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(path, { cache:'no-store', credentials:'same-origin', ...options, signal:controller.signal });
+    let data;
+    try { data = await response.json(); } catch { data = { error:'Unexpected response from the server' }; }
+    return { ...data, httpStatus:response.status };
+  } catch { return { error:'The connection could not be completed. Please try again.', httpStatus:0 }; }
+  finally { clearTimeout(timeout); }
 }
-window.AdvertiseHERE = { escapeHtml, labelCategory, listingCard, emptyState, getJson };
+function toast(message, kind='info') {
+  const region = document.getElementById('toastRegion');
+  if (!region) return;
+  const el = document.createElement('div'); el.className = `toast ${kind}`; el.textContent = String(message).slice(0, 400);
+  region.appendChild(el);
+  setTimeout(() => el.remove(), 5400);
+}
+window.AdvertiseHERE = { escapeHtml, labelCategory, formatCount, verifiedInvite, listingCard, emptyState, getJson, toast };
