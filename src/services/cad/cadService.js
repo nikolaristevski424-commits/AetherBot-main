@@ -1,11 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { PermissionFlagsBits } from 'discord.js';
 import { deleteFromDb, getFromDb, setInDb } from '../../utils/database.js';
+import { validate911Input, normalizeErlc911 } from './dispatchCore.js';
 
 const STATE_LIMIT = 500;
 const AUDIT_LIMIT = 1000;
 const PLAYER_EVENT_LIMIT = 1000;
 const JOIN_LOG_KEY_LIMIT = 5000;
+const ERLC_911_KEY_LIMIT = 3000;
+const DISCORD_911_COOLDOWN_MS = 5 * 60 * 1000;
 const TRACKING_CONTINUITY_MS = 90 * 1000;
 const UNIT_STATUSES = new Set(['available', 'busy', 'on_scene', 'off_duty']);
 const writeQueues = new Map();
@@ -42,6 +45,7 @@ function normalizeState(value) {
         staff: Array.isArray(value?.staff) ? value.staff : [],
         playerEvents: Array.isArray(value?.playerEvents) ? value.playerEvents : [],
         joinLogKeys: Array.isArray(value?.joinLogKeys) ? value.joinLogKeys : [],
+        erlc911Keys: Array.isArray(value?.erlc911Keys) ? value.erlc911Keys : [],
         playerSyncAt: Number.isFinite(value?.playerSyncAt) ? value.playerSyncAt : null,
         serverOnline: typeof value?.serverOnline === 'boolean' ? value.serverOnline : null,
         audit: Array.isArray(value?.audit) ? value.audit : [],
@@ -62,6 +66,7 @@ async function mutateState(guildId, mutate) {
         const state = await getCadState(guildId);
         const result = await mutate(state);
         state.calls = state.calls.slice(-STATE_LIMIT);
+        state.erlc911Keys = state.erlc911Keys.slice(-ERLC_911_KEY_LIMIT);
         state.audit = state.audit.slice(-AUDIT_LIMIT);
         if (!await setInDb(stateKey(guildId), state)) throw new Error('Could not save CAD data.');
         return result;
@@ -102,6 +107,69 @@ export async function createCadCall(guildId, actor, input) {
         state.calls.push(call);
         addAudit(state, actor, 'call.created', { callId: call.id, title: call.title });
         return call;
+    });
+}
+
+
+/** Discord /911 is a roleplay dispatch report, never a real-world emergency request. */
+export async function createDiscord911Call(guildId, actor, input) {
+    const validated = validate911Input(input);
+    return mutateState(guildId, (state) => {
+        const now = Date.now();
+        const recent = state.calls.filter((call) => call.source === 'discord_911'
+            && call.createdBy === actor.id && now - call.createdAt < DISCORD_911_COOLDOWN_MS);
+        if (recent.length >= 2) {
+            throw new Error('You already sent two dispatch reports in the past five minutes. Contact staff for help.');
+        }
+        const call = {
+            id: randomUUID(),
+            ...validated,
+            source: 'discord_911',
+            priority: 'normal',
+            status: 'open',
+            createdBy: actor.id,
+            createdByName: actor.username,
+            assignedUnitIds: [],
+            createdAt: now,
+            updatedAt: now,
+        };
+        state.calls.push(call);
+        addAudit(state, actor, '911.discord_reported', { callId: call.id, location: call.location });
+        return call;
+    });
+}
+
+/** Idempotently import real ER:LC private-server 911 calls from the v2 API. */
+export async function ingestErlc911Calls(guildId, rawEvents) {
+    if (!Array.isArray(rawEvents) || !rawEvents.length) return { added: 0 };
+    const events = rawEvents.slice(-100).map(normalizeErlc911).filter(Boolean);
+    if (!events.length) return { added: 0 };
+    const snapshot = await getCadState(guildId);
+    const observed = new Set([...snapshot.erlc911Keys, ...snapshot.calls.map(c => c.externalKey).filter(Boolean)]);
+    if (events.every(event => observed.has(event.externalKey))) return { added: 0 };
+    return mutateState(guildId, (state) => {
+        const seen = new Set([...state.erlc911Keys, ...state.calls.map(c => c.externalKey).filter(Boolean)]);
+        let added = 0;
+        for (const event of events) {
+            if (seen.has(event.externalKey)) continue;
+            const call = {
+                id: randomUUID(),
+                ...event,
+                source: 'erlc_911',
+                priority: 'urgent',
+                status: 'open',
+                createdBy: 'erlc-api',
+                createdByName: 'ER:LC in-game 911',
+                assignedUnitIds: [],
+                updatedAt: Date.now(),
+            };
+            state.calls.push(call);
+            state.erlc911Keys.push(event.externalKey);
+            seen.add(event.externalKey);
+            added++;
+        }
+        if (added) addAudit(state, { id: 'erlc-api', username: 'ER:LC' }, '911.ingame_imported', { count: added });
+        return { added };
     });
 }
 
