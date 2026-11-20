@@ -16,7 +16,7 @@ export function toCsv(columns,items,{limit=MAX_EXPORT_ROWS}={}){
   const n=Math.min(MAX_EXPORT_ROWS,Math.max(0,limit));
   return [columns.map(c=>safeCell(c.label)).join(','),...items.slice(0,n).map(item=>columns.map(c=>safeCell(item?.[c.key])).join(','))].join('\r\n')+'\r\n';
 }
-const formatTime=value=>Number.isFinite(Number(value))&&Number(value)>0?new Date(Number(value)).toISOString():'';
+const formatTime=value=>{const n=Number(value);return Number.isFinite(n)&&n>0&&n<=8.64e15?new Date(n).toISOString():'';};
 export function moderationCasesCsv(cases){
   return toCsv([{label:'Case ID',key:'caseId'},{label:'Action',key:'action'},{label:'Target',key:'target'},
     {label:'Target User ID',key:'targetUserId'},{label:'Moderator ID',key:'moderatorId'},
