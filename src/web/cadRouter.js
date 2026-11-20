@@ -20,9 +20,10 @@ import { syncCadGuild } from '../services/cad/cadTrackingService.js';
 import { CadAuthService } from '../services/cad/cadAuthService.js';
 import {
     getMdtState, searchMdt, createMdtRecord, updateMdtRecord, archiveMdtRecord,
-    createMdtBolo, clearMdtBolo, setMdtCalibration,
+    createMdtBolo, clearMdtBolo, setMdtCalibration, logBaseBulletin,
 } from '../services/cad/mdtService.js';
 import { fitMapCalibration } from '../services/cad/mdtCore.js';
+import { getBaseStation, signalBaseStation } from '../services/cad/baseStationService.js';
 
 const router = express.Router();
 let discordClient;
@@ -198,9 +199,40 @@ router.get('/api/guilds/:guildId/mdt', async (req, res) => {
             ...mdt, players, assignedCalls,
             calibrationTransform: fitMapCalibration(mdt.calibration),
             permissions: { manager: access.isManager, dispatch: access.canDispatch },
+            base: { voice: getBaseStation(req.params.guildId), textChannelId: access.config.dispatchChannelId || null },
             snapshotAt: fresh ? cad.playerSyncAt : null,
         });
     } catch(error) { return mdtFailure(res, error); }
+});
+
+
+router.post('/api/guilds/:guildId/mdt/base/bulletin', async (req, res) => {
+    const access = await requireGuild(req, res, 'dispatch');
+    if (!access) return;
+    const raw = req.body?.message;
+    if (typeof raw !== 'string' || raw.trim().length < 5 || raw.length > 280)
+        return res.status(400).json({ error: 'Roleplay bulletin must be 5–280 characters.' });
+    const channelId = access.config.dispatchChannelId;
+    if (!channelId) return res.status(409).json({error: 'Configure /cad dispatch-channel before sending bulletins.'});
+    try {
+        const state = await getMdtState(req.params.guildId);
+        if (state.bulletins.some(b => b.actorId === req.cadSession.profile.id && Date.now() - b.at < 15_000))
+            return res.status(429).json({ error: 'Please wait 15 seconds between dispatch bulletins.' });
+        const channel = await access.guild.channels.fetch(channelId).catch(() => null);
+        if (!channel?.isTextBased?.() || !channel.send)
+            return res.status(409).json({ error: 'The configured dispatch channel cannot be reached.' });
+        const text = raw.trim();
+        await channel.send({
+            content: `📻 **BASE DISPATCH • ER:LC ROLEPLAY**\n${text}\n— ${req.cadSession.profile.username.slice(0,60)}`,
+            allowedMentions: { parse: [] },
+        });
+        const bulletin = await logBaseBulletin(req.params.guildId, req.cadSession.profile, text, channelId);
+        const voiceAlert = await signalBaseStation(req.params.guildId);
+        return res.status(201).json({ bulletin, voiceAlert });
+    } catch (error) {
+        logger.warn(`[cad] Base Dispatch bulletin failed: ${String(error.message).slice(0,100)}`);
+        return res.status(503).json({ error: 'Could not deliver the dispatch bulletin. Check channel access and retry.' });
+    }
 });
 
 router.post('/api/guilds/:guildId/mdt/records', async (req, res) => {
