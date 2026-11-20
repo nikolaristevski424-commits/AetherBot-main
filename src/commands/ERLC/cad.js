@@ -51,7 +51,7 @@ export default {
       if (sub === 'dashboard' || sub === 'map') {
         const url=cadUrl();
         return interaction.editReply(url
-          ? `**Aether CAD** — ${url}${sub === 'map' ? '\nOpen the **Live Map** section to see ER:LC player locations.' : ''}\nDiscord sign-in and your server's CAD roles are required.`
+          ? `**Aether CAD** — ${url}${sub === 'map' ? '?view=map' : ''}\nDiscord sign-in and your server's CAD roles are required.`
           : 'The bot CAD website is not configured for public HTTPS access yet. Set `CAD_REDIRECT_URI` and configure Discord OAuth.');
       }
       if (sub === 'calls') {
