@@ -8,6 +8,7 @@ on:
       - 'src/commands/ERLC/**'
       - 'src/web/cad/**'
       - 'src/web/cadRouter.js'
+      - 'src/services/music/musicActions.js'
       - 'test/mdt*.test.js'
       - 'package*.json'
       - '.github/workflows/mdt-v4-tests.yml'
@@ -29,6 +30,7 @@ jobs:
           node --check src/services/cad/mdtCore.js
           node --check src/services/cad/mdtService.js
           node --check src/services/cad/baseStationService.js
+          node --check src/services/music/musicActions.js
           node --check src/commands/ERLC/modules/cadExtended.js
           node --check src/commands/ERLC/cad.js
           node --check src/commands/ERLC/911.js
