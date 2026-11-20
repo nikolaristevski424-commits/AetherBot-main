@@ -207,3 +207,34 @@ test('Discord OAuth state creates a short-lived signed CAD session', async () =>
         globalThis.fetch = nativeFetch;
     }
 });
+
+test('Discord roleplay 911 calls are stored and rate-limited per member/guild', async () => {
+    const guildId = '30000000000000001';
+    const actor = { id: '30000000000000002', username: 'Civilian Test' };
+    const input = { title: 'Two cars crashed', location: 'Postal 218', details: 'Two vehicles have collided at the intersection.', x: -250, z: 480 };
+    const first = await cad.createDiscord911Call(guildId, actor, input);
+    const second = await cad.createDiscord911Call(guildId, actor, { ...input, title: 'Traffic backed up' });
+    assert.equal(first.source, 'discord_911');
+    assert.equal(first.positionX, -250);
+    assert.equal(second.source, 'discord_911');
+    await assert.rejects(() => cad.createDiscord911Call(guildId, actor, input), /five minutes/);
+    const state = await cad.getCadState(guildId);
+    assert.equal(state.calls.length, 2);
+    assert.equal(state.audit.filter(entry => entry.action === '911.discord_reported').length, 2);
+});
+
+test('ER:LC v2 emergency calls import into CAD exactly once', async () => {
+    const guildId = '30000000000000003';
+    const timestamp = Math.floor(Date.now() / 1000);
+    const sample = { Team: 'Police', Caller: 123456789, CallNumber: 400, StartedAt: timestamp, Position: [-654.6, 666.5], PositionDescriptor: 'Postal 403', Description: 'Traffic collision near the park' };
+    assert.deepEqual(await cad.ingestErlc911Calls(guildId, [sample]), { added: 1 });
+    assert.deepEqual(await cad.ingestErlc911Calls(guildId, [sample, sample]), { added: 0 });
+    const state = await cad.getCadState(guildId);
+    assert.equal(state.calls.length, 1);
+    assert.equal(state.calls[0].source, 'erlc_911');
+    assert.equal(state.calls[0].priority, 'urgent');
+    assert.equal(state.calls[0].positionZ, 666.5);
+    await cad.updateCadCall(guildId, { id: '30000000000000002', username: 'Dispatcher' }, state.calls[0].id, { status: 'closed' });
+    assert.deepEqual(await cad.ingestErlc911Calls(guildId, [sample]), { added: 0 });
+    assert.equal((await cad.getCadState(guildId)).calls[0].status, 'closed');
+});
