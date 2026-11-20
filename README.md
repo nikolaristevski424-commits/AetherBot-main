@@ -163,3 +163,13 @@ Thank you for choosing Aether for your Discord server! We're constantly working 
 Aether's existing Discord-authenticated CAD now supports a Liberty County map with API-v2 player coordinates and map-located in-game 911 calls. Discord members may submit roleplay emergencies using `/911`, while authorized dispatchers use `/cad calls`, `/cad unit`, `/cad respond`, `/cad assign`, `/cad close`, and `/cad map`. Server managers can direct reports to a channel using `/cad dispatch-channel`.
 
 **Complete setup, limitations, and security requirements:** [CAD_UPGRADE.md](CAD_UPGRADE.md). A verified HTTPS bot URL and your existing Discord OAuth settings are needed for the browser map; ER:LC player positions require the private-server API pack. The 911 command is for Roblox roleplay **only**, not real-world emergencies.
+
+## Aether CAD v4: Officer MDT, BOLOs and Discord Base Dispatch
+
+The existing CAD now includes fictional ER:LC civilian/vehicle records, a searchable officer MDT, time-limited BOLOs, assigned-call panels, per-server map calibration from 3–8 known game landmarks and a Discord Base Dispatch station (text bulletin + voice attention tone). The old moderation, ticket, ER:LC and CAD dispatch functions remain.
+
+**Commands:** `/cad mdt open`, `/cad mdt search`, `/cad mdt add-record`, `/cad bolo add`, `/cad bolo list`, `/cad bolo clear`, `/cad base join`, `/cad base leave`, `/cad base bulletin`. These are nested in the existing `/cad` command to avoid adding more global slash commands.
+
+**Voice requires Node 22.12+**. The bot connects to voice only when an authorized user runs `/cad base join`; it does not record or interpret spoken audio. It sends dispatch bulletins through the configured text channel and plays attention tones in VC. Use `/cad dispatch-channel` to choose the text channel.
+
+[Full CAD v4 setup and verification guide](CAD_MDT_RELEASE.md). This is solely for Roblox roleplay: no real emergency services or sensitive real-world identity records.
