@@ -1,7 +1,7 @@
 name: Aether MDT and Base Dispatch validation
 on:
   push:
-    branches: [feat/aether-mdt-bolo-base-radio]
+    branches: [main, feat/aether-mdt-bolo-base-radio]
   pull_request:
     paths:
       - 'src/services/cad/**'
