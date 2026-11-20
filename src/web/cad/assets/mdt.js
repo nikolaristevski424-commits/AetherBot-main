@@ -60,6 +60,10 @@ export function renderMdt(data){
   $('mdtRecordEditor').hidden=!permissions?.dispatch;
   if(currentId!==guildId){guildId=currentId;cached=null;selectedRecord=null;$('mdtSearch').value='';void refreshMdt();}
   $('mdtUnitLabel').textContent=(data.state.units||[]).find(u=>u.userId===data.currentUserId)?.callsign||'Your officer workspace';
+  if (cached && data.currentUserId) {
+    cached.assignedCalls = (data.state.calls || []).filter(c => c.status !== 'closed' && (c.assignedUnitIds || []).includes(data.currentUserId)).slice(-20);
+    render();
+  }
 }
 function startNew(){selectedRecord=null;$('mdtRecordForm').reset();$('mdtRecordFormHeading').textContent='Create a roleplay record';$('mdtRecordSubmit').textContent='Save record';$('mdtArchiveRecord').hidden=true;}
 function editRecord(record){selectedRecord=record;$('mdtRecordFormHeading').textContent=`Edit ${record.kind} record`;
