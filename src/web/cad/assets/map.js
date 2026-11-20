@@ -6,12 +6,19 @@ let zoom = 1;
 let panX = 0;
 let panY = 0;
 let selected = null;
+let pendingLandmark = null;
+let savingCalibration = false;
 
 const el = id => document.getElementById(id);
 function asPosition(x, z) {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
-  const mx = (x + MAP_SIZE / 2) / MAP_SIZE * 100;
-  const my = (z + MAP_SIZE / 2) / MAP_SIZE * 100;
+  const transform = snapshot?.mapTransform;
+  const mx = transform?.coeffX?.length === 3
+    ? transform.coeffX[0] * x + transform.coeffX[1] * z + transform.coeffX[2]
+    : (x + MAP_SIZE / 2) / MAP_SIZE * 100;
+  const my = transform?.coeffY?.length === 3
+    ? transform.coeffY[0] * x + transform.coeffY[1] * z + transform.coeffY[2]
+    : (z + MAP_SIZE / 2) / MAP_SIZE * 100;
   return mx >= 0 && mx <= 100 && my >= 0 && my <= 100 ? { x: mx, y: my } : null;
 }
 function teamGroup(team) {
@@ -56,6 +63,7 @@ export function renderCadMap(data) {
   const age = Date.now() - Number(state.playerSyncAt || 0);
   const fresh = Number.isFinite(age) && state.playerSyncAt && age <= 90_000 && state.serverOnline !== false;
   const allPlayers = fresh ? (state.players || []) : [];
+  updateCalibrationPanel(data, allPlayers);
   const shown = [];
   for (const player of allPlayers) {
     const location = asPosition(player.locationX, player.locationZ);
@@ -79,7 +87,7 @@ export function renderCadMap(data) {
   if (stateLabel) stateLabel.textContent = !state.playerSyncAt ? 'Waiting for first ER:LC sync' :
     state.serverOnline === false ? 'ER:LC server offline — player positions hidden' :
     !fresh ? 'Last player snapshot is stale — positions hidden' :
-    `API snapshot ${Math.max(0, Math.round(age / 1000))} seconds old · ${allPlayers.length} players in snapshot`;
+    `API snapshot ${Math.max(0, Math.round(age / 1000))} seconds old · ${allPlayers.length} players in snapshot${data.mapTransform ? ' · calibrated map' : ' · map alignment approximate'}`;
   el('cadMapPlayerCount').textContent = String(allPlayers.length);
   el('cadMapCallCount').textContent = String((state.calls||[]).filter(c => c.status!=='closed').length);
   el('cadMapPinCount').textContent = String(shown.length);
@@ -110,8 +118,94 @@ export function renderCadMap(data) {
   }
 }
 
+
+// Role-checked map alignment: the server saves reference points and fits the affine transform.
+// Client access to the controls does not grant manager permission; the API independently checks roles.
+function calibrationMessage(message, error = false) {
+  const node = el('cadCalibrationStatus');
+  if (!node) return;
+  node.textContent = message;
+  node.style.color = error ? '#a52626' : '';
+}
+function updateCalibrationPanel(data, players) {
+  const panel = el('cadCalibrationPanel'), select = el('cadCalibrationPlayer'), list = el('cadCalibrationList');
+  if (!panel || !select || !list) return;
+  panel.hidden = !data.permissions?.manager;
+  if (panel.hidden) { pendingLandmark = null; return; }
+  const previous = select.value;
+  select.replaceChildren();
+  const placeholder = document.createElement('option');
+  placeholder.value = ''; placeholder.textContent = 'Select player at known landmark'; select.append(placeholder);
+  for (const player of players) {
+    if (!Number.isFinite(player.locationX) || !Number.isFinite(player.locationZ)) continue;
+    const option = document.createElement('option');
+    option.value = String(player.robloxId || player.player);
+    option.textContent = `${player.player} • X ${player.locationX.toFixed(0)} Z ${player.locationZ.toFixed(0)}`;
+    select.append(option);
+  }
+  if ([...select.options].some(o => o.value === previous)) select.value = previous;
+  const anchors = data.calibration || [];
+  list.replaceChildren();
+  for (const [index, anchor] of anchors.entries()) {
+    const row = document.createElement('div'); row.className = 'calibration-anchor';
+    row.textContent = `${index + 1}. ${anchor.label || 'Landmark'}: X ${anchor.worldX.toFixed(0)}, Z ${anchor.worldZ.toFixed(0)} → ${anchor.mapX.toFixed(1)}%, ${anchor.mapY.toFixed(1)}%`;
+    list.append(row);
+  }
+  const quality = data.mapTransform?.rmsErrorPercent;
+  const status = Number.isFinite(quality)
+    ? `Calibrated with ${anchors.length} landmarks · residual ${quality.toFixed(2)}% of map size. Recheck after any map update.`
+    : `${anchors.length} / 3 minimum landmarks placed. Until calibration is complete, marker positions use approximate defaults.`;
+  if (!pendingLandmark) calibrationMessage(status);
+}
+async function sendCalibration(anchors) {
+  if (savingCalibration || !snapshot?.guild?.id) return;
+  savingCalibration = true;
+  try {
+    const response = await fetch(`/cad/api/guilds/${encodeURIComponent(snapshot.guild.id)}/mdt/calibration`, {
+      method: 'PUT', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ anchors }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `Calibration rejected (${response.status})`);
+    snapshot.calibration = result.calibration.anchors;
+    snapshot.mapTransform = result.calibration.transform;
+    pendingLandmark = null;
+    renderCadMap(snapshot);
+  } catch (error) { calibrationMessage(error.message, true); }
+  finally { savingCalibration = false; }
+}
+
 function initMapControls() {
   const stage=el('cadMapStage'), image=el('cadMapImage');
+  el('cadCalibrationArm')?.addEventListener('click', () => {
+    if (!snapshot?.permissions?.manager) return;
+    const key = el('cadCalibrationPlayer')?.value;
+    const player = (snapshot.state?.players || []).find(p => String(p.robloxId || p.player) === key);
+    const age = Date.now() - (snapshot.state?.playerSyncAt || 0);
+    if (!player || !Number.isFinite(player.locationX) || !Number.isFinite(player.locationZ) || age > 90_000) {
+      calibrationMessage('Select a player from a fresh ER:LC snapshot to place a landmark.', true); return;
+    }
+    pendingLandmark = { worldX: player.locationX, worldZ: player.locationZ, label: el('cadCalibrationLabel')?.value.trim().slice(0,60) || player.location || player.player };
+    calibrationMessage(`Click the exact location of ${pendingLandmark.label} on the map image. Use at least three different locations.`);
+  });
+  el('cadCalibrationReset')?.addEventListener('click', () => {
+    if (!snapshot?.permissions?.manager) return;
+    if (window.confirm('Remove all saved calibration points for this Discord server?')) void sendCalibration([]);
+  });
+  stage?.addEventListener('click', event => {
+    if (!pendingLandmark || savingCalibration || !snapshot?.permissions?.manager) return;
+    if (event.target.closest('.cad-map-marker')) return;
+    const canvas = el('cadMapCanvas');
+    const rect = canvas.getBoundingClientRect();
+    const mapX = (event.clientX - rect.left) / rect.width * 100;
+    const mapY = (event.clientY - rect.top) / rect.height * 100;
+    if (!Number.isFinite(mapX) || !Number.isFinite(mapY) || mapX < 0 || mapX > 100 || mapY < 0 || mapY > 100) {
+      calibrationMessage('Choose a point inside the map image.', true); return;
+    }
+    const anchors = [...(snapshot.calibration || []), { ...pendingLandmark, mapX, mapY }];
+    if (anchors.length > 8) { calibrationMessage('Maximum eight landmarks. Reset first to recalibrate.', true);return; }
+    void sendCalibration(anchors);
+  });
   if (!stage) return;
   image?.addEventListener('error',()=>{
     el('cadMapImageError').hidden=false;
