@@ -1,0 +1,58 @@
+name: Migration Version Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - mitchwork
+
+jobs:
+  migration-check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aether
+          POSTGRES_PASSWORD: aether
+          POSTGRES_DB: aether
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aether -d aether"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_URL: postgresql://aether:aether@localhost:5432/aether
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: aether
+      POSTGRES_USER: aether
+      POSTGRES_PASSWORD: aether
+      POSTGRES_SSL: "false"
+      SCHEMA_VERSION: "1"
+      SCHEMA_VERSION_LABEL: "baseline-v1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: npm run migrate
+
+      - name: Validate migration version
+        run: npm run migrate:check
