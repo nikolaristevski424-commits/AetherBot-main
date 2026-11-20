@@ -216,6 +216,20 @@
                 <p class="map-label">MARKER DETAILS</p>
                 <div id="cadMapDetails" class="map-details">Select a player or incident marker to inspect it.</div>
               </section>
+              <section id="cadCalibrationPanel" class="map-side-section" hidden>
+                <p class="map-label">MAP CALIBRATION / MANAGER ONLY</p>
+                <p class="map-calibration-hint">Stand at a known landmark in ER:LC, pick that player and click the same spot on this image. Choose at least 3 spread-out landmarks to align the map.</p>
+                <label class="visually-hidden" for="cadCalibrationPlayer">Known player position</label>
+                <select id="cadCalibrationPlayer"><option value="">Choose an in-game player</option></select>
+                <label class="visually-hidden" for="cadCalibrationLabel">Landmark name</label>
+                <input id="cadCalibrationLabel" maxlength="60" placeholder="Landmark, e.g. Police station">
+                <div class="calibration-buttons">
+                  <button type="button" id="cadCalibrationArm">Place marker</button>
+                  <button type="button" id="cadCalibrationReset">Reset</button>
+                </div>
+                <p id="cadCalibrationStatus" class="map-calibration-hint" role="status">No calibration set. Default image alignment is approximate.</p>
+                <div id="cadCalibrationList" class="calibration-list"></div>
+              </section>
             </aside>
           </div>
         </section>
