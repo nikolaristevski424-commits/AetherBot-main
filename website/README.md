@@ -137,3 +137,18 @@ Run `node --test website/tests/*.test.js` and the repository root tests. Verify 
 
 ### Theme system
 `/assets/theme.js` and `/assets/theme.css` enable light/dark mode across all public and staff pages. Preference is local to the browser; it is not transmitted to the server and is not an authentication setting. The installable ER:LC companion also uses the shared theme.
+
+## Additional operations enhancements
+
+- **Quick jump (Ctrl/Cmd+K):** Searchable keyboard navigation to Dashboard, Dispatch, Officer MDT, BOLOs, Companion, Moderation, Status, Docs and FAQ. This only navigates; it never grants access or executes staff commands.
+- **Dispatch triage:** Authorized call data powers urgent call count, unassigned active calls, oldest waiting incident, and combined search by title, postal, details or reporter name. These numbers do not appear until real CAD data loads.
+- **Staff/dispatch CSV exports:** Users with current in-page permission checks can export only the already-loaded moderation cases or dispatch audit events. CSV is sanitized against spreadsheet formula injection and capped at 500 rows; no data goes to another service. Server-side Discord permissions still control all fetched records.
+- **Deployment readiness:** Dashboard shows actual configured OAuth, configured gateway, and HTTPS bot health states separately. It does not fake historical uptime or expose credentials.
+- **Small-screen operations:** Responsive navigation and layout preserved for touchscreen use. Export buttons and menus have semantic labels and disabled states until data is ready.
+
+### Additional verification
+- Run `node --test website/tests/*.test.js` including `website/tests/exports.test.js` for CSV formula-injection, allowlist and row-bound tests.
+- Test `Ctrl+K` on Windows and `Cmd+K` on macOS, arrow navigation, Escape and mobile focus.
+- Verify CSV import behavior using spreadsheet software, including tricky quote/newline/formula values.
+- Check dashboard readiness when OAuth, bot bridge or Wispbyte HTTPS are intentionally unavailable.
+- Perform end-to-end tests on an authorized Discord test guild and ER:LC private server before production deployment.
