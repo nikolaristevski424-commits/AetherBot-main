@@ -2,6 +2,15 @@
 
 An original animated website inspired by the polished product storytelling and section flow of Seshy. It **does not** reuse their art or source. Aether retains its blue/violet identity and the user's Aether logo.
 
+## Operations release (development branch)
+- Dispatch call priority/status filtering, unit assignment (up to 8 available units per call), and an audited call history.
+- Searchable MDT with a full safe-text detail inspector for fictional records.
+- Staff-case searching/filtering, plus Manage Server-only dispatch and ER:LC command role configuration.
+- Installable browser-based ER:LC companion at `/companion/`, including an authorized online player selector and confirmation-gated warn-message, kick and private-server ban actions. This is a PWA, not a Roblox plugin or native Windows executable.
+- The companion uses an existing encrypted Discord session and the server-side signed bot bridge. No ER:LC API key is ever delivered to the browser.
+- ER:LC actions require Manage Server, a configured server key, a fresh player snapshot, and a 12-second cooldown. The warn control sends a fixed in-game private warning message (`:pm`), not a permanent game-native warning record. Actions are audited by CAD.
+- Browser UI and backend syntax were checked; integration and real ER:LC command tests are still required before production release.
+
 ## What works from the website
 
 - Public homepage, features, commands, setup documentation, FAQ, Terms, Privacy and status.
