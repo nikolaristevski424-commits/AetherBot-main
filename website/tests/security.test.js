@@ -23,9 +23,9 @@ test('AES-GCM sealed sessions round trip and detect tampering',()=>{
  const payload={userId:'1528192052393808022',username:'Test Officer',expiresAt:Date.now()+30000};
  const sealed=seal(payload,'session');
  assert.deepEqual(unseal(sealed,'session'),payload);
- const [iv,payload,tag]=sealed.split('.');
+ const [iv,encryptedPayload,tag]=sealed.split('.');
  const tamperedTag=(tag[0]==='A'?'B':'A')+tag.slice(1);
- assert.equal(unseal([iv,payload,tamperedTag].join('.'),'session'),null);
+ assert.equal(unseal([iv,encryptedPayload,tamperedTag].join('.'),'session'),null);
  assert.equal(unseal(sealed,'oauth'),null);
  assert.equal(sessionKey().length,32);
 });
