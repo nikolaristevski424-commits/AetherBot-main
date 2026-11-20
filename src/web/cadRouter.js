@@ -264,6 +264,16 @@ router.post('/api/guilds/:guildId/mdt/bolos', async (req, res) => {
     if (!access) return;
     try {
         const bolo = await createMdtBolo(req.params.guildId, req.cadSession.profile, req.body || {});
+        if (access.config.dispatchChannelId) {
+            const channel = await access.guild.channels.fetch(access.config.dispatchChannelId).catch(() => null);
+            if (channel?.isTextBased?.()) {
+                await channel.send({
+                    content: `🚨 **ROLEPLAY BOLO** (${bolo.kind}) • **${bolo.subject}**\n${bolo.details.slice(0,600)}\n${bolo.location ? 'Last seen: '+bolo.location+'\n' : ''}Ref: ${bolo.id.slice(0,8).toUpperCase()}`,
+                    allowedMentions: { parse: [] },
+                }).catch(() => {});
+            }
+        }
+        await signalBaseStation(req.params.guildId);
         return res.status(201).json({ bolo });
     } catch(error) { return mdtFailure(res, error); }
 });
