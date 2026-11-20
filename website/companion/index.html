@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10182d"><meta name="description" content="Aether ER:LC staff companion for private-server moderation and dispatch.">
+<link rel="manifest" href="/companion/manifest.webmanifest"><link rel="icon" href="/assets/aether-mark.webp" type="image/webp">
+<title>Aether Companion — ER:LC Operations</title><link rel="stylesheet" href="/assets/site.css">
+<style>
+body{background:#0c1427;color:#e8eefb;font-family:Inter,system-ui,sans-serif;min-height:100vh}
+.companion{max-width:1150px;margin:0 auto;padding:28px 22px 80px}.comp-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:space-between;margin-bottom:30px}
+.comp-brand{color:#fafcff;font-weight:800;letter-spacing:-.03em;font-size:22px}.comp-brand img{width:34px;height:34px;vertical-align:middle;margin-right:10px}
+.comp-note{color:#a9b8d5;font-size:13px;line-height:1.65}.comp-title{font-size:clamp(30px,5vw,52px);line-height:1.1;letter-spacing:-.04em;margin:8px 0 10px;color:#fff}
+.comp-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:18px}
+.comp-panel{background:#14203a;border:1px solid #2b3d60;border-radius:18px;padding:20px;box-shadow:0 8px 24px #0002}
+.comp-panel h2{font-size:17px;margin:0 0 16px;color:#fff}.comp-top{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.comp-input{width:100%;min-height:43px;background:#0f1a30;color:#eef4ff;border:1px solid #3a4a68;border-radius:9px;padding:10px;font:inherit}
+.comp-input:focus{outline:2px solid #608cf7;outline-offset:1px}
+.comp-button{background:#628afa;color:#08122b;border:0;border-radius:9px;padding:10px 15px;font-weight:800;cursor:pointer}
+.comp-button:disabled{opacity:.45;cursor:not-allowed}.comp-secondary{background:#243752;color:#ebf1ff}
+.comp-row{padding:12px 0;border-bottom:1px solid #2c3c56;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.comp-row:last-child{border:0}.comp-row button{padding:7px 10px}
+.comp-status{margin:15px 0;padding:12px 15px;border:1px solid #425473;border-radius:10px;color:#dae5fb;min-height:44px}
+.comp-status.error{color:#ffc7cb;border-color:#8a4351}
+.comp-stat{display:flex;gap:12px;flex-wrap:wrap;color:#91ade2;font-size:12px;margin-bottom:18px}
+.comp-tag{border:1px solid #384c73;border-radius:40px;padding:4px 9px}
+.comp-panel label{display:block;font-size:12px;color:#bbc9e3;margin:14px 0 6px}
+.comp-danger{background:#ba4252;color:#fff}.comp-muted{color:#96a9ca;font-size:12px}
+.comp-head a{color:#dbe7ff}.comp-footer{margin-top:25px;color:#9baeca;font-size:12px}
+@media(max-width:790px){.comp-grid{grid-template-columns:1fr}.companion{padding:16px 12px 60px}}
+</style><link rel="stylesheet" href="/assets/theme.css"><script defer src="/assets/theme.js"></script><link rel="stylesheet" href="/assets/quicknav.css"><script defer src="/assets/quicknav.js"></script></head>
+<body><main class="companion">
+<header class="comp-head"><a class="comp-brand" href="/"><img src="/assets/aether-mark.webp" alt="">Aether <span style="color:#8cafff">/ Companion</span></a>
+<div class="comp-top"><a href="/cad/">Dispatch CAD</a><a href="/staff/">Staff desk</a><button id="installApp" class="comp-button comp-secondary" hidden>Install app</button></div></header>
+<p class="comp-note">PRIVATE SERVER OPERATIONS · BROWSER-COMPANION EDITION</p>
+<h1 class="comp-title">Everything your ER:LC staff needs.<br>One command desk.</h1>
+<p class="comp-note">A secure staff workspace alongside Roblox. No Roblox injection, hidden code or API keys on this device. Requires your existing Discord sign-in and a connected Aether bot.</p>
+<div class="comp-top" style="margin:24px 0"><select class="comp-input" id="guildPicker" style="max-width:420px" aria-label="Discord server"><option value="">Loading your servers...</option></select><button id="refresh" class="comp-button comp-secondary">Refresh players</button></div>
+<div class="comp-status" id="feedback" role="status">Checking Discord sign-in and ER:LC connection...</div>
+<div class="comp-grid">
+<section class="comp-panel"><h2>Players on your private server</h2><div class="comp-stat"><span class="comp-tag" id="playerCount">— players</span><span class="comp-tag" id="syncAge">No snapshot</span></div>
+<label for="playerSearch">Search players</label><input id="playerSearch" class="comp-input" type="search" maxlength="60" placeholder="Roblox username or team">
+<div id="players"><p class="comp-muted">Player list appears after sign-in.</p></div></section>
+<section class="comp-panel"><h2>In-game moderation</h2><p class="comp-note">Commands affect only your linked private ER:LC server. Aether checks Manage Server rights and requires a recent player snapshot.</p>
+<form id="moderateForm"><label for="target">Target Roblox username</label><input id="target" class="comp-input" required pattern="[A-Za-z0-9_]{3,20}" maxlength="20" autocomplete="off">
+<label for="action">Action</label><select id="action" class="comp-input"><option value="warn">Warn</option><option value="kick">Kick</option><option value="ban">Ban from private server</option></select>
+<label for="reason">Moderation reason (audit record)</label><textarea id="reason" class="comp-input" required minlength="5" maxlength="240" rows="4" placeholder="Explain the rule violation and evidence."></textarea>
+<p class="comp-muted">You will review and confirm each action before it is sent. No automatic bans.</p>
+<button class="comp-button comp-danger" type="submit" id="send" disabled>Review moderation action</button></form>
+<div style="margin-top:24px"><h2>Install this interface</h2><p class="comp-note">In Chrome or Edge, choose Install app from the browser menu. Your Discord session stays protected in HttpOnly cookies and must be renewed normally.</p></div>
+</section></div><p class="comp-footer">Unofficial companion for ER:LC private servers. Not affiliated with Roblox or Police Roleplay Community. Roleplay CAD is not a real emergency service.</p>
+</main><script src="/companion/companion.js" defer></script></body></html>

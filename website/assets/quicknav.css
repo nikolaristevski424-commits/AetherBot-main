@@ -1,0 +1,18 @@
+/* Aether command palette */
+.aether-quicknav-trigger{background:transparent;color:var(--aether-copy,var(--ink));border:1px solid var(--aether-stroke,var(--line));border-radius:10px;min-height:38px;padding:0 13px;white-space:nowrap;font-size:12px;font-weight:750}
+.aether-quicknav-trigger:hover{background:var(--aether-surface-alt,#f2f5fa)}
+.aether-quicknav-floating{position:fixed;bottom:65px;right:18px;z-index:99;background:var(--aether-surface,#fff)}
+dialog.aether-quicknav{position:fixed;top:13vh;bottom:auto;margin-inline:auto;width:min(520px,calc(100vw - 24px));max-height:min(70vh,650px);overflow:auto;padding:0;border:1px solid var(--aether-stroke,#cbd5e1);border-radius:16px;background:var(--aether-surface,#fff);color:var(--aether-copy,#172442);box-shadow:0 30px 100px #0006;z-index:400}
+dialog.aether-quicknav::backdrop{background:rgba(7,12,25,.7);backdrop-filter:blur(5px)}
+.aether-quicknav-label{display:block;padding:20px 22px 6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--aether-secondary,#64748b)}
+dialog.aether-quicknav input{display:block;width:calc(100% - 40px);margin:8px 20px 14px;padding:12px;border:1px solid var(--aether-stroke,#cbd5e1);border-radius:10px;background:var(--aether-surface-alt,#f1f5f9);color:inherit}
+.aether-quicknav-results{display:flex;flex-direction:column;max-height:45vh;overflow:auto;gap:4px;padding:0 10px 10px}
+.aether-quicknav-result{display:flex;align-items:center;gap:13px;border-radius:9px;padding:10px 12px;color:inherit;text-decoration:none!important}
+.aether-quicknav-result:hover,.aether-quicknav-result:focus{background:var(--aether-surface-alt,#edf1f8);outline:2px solid var(--blue,#477cff);outline-offset:-2px}
+.aether-quicknav-result strong,.aether-quicknav-result small{display:block;line-height:1.4}
+.aether-quicknav-result strong{font-size:13px}
+.aether-quicknav-result small{font-size:11px;color:var(--aether-secondary,#64748b)}
+.aether-quicknav-icon{display:grid;place-items:center;min-width:31px;height:31px;border:1px solid var(--aether-stroke,#cbd5e1);border-radius:8px;color:var(--blue,#477cff)}
+.aether-quicknav-footer{border-top:1px solid var(--aether-stroke,#cbd5e1);padding:12px 20px;font-size:11px;color:var(--aether-secondary,#64748b)}
+@media(max-width:1100px){.nav-actions .aether-quicknav-trigger{font-size:0;padding:0 11px}.nav-actions .aether-quicknav-trigger:before{content:'⌕';font-size:19px}}
+@media(prefers-reduced-motion:reduce){dialog.aether-quicknav::backdrop{backdrop-filter:none}}

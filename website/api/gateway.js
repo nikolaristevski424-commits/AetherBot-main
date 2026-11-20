@@ -1,7 +1,7 @@
 import { session, authResponse, ensureOrigin } from '../lib/auth.js';
 import { bridgeReady, botOrigin, signBridge } from '../lib/bridge.js';
 const METHODS = new Set(['GET','POST','PATCH']);
-const ROUTES = /^(?:guilds|guilds\/\d{17,20}(?:\/(?:overview|cad|mdt|staff|staff\/cases|staff\/members|staff\/moderate|cad\/calls|cad\/calls\/[0-9a-f-]{36}|cad\/units|mdt\/records|mdt\/bolos|mdt\/bolos\/[0-9a-f-]{36}\/clear))?)$/;
+const ROUTES = /^(?:guilds|guilds\/\d{17,20}(?:\/(?:overview|cad|mdt|staff|staff\/cases|staff\/members|staff\/moderate|cad\/calls|cad\/calls\/[0-9a-f-]{36}|cad\/units|cad\/config|erlc\/players|erlc\/moderate|mdt\/records|mdt\/bolos|mdt\/bolos\/[0-9a-f-]{36}\/clear))?)$/;
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const who = session(req);

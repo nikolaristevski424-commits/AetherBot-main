@@ -4,6 +4,21 @@
 const $=id=>document.getElementById(id),kind=$('consoleRoot')?.dataset.kind, state={user:null,guilds:[],guildId:'',data:null};
 const modes=['calls','map','records','bolos'];
 let cadSnapshot=null;
+let staffSnapshot=null;
+let readinessConfig=null;
+let cadPolling=null;
+const cadLoadingGuilds=new Set();
+const CAD_REFRESH_MS=30000;
+function stopCadPolling(){if(cadPolling!==null){clearInterval(cadPolling);cadPolling=null;}}
+function startCadPolling(){
+ stopCadPolling();
+ if(kind!=='cad')return;
+ cadPolling=setInterval(()=>{
+  if(document.hidden||!state.guildId||!permitted('dispatch')||cadLoadingGuilds.has(state.guildId))return;
+  void loadCad({silent:true}).catch(()=>{});
+ },CAD_REFRESH_MS);
+}
+
 const text=(node,value)=>{if(node)node.textContent=value==null?'—':String(value);};
 function elem(tag,cls,content){const e=document.createElement(tag);if(cls)e.className=cls;if(content!=null)e.textContent=String(content);return e;}
 function empty(node,title,desc){if(!node)return;node.replaceChildren();const div=elem('div','empty-state');div.append(elem('div','illustration','◈'),elem('b','',title),elem('p','',desc));node.append(div);}
@@ -21,18 +36,36 @@ async function json(url,options={}){
  if(!r.ok)throw Error(data?.error||`Request failed (${r.status})`);return data;
 }
 function gate(route, options){const [path,query='']=route.split('?');return json('/api/gateway?route='+encodeURIComponent(path)+(query?'&'+query:''),options);}
+async function exportLoaded(kind){
+ const guildId=state.guildId;
+ if(!guildId)return notice('Choose a server first.',true);
+ const isCad=kind==='cad';
+ if(!permitted(isCad?'dispatch':'moderator'))return notice('You do not have permission to export these records.',true);
+ const snapshot=isCad?cadSnapshot:staffSnapshot;
+ if(!snapshot)return notice('Load authorized server data before exporting.',true);
+ const {cadHistoryCsv,moderationCasesCsv,downloadCsv}=await import('/assets/ops-export.mjs');
+ const csv=isCad?cadHistoryCsv(snapshot.audit||[]):moderationCasesCsv(snapshot.cases||[]);
+ downloadCsv(`aether-${isCad?'dispatch':'moderation'}-${guildId}-${new Date().toISOString().slice(0,10)}.csv`,csv);
+ notice(`Exported ${isCad?(snapshot.audit||[]).length:(snapshot.cases||[]).length} loaded ${isCad?'dispatch events':'moderation cases'}. Keep staff records private.`);
+}
 function actions(button,label,fn){const b=elem('button','btn btn-ghost btn-small',label);b.type='button';b.addEventListener('click',async()=>{b.disabled=true;try{await fn()}catch(e){notice(e.message,true)}finally{b.disabled=false}});return b;}
 function fromForm(form){return Object.fromEntries(new FormData(form).entries());}
 function saveSelected(gid){try{sessionStorage.setItem('aether_guild',gid)}catch{}}
 function getSelected(){try{return sessionStorage.getItem('aether_guild')||''}catch{return ''}}
 function permitted(key){const g=state.guilds.find(g=>g.id===state.guildId);return !!g?.permissions?.[key];}
 async function chooseGuild(guildId){
- state.guildId=guildId;state.data=null;saveSelected(guildId);
+ stopCadPolling();state.guildId=guildId;state.data=null;saveSelected(guildId);
+ if(kind==='cad'){cadSnapshot=null;const calls=$('cadCallsList');if(calls)empty(calls,'Loading dispatch queue','Checking the selected server’s latest calls.');}
  if(!guildId){notice('Choose one of your connected Discord servers.');return;}
  connection('Loading server...',false);notice('Loading authorized server data...');
  try{
   if(kind==='dashboard')await loadOverview();else if(kind==='cad')await loadCad();else if(kind==='staff')await loadStaff();
   connection('Connected to Aether',true);notice('');
+  if(kind==='cad'){
+    startCadPolling();
+    const mode=location.hash.slice(1);
+    if(modes.includes(mode))showCadTab(mode);
+  }
  }catch(e){connection('Unable to load server',false);notice(e.message,true);}
 }
 function renderOverview(data){
@@ -46,10 +79,53 @@ function renderOverview(data){
  for(const [label,enabled,desc] of [['Moderation',caps.moderator,'Case history and staff controls'],['CAD & MDT',caps.dispatch,'Dispatch calls and officer records'],['ER:LC',caps.erlc,'Private-server commands'],['Server configuration',caps.manager,'Admin-level setup']])
    modules.append(row(label,desc,enabled?'✓':'·',enabled?'ALLOWED':'NO ACCESS',enabled?'green':''));
 }
-async function loadOverview(){const result=await gate(`guilds/${state.guildId}/overview`);state.data=result;renderOverview(result);}
+async function loadOverview(){const guildId=state.guildId;const result=await gate(`guilds/${guildId}/overview`);if(guildId!==state.guildId)return;state.data=result;renderOverview(result);void showReadiness().catch(e=>notice(e.message,true));}
+async function showReadiness(config=readinessConfig){
+ if(kind!=='dashboard'||!$('readinessChecklist'))return;
+ if(config)readinessConfig=config;
+ const list=$('readinessChecklist');list.replaceChildren();
+ let status=null;
+ try{status=await json('/api/status');}catch{}
+ const checks=[
+  ['Discord login',readinessConfig?.oauthConfigured?'configured':'missing','Discord OAuth configuration on Vercel'],
+  ['Signed bot gateway',readinessConfig?.bridgeConfigured?'configured':'missing','Private HTTPS bridge configuration'],
+  ['Wispbyte health check',status?.bot==='reachable'?'reachable':status?.bot==='unmonitored'?'unmonitored':status?.bot==='unreachable'?'unreachable':'unverified','Public HTTPS health endpoint only'],
+  ['Discord/database readiness',status?.readiness==='ready'?'reachable':status?.readiness==='not_ready'?'unreachable':status?.readiness==='unmonitored'?'unmonitored':'unverified','Separate from HTTPS availability'],
+ ];
+ for(const [label,value,description] of checks){
+  const good=value==='configured'||value==='reachable';
+  const stateLabel=good?'READY':value==='unverified'?'UNKNOWN':value==='unmonitored'?'UNMONITORED':value==='unreachable'?'UNREACHABLE':'SETUP NEEDED';
+  list.append(row(label,description,'◉',stateLabel,good?'green':''));
+ }
+ if(state.data?.guild){
+  const caps=state.data.guild.permissions||{};
+  list.append(row('Selected guild access',caps.manager?'Server manager':caps.dispatch?'Dispatch role':caps.moderator?'Moderator role':'Limited access','▤',caps.manager||caps.dispatch||caps.moderator?'AUTHORIZED':'LIMITED',caps.manager||caps.dispatch||caps.moderator?'green':''));
+ }
+}
 function renderCall(item){
  const status=item.status||'open';const div=row(item.title||'Untitled call',`${item.location||'Location not provided'} • ${new Date(item.createdAt||Date.now()).toLocaleString()}`,'◈',status.toUpperCase(),status==='closed'?'green':status==='open'?'red':'');
- if(status!=='closed')div.append(actions(div,'Close',async()=>{if(!confirm(`Close the roleplay call “${item.title}”?`))return;await gate(`guilds/${state.guildId}/cad/calls/${item.id}`,{method:'PATCH',body:JSON.stringify({status:'closed'})});await loadCad()}));
+ if(status!=='closed'){
+  const wrap=elem('div','ops-assign');
+  const picker=elem('select');picker.setAttribute('aria-label','Assign officer unit');
+  const none=elem('option','', 'Choose on-duty unit');none.value='';picker.append(none);
+  for(const unit of cadSnapshot?.units||[]){if(unit.status==='off_duty')continue;
+    const opt=elem('option','',(unit.callsign||unit.username||unit.userId)+(item.assignedUnitIds?.includes(unit.userId)?' · assigned':''));
+    opt.value=unit.userId;picker.append(opt);
+  }
+  wrap.append(picker,actions(div,'Assign unit',async()=>{
+    if(!picker.value)return notice('Choose an officer first.',true);
+    const ids=[...new Set([...(item.assignedUnitIds||[]),picker.value])];
+    if(ids.length>8)return notice('Maximum 8 units per call',true);
+    await gate(`guilds/${state.guildId}/cad/calls/${item.id}`,{method:'PATCH',body:JSON.stringify({assignedUnitIds:ids})});
+    await loadCad();notice('Unit assigned to the call.');
+  }));
+  if((item.assignedUnitIds||[]).length){
+    wrap.append(elem('small','',item.assignedUnitIds.length+' assigned'));
+    wrap.append(actions(div,'Clear units',async()=>{await gate(`guilds/${state.guildId}/cad/calls/${item.id}`,{method:'PATCH',body:JSON.stringify({assignedUnitIds:[]})});await loadCad();}));
+  }
+  div.append(wrap);
+  div.append(actions(div,'Close',async()=>{if(!confirm(`Close the roleplay call “${item.title}”?`))return;await gate(`guilds/${state.guildId}/cad/calls/${item.id}`,{method:'PATCH',body:JSON.stringify({status:'closed'})});await loadCad()}));
+ }
  return div;
 }
 function position(x,z,transform){
@@ -69,20 +145,92 @@ function renderMap(data){const map=$('cadLiveMap');const list=$('mapMarkerList')
  }
 }
 function renderCad(data){cadSnapshot=data;text($('cadCallCount'),data.calls.filter(c=>c.status!=='closed').length);text($('cadUnitCount'),data.units.filter(u=>u.status!=='off_duty').length);text($('cadPlayerCount'),data.players.length);text($('cadBoloCount'),data.bolos.length);
- const calls=$('cadCallsList');calls.replaceChildren();const visible=data.calls.filter(c=>c.status!=='closed');if(!visible.length)empty(calls,'No open incidents','Discord /911 or website-created calls will appear here.');else visible.slice(0,30).forEach(c=>calls.append(renderCall(c)));
+ const calls=$('cadCallsList');calls.replaceChildren();const priority=$('cadPriorityFilter')?.value||'all',status=$('cadStatusFilter')?.value||'active',search=($('cadCallSearch')?.value||'').trim().toLowerCase();
+ const visible=data.calls.filter(c=>(status==='all'||(status==='closed'?c.status==='closed':c.status!=='closed'))&&(priority==='all'||c.priority===priority)&&(!search||[c.title,c.location,c.details,c.createdByName].some(v=>String(v||'').toLowerCase().includes(search))));if(!visible.length)empty(calls,'No open incidents','Discord /911 or website-created calls will appear here.');else visible.slice(0,30).forEach(c=>calls.append(renderCall(c)));
  const units=$('cadUnitsList');units.replaceChildren();if(!data.units.length)empty(units,'No registered units','Officers register using /cad unit in Discord.');else data.units.slice(0,25).forEach(u=>units.append(row(u.callsign||u.username||'Unit',u.username||'Discord officer','⌁',(u.status||'unknown').replace('_',' ').toUpperCase())));
+ const active=data.calls.filter(c=>c.status!=='closed');
+ const urgent=active.filter(c=>c.priority==='urgent');
+ const unassigned=active.filter(c=>!(c.assignedUnitIds||[]).length);
+ const oldest=active.filter(c=>Number.isFinite(Number(c.createdAt))&&Number(c.createdAt)>0).reduce((min,c)=>Math.min(min,Number(c.createdAt)),Infinity);
+ const elapsed=Number.isFinite(oldest)?Math.max(0,Math.floor((Date.now()-oldest)/60000)):null;
+ text($('triageUrgent'),urgent.length);text($('triageUnassigned'),unassigned.length);
+ text($('triageOldest'),elapsed===null?'—':elapsed<60?elapsed+'m':Math.floor(elapsed/60)+'h '+elapsed%60+'m');
+ text($('triageSummary'),urgent.length&&unassigned.length?
+   'Review unassigned priority calls and confirm officer availability.':
+   active.length?'Dispatch queue data is current as of the last successful refresh.':'No active roleplay incidents.');
+ const exportButton=$('exportCadHistory');if(exportButton)exportButton.disabled=!permitted('dispatch')||!(data.audit||[]).length;
+ const history=$('cadActivityList');if(history){history.replaceChildren();for(const a of (data.audit||[]).slice(0,35))history.append(row(a.action||'Dispatch event',`${a.actorName||a.actorId||'System'} · ${a.at?new Date(a.at).toLocaleString():'Unknown time'}`,'◷'));if(!history.children.length)empty(history,'No audit entries','Dispatch activity will appear as it happens.');}
  renderMap(data);renderBolos(data.bolos);
 }
 function renderBolos(bolos){const node=$('cadBolosList');node.replaceChildren();if(!bolos.length)return empty(node,'No active BOLOs','Issue a fictional roleplay BOLO from the form.');for(const b of bolos){const div=row(b.subject,b.details||b.location||'Roleplay alert','⚑',(b.priority||'normal').toUpperCase(),b.priority==='urgent'?'red':'');div.append(actions(div,'Clear',async()=>{if(!confirm('Clear this roleplay BOLO?'))return;await gate(`guilds/${state.guildId}/mdt/bolos/${b.id}/clear`,{method:'PATCH',body:'{}'});await loadCad()}));node.append(div)}}
-async function loadCad(){if(!permitted('dispatch'))throw Error('You need the server’s configured CAD dispatch role to open this data.');const data=await gate(`guilds/${state.guildId}/cad`);state.data=data;renderCad(data);}
-async function loadMdt(){if(!state.guildId)return;const q=$('mdtSearch').value.trim();const response=await gate(`guilds/${state.guildId}/mdt?q=${encodeURIComponent(q)}`);const list=$('mdtRecordsList');list.replaceChildren();if(!response.records.length)empty(list,'No matching fictional records','Try a different search or create a roleplay record.');else response.records.slice(0,50).forEach(rec=>list.append(row(rec.subject,`${rec.kind} • ${rec.plate||rec.robloxUsername||rec.description||'roleplay'}`,'▤')));}
+async function loadCad({silent=false}={}){
+ if(!permitted('dispatch'))throw Error('You need the server’s configured CAD dispatch role to open this data.');
+ const guildId=state.guildId;
+ if(cadLoadingGuilds.has(guildId))return;
+ cadLoadingGuilds.add(guildId);
+ try{
+  const data=await gate(`guilds/${guildId}/cad`);
+  if(guildId!==state.guildId)return;
+  state.data=data;renderCad(data);
+  const stamp=$('cadRefreshStamp');if(stamp)stamp.textContent=`Updated ${new Date().toLocaleTimeString()} · every 30s while visible`;
+  if(!silent)notice('');
+ }catch(err){
+  if(guildId===state.guildId){
+   const stamp=$('cadRefreshStamp');if(stamp)stamp.textContent='Refresh failed · last successful data retained';
+   if(!silent)throw err;
+   connection('Refresh unavailable',false);
+  }
+ }finally{cadLoadingGuilds.delete(guildId);}
+}
+async function loadMdt(){if(!state.guildId)return;const q=$('mdtSearch').value.trim();const response=await gate(`guilds/${state.guildId}/mdt?q=${encodeURIComponent(q)}`);const list=$('mdtRecordsList');list.replaceChildren();if(!response.records.length)empty(list,'No matching fictional records','Try a different search or create a roleplay record.');else response.records.slice(0,50).forEach(rec=>{
+ const item=row(rec.subject,`${rec.kind} • ${rec.plate||rec.robloxUsername||rec.description||'roleplay'}`,'▤');
+ const detail=actions(item,'Details',()=>{const area=$('mdtRecordDetail');if(area)area.textContent=[
+ 'Record: '+rec.subject,'Type: '+rec.kind,'Status: '+rec.status,
+ 'Roblox user: '+(rec.robloxUsername||'—'),'Plate: '+(rec.plate||'—'),
+ 'Description: '+(rec.description||'—'),'Notes: '+(rec.notes||'—'),
+ 'Last updated: '+(rec.updatedAt?new Date(rec.updatedAt).toLocaleString():'—')
+ ].join('\n');});item.append(detail);list.append(item);
+ });}
 function showCadTab(mode){if(!modes.includes(mode))return;document.querySelectorAll('[data-cad-view]').forEach(b=>b.classList.toggle('active',b.dataset.cadView===mode));modes.forEach(x=>{const n=$(x==='calls'?'cadCallsPanel':x==='map'?'cadMapPanel':x==='records'?'cadRecordsPanel':'cadBolosPanel');n.hidden=x!==mode});if(mode==='records')void loadMdt().catch(e=>notice(e.message,true));}
-function renderStaff(data){const node=$('staffCasesList');node.replaceChildren();if(!data.cases?.length)empty(node,'No moderation cases yet','Warnings and timeouts made through the bot will appear here.');else data.cases.slice(0,35).forEach(c=>node.append(row(`#${c.caseId} · ${c.action||'Moderation case'}`,`${c.target||'Unknown member'} • ${c.reason||'No reason'} • ${c.createdAt?new Date(c.createdAt).toLocaleString():''}`,'⚑')));
+function renderStaff(data){staffSnapshot=data;const exportButton=$('exportStaffCases');if(exportButton)exportButton.disabled=!permitted('moderator')||!(data.cases||[]).length;const node=$('staffCasesList');node.replaceChildren();
+ const q=($('staffCaseSearch')?.value||'').trim().toLowerCase(),kind=$('staffCaseFilter')?.value||'all';
+ const cases=(data.cases||[]).filter(c=>(kind==='all'||String(c.action||'').toLowerCase().includes(kind))&&(!q||[c.caseId,c.action,c.target,c.reason,c.targetUserId].some(v=>String(v||'').toLowerCase().includes(q))));
+ if(!cases.length)empty(node,'No matching moderation cases','Change the filters or choose another server.');
+ else cases.slice(0,35).forEach(c=>node.append(row(`#${c.caseId} · ${c.action||'Moderation case'}`,`${c.target||'Unknown member'} • ${c.reason||'No reason'} • ${c.createdAt?new Date(c.createdAt).toLocaleString():''}`,'⚑')));
  const perms=$('staffPerms');perms.replaceChildren();for(const [name,k] of [['Moderate Members','canWarn'],['Issue timeouts','canTimeout'],['Manage Server','manager']])perms.append(row(name,data.permissions?.[k]?'Allowed by your Discord roles':'Requires a higher Discord role','⊗',data.permissions?.[k]?'ENABLED':'RESTRICTED',data.permissions?.[k]?'green':''));
 }
-async function loadStaff(){if(!permitted('moderator'))throw Error('Moderator permission required for this server.');const data=await gate(`guilds/${state.guildId}/staff`);state.data=data;renderStaff(data)}
+async function loadStaff(){if(!permitted('moderator'))throw Error('Moderator permission required for this server.');const data=await gate(`guilds/${state.guildId}/staff`);state.data=data;renderStaff(data);if(permitted('manager'))await loadCadConfig().catch(e=>text($('cadConfigHelp'),'Unable to load CAD configuration: '+e.message));else text($('cadConfigHelp'),'Manage Server permission required to configure roles.');}
+async function loadCadConfig(){
+ const data=await gate(`guilds/${state.guildId}/cad/config`);
+ for(const [id,selected] of [['configDispatchRoles',data.config.dispatchRoleIds||[]],['configCommandRoles',data.config.commandRoleIds||[]]]){
+  const select=$(id);select.replaceChildren();
+  for(const role of data.roles){const option=elem('option','',role.name);option.value=role.id;option.selected=selected.includes(role.id);select.append(option);}
+ }
+ const channel=$('configDispatchChannel');channel.replaceChildren();const none=elem('option','','No dispatch channel');none.value='';channel.append(none);
+ for(const c of data.channels){const opt=elem('option','',c.name);opt.value=c.id;channel.append(opt);}
+ channel.value=data.config.dispatchChannelId||'';
+ $('cadConfigForm').hidden=false;text($('cadConfigHelp'),'Changes affect dispatch and ER:LC command access.');
+}
 function bindForms(){
  $('refreshCad')?.addEventListener('click',()=>loadCad().catch(e=>notice(e.message,true)));
+ $('refreshReadiness')?.addEventListener('click',()=>{void showReadiness().catch(e=>notice(e.message,true));});
+ $('exportCadHistory')?.addEventListener('click',()=>{void exportLoaded('cad').catch(e=>notice(e.message,true));});
+ $('exportStaffCases')?.addEventListener('click',()=>{void exportLoaded('staff').catch(e=>notice(e.message,true));});
+ window.addEventListener('hashchange',()=>{if(kind==='cad'){const mode=location.hash.slice(1);if(modes.includes(mode))showCadTab(mode);}});
+
+ for(const id of ['cadPriorityFilter','cadStatusFilter'])$(id)?.addEventListener('change',()=>{if(cadSnapshot)renderCad(cadSnapshot);});
+ $('cadCallSearch')?.addEventListener('input',()=>{if(cadSnapshot)renderCad(cadSnapshot);});
+ for(const id of ['staffCaseSearch','staffCaseFilter'])$(id)?.addEventListener(id==='staffCaseSearch'?'input':'change',()=>{if(staffSnapshot)renderStaff(staffSnapshot);});
+ $('cadConfigForm')?.addEventListener('submit',async e=>{
+  e.preventDefault();const form=e.currentTarget,button=form.querySelector('[type=submit]');button.disabled=true;
+  try{
+   const values=id=>[...$(id).selectedOptions].map(x=>x.value);
+   await gate(`guilds/${state.guildId}/cad/config`,{method:'PATCH',body:JSON.stringify({dispatchRoleIds:values('configDispatchRoles'),commandRoleIds:values('configCommandRoles'),dispatchChannelId:$('configDispatchChannel').value||null})});
+   notice('CAD role configuration saved.');await loadCadConfig();
+  }catch(err){notice(err.message,true)}finally{button.disabled=false;}
+ });
+ document.addEventListener('visibilitychange',()=>{if(kind==='cad'&&!document.hidden&&state.guildId&&permitted('dispatch'))void loadCad({silent:true});});
+ window.addEventListener('pagehide',stopCadPolling);
  $('refreshStaff')?.addEventListener('click',()=>loadStaff().catch(e=>notice(e.message,true)));
  document.querySelectorAll('[data-cad-view]').forEach(btn=>btn.addEventListener('click',()=>showCadTab(btn.dataset.cadView)));
  $('mdtSearchButton')?.addEventListener('click',()=>loadMdt().catch(e=>notice(e.message,true)));
@@ -97,7 +245,7 @@ function bindForms(){
 }
 async function initialize(){if(!kind)return;bindForms();
  try{const me=await json('/api/auth/me');if(!me.authenticated)return goLogin();state.user=me.user;
-  const config=await json('/api/config');if(!config.bridgeConfigured){connection('Bridge not configured',false);notice('The public website is ready, but its secure link to the Wispbyte bot is not configured. Complete the Aether website setup guide.',true);return;}
+  const config=await json('/api/config');readinessConfig=config;if(kind==='dashboard')void showReadiness(config).catch(()=>{});if(!config.bridgeConfigured){connection('Bridge not configured',false);notice('The public website is ready, but its secure link to the Wispbyte bot is not configured. Complete the Aether website setup guide.',true);return;}
   const result=await gate('guilds');state.guilds=result.guilds||[];
   const picker=$('guildPicker');picker.replaceChildren();const none=elem('option','',state.guilds.length?'Select a server...':'No authorized servers yet');none.value='';picker.append(none);
   for(const g of state.guilds){const option=elem('option','',g.name);option.value=g.id;picker.append(option);}
