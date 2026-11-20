@@ -24,7 +24,7 @@ function getPlayerId(player) {
 }
 
 export function getCadGuildConfig(guildId) {
-    return getFromDb(configKey(guildId), { dispatchRoleIds: [], commandRoleIds: [] });
+    return getFromDb(configKey(guildId), { dispatchRoleIds: [], commandRoleIds: [], dispatchChannelId: null });
 }
 
 export async function setCadGuildConfig(guildId, updates) {
@@ -32,6 +32,7 @@ export async function setCadGuildConfig(guildId, updates) {
     const config = {
         dispatchRoleIds: updates.dispatchRoleIds ?? current.dispatchRoleIds ?? [],
         commandRoleIds: updates.commandRoleIds ?? current.commandRoleIds ?? [],
+        dispatchChannelId: updates.dispatchChannelId ?? current.dispatchChannelId ?? null,
     };
     if (!await setInDb(configKey(guildId), config)) throw new Error('Could not save CAD settings.');
     return config;
