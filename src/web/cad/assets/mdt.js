@@ -40,6 +40,15 @@ function render(){
     `${c.location||'Unknown location'}${c.details?' · '+c.details:''}`)).join(''):
     '<p class="mdt-empty">No calls assigned to your unit right now.</p>';
   $('mdtSearchCount').textContent=`${records.length} records • ${bolos.length} BOLOs • ${players.length} players`;
+  const baseStatus=cached.base||{};
+  const voice=baseStatus.voice?.connected ? 'Voice: connected' : 'Voice: not connected';
+  const text=baseStatus.textChannelId ? 'Text: configured' : 'Text: set /cad dispatch-channel first';
+  $('mdtBaseStatus').textContent=`${voice} • ${text}`;
+  $('mdtBaseSend').disabled=!baseStatus.textChannelId;
+  const history=cached.bulletins||[];
+  $('mdtBaseHistory').innerHTML=history.length?history.slice(0,12).map(b=>card(
+    b.actorName||'Dispatcher',new Date(b.at).toLocaleString(),b.message)).join('')
+    :'<p class="mdt-empty">No transmissions yet. Bulletins are visible only to authorized dispatch staff.</p>';
 }
 export async function refreshMdt(){
   if(!guildId||loading)return;
@@ -91,6 +100,19 @@ function bind(){
     if(!window.confirm('Archive this fictional roleplay record?'))return;
     try{await send(base()+'/records/'+encodeURIComponent(selectedRecord.id),{method:'DELETE',body:'{}'});startNew();await refreshMdt();notice('Record archived.');}
     catch(err){notice(err.message,true);}
+  });
+  $('mdtBaseForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(!guildId)return;
+    const message=$('mdtBaseMessage').value.trim();
+    $('mdtBaseSend').disabled=true;
+    try{
+      const result=await send(base()+'/base/bulletin',{method:'POST',body:JSON.stringify({message})});
+      $('mdtBaseMessage').value='';
+      await refreshMdt();
+      notice(result.voiceAlert?'Bulletin transmitted with a voice radio alert.':'Bulletin transmitted to Discord text dispatch.');
+    }catch(error){notice(error.message,true);}
+    finally{$('mdtBaseSend').disabled=!(cached?.base?.textChannelId);}
   });
   $('mdtBoloForm').addEventListener('submit',async e=>{
     e.preventDefault();const input={};for(const key of ['kind','subject','details','location','priority','expiresInHours'])input[key]=$('mdt_bolo_'+key).value;
