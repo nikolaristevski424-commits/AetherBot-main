@@ -156,3 +156,10 @@ Aether's original code is proprietary (all rights reserved); the inherited Titan
 Thank you for choosing Aether for your Discord server! We're constantly working to improve and add new features based on community feedback.
 
 *Last updated: Aug 2026*
+
+
+## Aether CAD v3 — ER:LC map and dispatch
+
+Aether's existing Discord-authenticated CAD now supports a Liberty County map with API-v2 player coordinates and map-located in-game 911 calls. Discord members may submit roleplay emergencies using `/911`, while authorized dispatchers use `/cad calls`, `/cad unit`, `/cad respond`, `/cad assign`, `/cad close`, and `/cad map`. Server managers can direct reports to a channel using `/cad dispatch-channel`.
+
+**Complete setup, limitations, and security requirements:** [CAD_UPGRADE.md](CAD_UPGRADE.md). A verified HTTPS bot URL and your existing Discord OAuth settings are needed for the browser map; ER:LC player positions require the private-server API pack. The 911 command is for Roblox roleplay **only**, not real-world emergencies.
