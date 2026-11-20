@@ -5,14 +5,14 @@ const $=id=>document.getElementById(id),kind=$('consoleRoot')?.dataset.kind, sta
 const modes=['calls','map','records','bolos'];
 let cadSnapshot=null;
 let cadPolling=null;
-let cadLoading=false;
+const cadLoadingGuilds=new Set();
 const CAD_REFRESH_MS=30000;
 function stopCadPolling(){if(cadPolling!==null){clearInterval(cadPolling);cadPolling=null;}}
 function startCadPolling(){
  stopCadPolling();
  if(kind!=='cad')return;
  cadPolling=setInterval(()=>{
-  if(document.hidden||!state.guildId||!permitted('dispatch')||cadLoading)return;
+  if(document.hidden||!state.guildId||!permitted('dispatch')||cadLoadingGuilds.has(state.guildId))return;
   void loadCad({silent:true}).catch(()=>{});
  },CAD_REFRESH_MS);
 }
@@ -91,9 +91,9 @@ function renderCad(data){cadSnapshot=data;text($('cadCallCount'),data.calls.filt
 function renderBolos(bolos){const node=$('cadBolosList');node.replaceChildren();if(!bolos.length)return empty(node,'No active BOLOs','Issue a fictional roleplay BOLO from the form.');for(const b of bolos){const div=row(b.subject,b.details||b.location||'Roleplay alert','⚑',(b.priority||'normal').toUpperCase(),b.priority==='urgent'?'red':'');div.append(actions(div,'Clear',async()=>{if(!confirm('Clear this roleplay BOLO?'))return;await gate(`guilds/${state.guildId}/mdt/bolos/${b.id}/clear`,{method:'PATCH',body:'{}'});await loadCad()}));node.append(div)}}
 async function loadCad({silent=false}={}){
  if(!permitted('dispatch'))throw Error('You need the server’s configured CAD dispatch role to open this data.');
- if(cadLoading)return;
  const guildId=state.guildId;
- cadLoading=true;
+ if(cadLoadingGuilds.has(guildId))return;
+ cadLoadingGuilds.add(guildId);
  try{
   const data=await gate(`guilds/${guildId}/cad`);
   if(guildId!==state.guildId)return;
@@ -106,7 +106,7 @@ async function loadCad({silent=false}={}){
    if(!silent)throw err;
    connection('Refresh unavailable',false);
   }
- }finally{cadLoading=false;}
+ }finally{cadLoadingGuilds.delete(guildId);}
 }
 async function loadMdt(){if(!state.guildId)return;const q=$('mdtSearch').value.trim();const response=await gate(`guilds/${state.guildId}/mdt?q=${encodeURIComponent(q)}`);const list=$('mdtRecordsList');list.replaceChildren();if(!response.records.length)empty(list,'No matching fictional records','Try a different search or create a roleplay record.');else response.records.slice(0,50).forEach(rec=>list.append(row(rec.subject,`${rec.kind} • ${rec.plate||rec.robloxUsername||rec.description||'roleplay'}`,'▤')));}
 function showCadTab(mode){if(!modes.includes(mode))return;document.querySelectorAll('[data-cad-view]').forEach(b=>b.classList.toggle('active',b.dataset.cadView===mode));modes.forEach(x=>{const n=$(x==='calls'?'cadCallsPanel':x==='map'?'cadMapPanel':x==='records'?'cadRecordsPanel':'cadBolosPanel');n.hidden=x!==mode});if(mode==='records')void loadMdt().catch(e=>notice(e.message,true));}
