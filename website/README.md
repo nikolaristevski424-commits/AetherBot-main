@@ -152,3 +152,12 @@ Run `node --test website/tests/*.test.js` and the repository root tests. Verify 
 - Verify CSV import behavior using spreadsheet software, including tricky quote/newline/formula values.
 - Check dashboard readiness when OAuth, bot bridge or Wispbyte HTTPS are intentionally unavailable.
 - Perform end-to-end tests on an authorized Discord test guild and ER:LC private server before production deployment.
+
+## Wispbyte subdomain connection & truthful current uptime
+The Wispbyte Subdomains panel has assigned the Aether application `aether.wispbyte.app:13017`. For the Vercel `AETHER_BOT_ORIGIN`, use the **HTTPS reverse proxy origin without the allocated port**: `https://aether.wispbyte.app`.
+- Set Wispbyte `PORT` to the assigned `13017` if it is the app's primary port; use `WEB_HOST=0.0.0.0`.
+- Test `https://aether.wispbyte.app/health` in a browser. A Wispbyte 'Active' subdomain is not proof the proxy is correctly serving HTTPS.
+- Test `https://aether.wispbyte.app/ready`: status 200 and `ready:true` means the bot's Discord gateway and persistent database are ready; HTTP 503 means it is not ready.
+- The website's `/api/status` now checks both endpoints on each status refresh and reports **HTTPS reachability**, **Discord/database readiness**, and the current process uptime since the last restart. This is a snapshot, not 24/7 history or an uptime percentage.
+- A true historical uptime chart/percentage requires scheduled probes and durable external storage. Never infer a 30-day uptime percentage from one request.
+- `AETHER_BRIDGE_SECRET` is a random 32+-character signing secret. Generate it once, store the **exact same value** on Vercel and Wispbyte, and never put it in website source, GitHub, browser code or support tickets.
