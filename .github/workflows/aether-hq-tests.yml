@@ -24,6 +24,8 @@ jobs:
         run: |
           node --check src/web/siteBridgeRouter.js
           node --check src/app.js
-          find website/api website/assets website/lib -name '*.js' -exec node --check {} \;
+          find website/api website/assets website/lib website/companion -name '*.js' -exec node --check {} \;
       - name: Test website OAuth and bridge signing
-        run: node --test website/tests/security.test.js
+        run: node --test website/tests/*.test.js
+      - name: Test bot backend
+        run: npm test
