@@ -232,7 +232,7 @@ export function createSiteBridgeRouter(client) {
     erlcActionCooldowns.set(key,Date.now()+12000);
     if(erlcActionCooldowns.size>1000)for(const [k,v] of erlcActionCooldowns)if(v<Date.now())erlcActionCooldowns.delete(k);
     try{
-      const command=':'+action+' '+player;
+      const command=action==='warn'?':pm '+player+' Staff warning: Please review the server rules.':':'+action+' '+player;
       await runServerCommand(req.params.guildId,command);
       await recordCadCommand(req.params.guildId,actor(req.siteAccess.member,req.siteUserId),command+' reason: '+reason.trim());
       return reply(res,200,{ok:true,action,player});
