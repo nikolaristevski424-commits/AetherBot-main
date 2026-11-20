@@ -1,0 +1,29 @@
+name: Aether HQ website and CAD gateway
+on:
+  push:
+    branches: [feat/aether-hq-website-cad-portal]
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'src/web/siteBridgeRouter.js'
+      - 'src/app.js'
+      - '.github/workflows/aether-hq-tests.yml'
+permissions:
+  contents: read
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.16.0'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check website and bridge syntax
+        run: |
+          node --check src/web/siteBridgeRouter.js
+          node --check src/app.js
+          find website/api website/assets website/lib -name '*.js' -exec node --check {} \;
+      - name: Test website OAuth and bridge signing
+        run: node --test website/tests/security.test.js
