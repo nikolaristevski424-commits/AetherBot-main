@@ -5,6 +5,7 @@ const $=id=>document.getElementById(id),kind=$('consoleRoot')?.dataset.kind, sta
 const modes=['calls','map','records','bolos'];
 let cadSnapshot=null;
 let staffSnapshot=null;
+let readinessConfig=null;
 let cadPolling=null;
 const cadLoadingGuilds=new Set();
 const CAD_REFRESH_MS=30000;
@@ -35,6 +36,18 @@ async function json(url,options={}){
  if(!r.ok)throw Error(data?.error||`Request failed (${r.status})`);return data;
 }
 function gate(route, options){const [path,query='']=route.split('?');return json('/api/gateway?route='+encodeURIComponent(path)+(query?'&'+query:''),options);}
+async function exportLoaded(kind){
+ const guildId=state.guildId;
+ if(!guildId)return notice('Choose a server first.',true);
+ const isCad=kind==='cad';
+ if(!permitted(isCad?'dispatch':'moderator'))return notice('You do not have permission to export these records.',true);
+ const snapshot=isCad?cadSnapshot:staffSnapshot;
+ if(!snapshot)return notice('Load authorized server data before exporting.',true);
+ const {cadHistoryCsv,moderationCasesCsv,downloadCsv}=await import('/assets/ops-export.mjs');
+ const csv=isCad?cadHistoryCsv(snapshot.audit||[]):moderationCasesCsv(snapshot.cases||[]);
+ downloadCsv(`aether-${isCad?'dispatch':'moderation'}-${guildId}-${new Date().toISOString().slice(0,10)}.csv`,csv);
+ notice(`Exported ${isCad?(snapshot.audit||[]).length:(snapshot.cases||[]).length} loaded ${isCad?'dispatch events':'moderation cases'}. Keep staff records private.`);
+}
 function actions(button,label,fn){const b=elem('button','btn btn-ghost btn-small',label);b.type='button';b.addEventListener('click',async()=>{b.disabled=true;try{await fn()}catch(e){notice(e.message,true)}finally{b.disabled=false}});return b;}
 function fromForm(form){return Object.fromEntries(new FormData(form).entries());}
 function saveSelected(gid){try{sessionStorage.setItem('aether_guild',gid)}catch{}}
@@ -48,7 +61,11 @@ async function chooseGuild(guildId){
  try{
   if(kind==='dashboard')await loadOverview();else if(kind==='cad')await loadCad();else if(kind==='staff')await loadStaff();
   connection('Connected to Aether',true);notice('');
-  if(kind==='cad')startCadPolling();
+  if(kind==='cad'){
+    startCadPolling();
+    const mode=location.hash.slice(1);
+    if(modes.includes(mode))showCadTab(mode);
+  }
  }catch(e){connection('Unable to load server',false);notice(e.message,true);}
 }
 function renderOverview(data){
@@ -62,7 +79,28 @@ function renderOverview(data){
  for(const [label,enabled,desc] of [['Moderation',caps.moderator,'Case history and staff controls'],['CAD & MDT',caps.dispatch,'Dispatch calls and officer records'],['ER:LC',caps.erlc,'Private-server commands'],['Server configuration',caps.manager,'Admin-level setup']])
    modules.append(row(label,desc,enabled?'✓':'·',enabled?'ALLOWED':'NO ACCESS',enabled?'green':''));
 }
-async function loadOverview(){const result=await gate(`guilds/${state.guildId}/overview`);state.data=result;renderOverview(result);}
+async function loadOverview(){const guildId=state.guildId;const result=await gate(`guilds/${guildId}/overview`);if(guildId!==state.guildId)return;state.data=result;renderOverview(result);void showReadiness().catch(e=>notice(e.message,true));}
+async function showReadiness(config=readinessConfig){
+ if(kind!=='dashboard'||!$('readinessChecklist'))return;
+ if(config)readinessConfig=config;
+ const list=$('readinessChecklist');list.replaceChildren();
+ let status=null;
+ try{status=await json('/api/status');}catch{}
+ const checks=[
+  ['Discord login',readinessConfig?.oauthConfigured?'configured':'missing','Discord OAuth configuration on Vercel'],
+  ['Signed bot gateway',readinessConfig?.bridgeConfigured?'configured':'missing','Private HTTPS bridge configuration'],
+  ['Wispbyte health check',status?.bot==='reachable'?'reachable':status?.bot==='unmonitored'?'unmonitored':status?.bot==='unreachable'?'unreachable':'unverified','Public HTTPS health endpoint only'],
+ ];
+ for(const [label,value,description] of checks){
+  const good=value==='configured'||value==='reachable';
+  const stateLabel=good?'READY':value==='unverified'?'UNKNOWN':value==='unmonitored'?'UNMONITORED':value==='unreachable'?'UNREACHABLE':'SETUP NEEDED';
+  list.append(row(label,description,'◉',stateLabel,good?'green':''));
+ }
+ if(state.data?.guild){
+  const caps=state.data.guild.permissions||{};
+  list.append(row('Selected guild access',caps.manager?'Server manager':caps.dispatch?'Dispatch role':caps.moderator?'Moderator role':'Limited access','▤',caps.manager||caps.dispatch||caps.moderator?'AUTHORIZED':'LIMITED',caps.manager||caps.dispatch||caps.moderator?'green':''));
+ }
+}
 function renderCall(item){
  const status=item.status||'open';const div=row(item.title||'Untitled call',`${item.location||'Location not provided'} • ${new Date(item.createdAt||Date.now()).toLocaleString()}`,'◈',status.toUpperCase(),status==='closed'?'green':status==='open'?'red':'');
  if(status!=='closed'){
@@ -108,6 +146,7 @@ function renderMap(data){const map=$('cadLiveMap');const list=$('mapMarkerList')
 function renderCad(data){cadSnapshot=data;text($('cadCallCount'),data.calls.filter(c=>c.status!=='closed').length);text($('cadUnitCount'),data.units.filter(u=>u.status!=='off_duty').length);text($('cadPlayerCount'),data.players.length);text($('cadBoloCount'),data.bolos.length);
  const calls=$('cadCallsList');calls.replaceChildren();const priority=$('cadPriorityFilter')?.value||'all',status=$('cadStatusFilter')?.value||'active';const visible=data.calls.filter(c=>(status==='all'||(status==='closed'?c.status==='closed':c.status!=='closed'))&&(priority==='all'||c.priority===priority));if(!visible.length)empty(calls,'No open incidents','Discord /911 or website-created calls will appear here.');else visible.slice(0,30).forEach(c=>calls.append(renderCall(c)));
  const units=$('cadUnitsList');units.replaceChildren();if(!data.units.length)empty(units,'No registered units','Officers register using /cad unit in Discord.');else data.units.slice(0,25).forEach(u=>units.append(row(u.callsign||u.username||'Unit',u.username||'Discord officer','⌁',(u.status||'unknown').replace('_',' ').toUpperCase())));
+ const exportButton=$('exportCadHistory');if(exportButton)exportButton.disabled=!permitted('dispatch')||!(data.audit||[]).length;
  const history=$('cadActivityList');if(history){history.replaceChildren();for(const a of (data.audit||[]).slice(0,35))history.append(row(a.action||'Dispatch event',`${a.actorName||a.actorId||'System'} · ${a.at?new Date(a.at).toLocaleString():'Unknown time'}`,'◷'));if(!history.children.length)empty(history,'No audit entries','Dispatch activity will appear as it happens.');}
  renderMap(data);renderBolos(data.bolos);
 }
@@ -141,7 +180,7 @@ async function loadMdt(){if(!state.guildId)return;const q=$('mdtSearch').value.t
  ].join('\n');});item.append(detail);list.append(item);
  });}
 function showCadTab(mode){if(!modes.includes(mode))return;document.querySelectorAll('[data-cad-view]').forEach(b=>b.classList.toggle('active',b.dataset.cadView===mode));modes.forEach(x=>{const n=$(x==='calls'?'cadCallsPanel':x==='map'?'cadMapPanel':x==='records'?'cadRecordsPanel':'cadBolosPanel');n.hidden=x!==mode});if(mode==='records')void loadMdt().catch(e=>notice(e.message,true));}
-function renderStaff(data){staffSnapshot=data;const node=$('staffCasesList');node.replaceChildren();
+function renderStaff(data){staffSnapshot=data;const exportButton=$('exportStaffCases');if(exportButton)exportButton.disabled=!permitted('moderator')||!(data.cases||[]).length;const node=$('staffCasesList');node.replaceChildren();
  const q=($('staffCaseSearch')?.value||'').trim().toLowerCase(),kind=$('staffCaseFilter')?.value||'all';
  const cases=(data.cases||[]).filter(c=>(kind==='all'||String(c.action||'').toLowerCase().includes(kind))&&(!q||[c.caseId,c.action,c.target,c.reason,c.targetUserId].some(v=>String(v||'').toLowerCase().includes(q))));
  if(!cases.length)empty(node,'No matching moderation cases','Change the filters or choose another server.');
@@ -162,6 +201,11 @@ async function loadCadConfig(){
 }
 function bindForms(){
  $('refreshCad')?.addEventListener('click',()=>loadCad().catch(e=>notice(e.message,true)));
+ $('refreshReadiness')?.addEventListener('click',()=>{void showReadiness().catch(e=>notice(e.message,true));});
+ $('exportCadHistory')?.addEventListener('click',()=>{void exportLoaded('cad').catch(e=>notice(e.message,true));});
+ $('exportStaffCases')?.addEventListener('click',()=>{void exportLoaded('staff').catch(e=>notice(e.message,true));});
+ window.addEventListener('hashchange',()=>{if(kind==='cad'){const mode=location.hash.slice(1);if(modes.includes(mode))showCadTab(mode);}});
+
  for(const id of ['cadPriorityFilter','cadStatusFilter'])$(id)?.addEventListener('change',()=>{if(cadSnapshot)renderCad(cadSnapshot);});
  for(const id of ['staffCaseSearch','staffCaseFilter'])$(id)?.addEventListener(id==='staffCaseSearch'?'input':'change',()=>{if(staffSnapshot)renderStaff(staffSnapshot);});
  $('cadConfigForm')?.addEventListener('submit',async e=>{
@@ -188,7 +232,7 @@ function bindForms(){
 }
 async function initialize(){if(!kind)return;bindForms();
  try{const me=await json('/api/auth/me');if(!me.authenticated)return goLogin();state.user=me.user;
-  const config=await json('/api/config');if(!config.bridgeConfigured){connection('Bridge not configured',false);notice('The public website is ready, but its secure link to the Wispbyte bot is not configured. Complete the Aether website setup guide.',true);return;}
+  const config=await json('/api/config');readinessConfig=config;if(kind==='dashboard')void showReadiness(config).catch(()=>{});if(!config.bridgeConfigured){connection('Bridge not configured',false);notice('The public website is ready, but its secure link to the Wispbyte bot is not configured. Complete the Aether website setup guide.',true);return;}
   const result=await gate('guilds');state.guilds=result.guilds||[];
   const picker=$('guildPicker');picker.replaceChildren();const none=elem('option','',state.guilds.length?'Select a server...':'No authorized servers yet');none.value='';picker.append(none);
   for(const g of state.guilds){const option=elem('option','',g.name);option.value=g.id;picker.append(option);}
