@@ -53,13 +53,18 @@ function render(){
 export async function refreshMdt(){
   if(!guildId||loading)return;
   loading=true;
+  const requestedGuild = guildId;
+  const requestedSearch = $('mdtSearch').value.trim();
   $('mdtRefreshButton').disabled=true;
   try{
-    const q=$('mdtSearch').value.trim();
-    cached=await send(base()+'?q='+encodeURIComponent(q));
-    render();notice('');
-  }catch(e){notice(e.message,true);}
-  finally{loading=false;$('mdtRefreshButton').disabled=false;}
+    const result=await send(base()+'?q='+encodeURIComponent(requestedSearch));
+    if (requestedGuild !== guildId || requestedSearch !== $('mdtSearch').value.trim()) return;
+    cached=result;render();notice('');
+  }catch(e){if(requestedGuild===guildId)notice(e.message,true);}
+  finally{
+    loading=false;$('mdtRefreshButton').disabled=false;
+    if(requestedGuild!==guildId || requestedSearch!==$('mdtSearch').value.trim()) queueMicrotask(refreshMdt);
+  }
 }
 export function renderMdt(data){
   const currentId=data?.guild?.id;
@@ -67,7 +72,16 @@ export function renderMdt(data){
   permissions=data.permissions;
   $('mdtCreateBolo').hidden=!permissions?.dispatch;
   $('mdtRecordEditor').hidden=!permissions?.dispatch;
-  if(currentId!==guildId){guildId=currentId;cached=null;selectedRecord=null;$('mdtSearch').value='';void refreshMdt();}
+  if(currentId!==guildId){
+    guildId=currentId;cached=null;selectedRecord=null;$('mdtSearch').value='';
+    for (const id of ['mdtRecordList','mdtPlayerList','mdtBoloList','mdtAssignedList','mdtBaseHistory']) {
+      $(id).replaceChildren();
+      const p=document.createElement('p');p.className='mdt-empty';p.textContent='Loading this server’s CAD records...';$(id).append(p);
+    }
+    for (const id of ['mdtRecordCount','mdtBoloCount','mdtPlayerCount','mdtAssignmentCount']) $(id).textContent='—';
+    $('mdtBaseStatus').textContent='Checking Base Dispatch for selected server...';
+    void refreshMdt();
+  }
   $('mdtUnitLabel').textContent=(data.state.units||[]).find(u=>u.userId===data.currentUserId)?.callsign||'Your officer workspace';
   if (cached && data.currentUserId) {
     cached.assignedCalls = (data.state.calls || []).filter(c => c.status !== 'closed' && (c.assignedUnitIds || []).includes(data.currentUserId)).slice(-20);
