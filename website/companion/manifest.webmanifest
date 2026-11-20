@@ -1,0 +1,18 @@
+{
+  "name": "Aether ER:LC Companion",
+  "short_name": "Aether Ops",
+  "id": "/companion/",
+  "start_url": "/companion/",
+  "scope": "/companion/",
+  "display": "standalone",
+  "background_color": "#0c1427",
+  "theme_color": "#10182d",
+  "icons": [
+    {
+      "src": "/assets/aether-mark.webp",
+      "sizes": "any",
+      "type": "image/webp",
+      "purpose": "any"
+    }
+  ]
+}
