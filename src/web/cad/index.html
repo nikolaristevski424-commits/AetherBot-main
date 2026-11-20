@@ -129,6 +129,17 @@
                 <div id="mdtAssignedList" class="mdt-stack"><p class="mdt-empty">No calls assigned yet.</p></div>
               </section>
               <section class="mdt-panel">
+                <div class="mdt-panel-head"><h2>Base Dispatch radio</h2><span class="mdt-kicker">Text + voice alerts</span></div>
+                <p class="mdt-note">Send a staff bulletin to your configured Discord dispatch channel. Use <code>/cad base join</code> in Discord to connect the optional voice alert station.</p>
+                <p id="mdtBaseStatus" class="mdt-status" role="status">Checking Base Dispatch connection</p>
+                <form id="mdtBaseForm" class="mdt-form">
+                  <label class="wide">Dispatch bulletin<textarea id="mdtBaseMessage" maxlength="280" minlength="5" rows="2" required placeholder="In-game radio traffic for officers..."></textarea></label>
+                  <div class="mdt-form-actions"><span class="mdt-note">Roleplay only • max 280 characters</span><button id="mdtBaseSend" class="button button-primary" type="submit">Transmit</button></div>
+                </form>
+                <p class="mdt-section-label">Recent transmissions</p>
+                <div id="mdtBaseHistory" class="mdt-stack" aria-live="polite"><p class="mdt-empty">No bulletins yet.</p></div>
+              </section>
+              <section class="mdt-panel">
                 <div class="mdt-panel-head"><h2>BOLO alerts</h2></div>
                 <div id="mdtBoloList" class="mdt-stack"><p class="mdt-empty">No active BOLOs.</p></div>
               </section>
