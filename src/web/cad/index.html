@@ -7,6 +7,7 @@
   <title>Aether CAD</title>
   <link rel="stylesheet" href="/cad/assets/styles.css">
   <link rel="stylesheet" href="/cad/assets/map.css">
+  <link rel="stylesheet" href="/cad/assets/mdt.css">
   <script src="/cad/assets/app.js" type="module"></script>
 </head>
 <body>
@@ -27,6 +28,7 @@
       <a class="wordmark" href="/cad/" aria-label="Aether CAD home">A<span>.</span></a>
       <nav class="rail-nav" aria-label="CAD sections">
         <button class="rail-link active" data-view="dispatch" title="Dispatch" aria-label="Dispatch"><span class="rail-icon">⌖</span><span>Dispatch</span></button>
+        <button class="rail-link" data-view="mdt" title="Officer MDT" aria-label="Officer MDT"><span class="rail-icon">▤</span><span>MDT</span></button>
         <button class="rail-link" data-view="map" title="Live map" aria-label="Live map"><span class="rail-icon">▦</span><span>Map</span></button>
         <button class="rail-link" data-view="erlc" title="ER:LC" aria-label="ER:LC"><span class="rail-icon">◉</span><span>ER:LC</span></button>
         <button class="rail-link" data-view="settings" title="Settings" aria-label="Settings"><span class="rail-icon">⚙</span><span>Settings</span></button>
@@ -86,6 +88,77 @@
           </div>
         </section>
 
+
+
+        <section id="view-mdt" class="view" hidden>
+          <div class="page-heading">
+            <div><p class="eyebrow">AETHER / OFFICER WORKSPACE</p><h1>Mobile Data Terminal</h1></div>
+            <span class="mdt-kicker" id="mdtUnitLabel">Officer workbench</span>
+          </div>
+          <p class="mdt-note">Fictional records and BOLOs for ER:LC roleplay only. Do not store real-world personal information or use this console for actual emergency services.</p>
+          <div id="mdtNotice" class="mdt-status" role="status" hidden></div>
+          <div class="mdt-summary">
+            <article><strong id="mdtRecordCount">0</strong><span>Matching records</span></article>
+            <article><strong id="mdtBoloCount">0</strong><span>Active BOLOs</span></article>
+            <article><strong id="mdtPlayerCount">0</strong><span>Live players matched</span></article>
+            <article><strong id="mdtAssignmentCount">0</strong><span>My active cases</span></article>
+          </div>
+          <div class="mdt-grid">
+            <div>
+              <section class="mdt-panel">
+                <div class="mdt-panel-head"><h2>Search the MDT</h2><span class="mdt-kicker" id="mdtSearchCount">Loading</span></div>
+                <div class="mdt-search-row">
+                  <label class="visually-hidden" for="mdtSearch">Search roleplay records and live players</label>
+                  <input id="mdtSearch" type="search" maxlength="100" placeholder="Character, Roblox username, license plate, or BOLO...">
+                  <button id="mdtRefreshButton" type="button">Refresh</button>
+                  <button id="mdtNewRecord" type="button">New record</button>
+                </div>
+              </section>
+              <section class="mdt-panel">
+                <div class="mdt-panel-head"><h2>Person &amp; vehicle records</h2></div>
+                <div id="mdtRecordList" class="mdt-stack" aria-live="polite"><p class="mdt-empty">Select a Discord server to search.</p></div>
+              </section>
+              <section class="mdt-panel">
+                <div class="mdt-panel-head"><h2>Connected ER:LC players</h2><span class="mdt-kicker">Fresh snapshots only</span></div>
+                <div id="mdtPlayerList" class="mdt-stack"><p class="mdt-empty">Waiting for ER:LC synchronization.</p></div>
+              </section>
+            </div>
+            <div>
+              <section class="mdt-panel">
+                <div class="mdt-panel-head"><h2>My assigned calls</h2></div>
+                <div id="mdtAssignedList" class="mdt-stack"><p class="mdt-empty">No calls assigned yet.</p></div>
+              </section>
+              <section class="mdt-panel">
+                <div class="mdt-panel-head"><h2>BOLO alerts</h2></div>
+                <div id="mdtBoloList" class="mdt-stack"><p class="mdt-empty">No active BOLOs.</p></div>
+              </section>
+              <section id="mdtRecordEditor" class="mdt-panel">
+                <div class="mdt-panel-head"><h2 id="mdtRecordFormHeading">Create a roleplay record</h2></div>
+                <form class="mdt-form" id="mdtRecordForm">
+                  <label>Record type<select id="mdt_kind"><option value="person">Person / civilian</option><option value="vehicle">Vehicle</option></select></label>
+                  <label>Subject name<input id="mdt_subject" required minlength="2" maxlength="90" placeholder="Character or vehicle"></label>
+                  <label>Roblox username<input id="mdt_robloxUsername" maxlength="40" placeholder="Optional (persons)"></label>
+                  <label>In-game plate<input id="mdt_plate" maxlength="16" placeholder="Required for vehicles"></label>
+                  <label class="wide">Appearance / model<input id="mdt_description" maxlength="240" placeholder="Roleplay appearance or vehicle description"></label>
+                  <label class="wide">Roleplay notes<textarea id="mdt_notes" maxlength="1200" rows="3" placeholder="Fictional details only. No real names, addresses, or personal information."></textarea></label>
+                  <div class="mdt-form-actions"><button id="mdtArchiveRecord" type="button" class="mdt-mini-button mdt-clear" hidden>Archive</button><button id="mdtRecordSubmit" class="button button-primary" type="submit">Save record</button></div>
+                </form>
+              </section>
+              <section id="mdtCreateBolo" class="mdt-panel">
+                <h2>Issue a roleplay BOLO</h2>
+                <form class="mdt-form" id="mdtBoloForm">
+                  <label>Subject type<select id="mdt_bolo_kind"><option value="person">Person</option><option value="vehicle">Vehicle</option></select></label>
+                  <label>Priority<select id="mdt_bolo_priority"><option value="normal">Routine</option><option value="urgent">Urgent</option></select></label>
+                  <label class="wide">Subject<input id="mdt_bolo_subject" minlength="2" maxlength="90" required placeholder="Fictional name or vehicle"></label>
+                  <label class="wide">Details<textarea id="mdt_bolo_details" minlength="8" maxlength="1000" required rows="3" placeholder="In-game incident and description"></textarea></label>
+                  <label>Last seen<input id="mdt_bolo_location" maxlength="90" placeholder="Postal or road"></label>
+                  <label>Expires (hours)<input id="mdt_bolo_expiresInHours" type="number" min="1" max="168" value="48"></label>
+                  <div class="mdt-form-actions"><span></span><button id="mdtBoloSubmit" class="button button-primary" type="submit">Issue BOLO</button></div>
+                </form>
+              </section>
+            </div>
+          </div>
+        </section>
 
         <section id="view-map" class="view" hidden>
           <div class="page-heading">
