@@ -20,3 +20,13 @@ body.header-dark>.site-header.sticky{background:#121831eb;backdrop-filter:blur(1
 body.header-dark .site-header .brand,body.header-dark .site-header .nav-links a{color:#f2f5ff}
 body.header-dark .site-header .nav-links a[aria-current=page]{color:#91a9ff}
 @media(max-width:780px){body.header-dark .site-header .nav-links{background:#182044;border-color:#36446e}}
+
+/* Operations workspace */
+.ops-filters{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:12px 0 18px}
+.ops-filters label{display:grid;gap:5px;flex:1;min-width:125px;font-size:12px}
+.ops-filters input,.ops-filters select,#cadConfigPanel select,.ops-assign select{width:100%;border-radius:9px;border:1px solid #aab5cd;padding:9px;background:#fff;color:#152440}
+.ops-assign{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ops-assign select{flex:1;min-width:135px;max-width:270px}
+.ops-record{padding:14px;margin-top:14px;border:1px solid #afbed8;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+#cadConfigPanel{margin-top:16px}#cadConfigPanel option{padding:5px}
+@media(max-width:760px){.console-shell{display:block}.console-sidebar{width:100%!important;display:flex;overflow-x:auto;padding:12px!important;gap:8px}.console-side-label{display:none}.console-side-link{white-space:nowrap;flex-shrink:0}.console-work{min-width:0;padding:16px!important}.console-topline{flex-wrap:wrap;gap:14px}.console-picker{width:100%}.console-subnav{overflow-x:auto;display:flex}.console-subnav button{flex-shrink:0;white-space:nowrap}.panels-grid,.console-card-grid,.metric-grid{grid-template-columns:1fr!important}.map-large{min-height:280px}.panel{min-width:0}}
