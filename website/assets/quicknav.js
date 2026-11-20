@@ -16,12 +16,12 @@
  function init(){
   if(document.querySelector('#aetherQuicknav'))return;
   const trigger=document.createElement('button');trigger.type='button';
-  trigger.className='aether-quicknav-trigger';trigger.textContent='⌕  Quick jump  ⌘K';
+  trigger.className='aether-quicknav-trigger';trigger.textContent='⌕  Quick jump  Ctrl/⌘ K';
   trigger.setAttribute('aria-label','Open Aether quick navigation, Control K');
   trigger.title='Quick navigation (Ctrl/Cmd + K)';
   const target=document.querySelector('.nav-actions')||document.querySelector('.comp-head');
   if(target)target.prepend(trigger);else {trigger.classList.add('aether-quicknav-floating');document.body.append(trigger)}
-  const dialog=document.createElement('dialog');dialog.id='aetherQuicknav';dialog.className='aether-quicknav';
+  const dialog=document.createElement('dialog');dialog.id='aetherQuicknav';dialog.className='aether-quicknav';dialog.setAttribute('aria-label','Aether quick navigation');
   const label=document.createElement('label');label.className='aether-quicknav-label';label.textContent='Jump to a workspace';
   const input=document.createElement('input');input.type='search';input.placeholder='Search pages, CAD, moderation…';
   input.setAttribute('aria-label','Search Aether pages');input.autocomplete='off';
