@@ -11,6 +11,7 @@ import {
     getQueuePageSize,
 } from './musicEmbeds.js';
 import { refreshPlayerMessage } from './playerHandler.js';
+import { getBaseStation } from '../cad/baseStationService.js';
 
 const YOUTUBE_URL_PATTERN = /(?:youtube\.com|youtu\.be)/i;
 
@@ -53,6 +54,10 @@ export async function ensurePlayer(client, interaction) {
     assertInVoice(interaction.member);
 
     const guildId = interaction.guild.id;
+    if (getBaseStation(guildId)?.connected) {
+        throw new AetherError('Base Dispatch already connected to voice', ErrorTypes.VALIDATION,
+            'Base Dispatch is using voice in this Discord server. Run `/cad base leave` before starting music.');
+    }
     const guildData = getGuildMusicData(guildId);
     let player = getPlayer(client, guildId);
 
@@ -86,6 +91,10 @@ export async function joinVoiceChannel(client, interaction) {
     assertInVoice(interaction.member);
 
     const guildId = interaction.guild.id;
+    if (getBaseStation(guildId)?.connected) {
+        throw new AetherError('Base Dispatch already connected to voice', ErrorTypes.VALIDATION,
+            'Base Dispatch is using voice in this Discord server. Run `/cad base leave` before starting music.');
+    }
     const guildData = getGuildMusicData(guildId);
     const channel = interaction.member.voice.channel;
     let player = getPlayer(client, guildId);
