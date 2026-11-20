@@ -41,7 +41,7 @@ const commandRateLimit = rateLimit({
 
 router.use((req, res, next) => {
     res.set({
-        'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://cdn.discordapp.com https://media.discordapp.net; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://discord.com",
+        'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://cdn.discordapp.com https://media.discordapp.net https://api.policeroleplay.community https://api.erlc.gg; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://discord.com",
         'Referrer-Policy': 'same-origin',
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
