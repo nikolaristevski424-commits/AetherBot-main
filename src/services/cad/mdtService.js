@@ -25,8 +25,15 @@ async function mutate(guildId,actor,action,fn){
   try{
     const state=await getMdtState(guildId);
     const result=fn(state);
-    state.records=state.records.slice(-MDT_MAX_RECORDS);
-    state.bolos=state.bolos.slice(-MDT_MAX_BOLOS);
+    // Retain every active record / BOLO. Prune only archived or expired history.
+    const activeRecords = state.records.filter(r => r.status !== 'archived');
+    const archivedRecords = state.records.filter(r => r.status === 'archived');
+    state.records = [...activeRecords, ...archivedRecords.slice(-Math.max(0, MDT_MAX_RECORDS - activeRecords.length))]
+      .sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const activeBolos = state.bolos.filter(b => isBoloActive(b));
+    const inactiveBolos = state.bolos.filter(b => !isBoloActive(b));
+    state.bolos = [...activeBolos, ...inactiveBolos.slice(-Math.max(0, MDT_MAX_BOLOS - activeBolos.length))]
+      .sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
     state.audit.push({id:randomUUID(),action,actorId:actor?.id||'system',at:Date.now()});
     state.audit=state.audit.slice(-600);
     state.revision++;
@@ -40,6 +47,9 @@ async function mutate(guildId,actor,action,fn){
 export async function createMdtRecord(guildId,actor,input){
   const fields=normalizeMdtRecord(input);
   return mutate(guildId,actor,'record.create',state=>{
+    if(state.records.filter(r => r.status !== 'archived').length >= MDT_MAX_RECORDS) {
+      throw new Error('The roleplay record limit has been reached. Archive obsolete records before adding more.');
+    }
     const now=Date.now();
     const record={id:randomUUID(),...fields,status:'active',createdAt:now,updatedAt:now,createdBy:actor.id};
     state.records.push(record);return record;
@@ -65,6 +75,9 @@ export async function archiveMdtRecord(guildId,actor,id){
 export async function createMdtBolo(guildId,actor,input){
   const fields=normalizeMdtBolo(input);
   return mutate(guildId,actor,'bolo.create',state=>{
+    if(state.bolos.filter(b => isBoloActive(b)).length >= MDT_MAX_BOLOS) {
+      throw new Error('The active roleplay BOLO limit has been reached. Clear old BOLOs before adding more.');
+    }
     const bolo={id:randomUUID(),...fields,status:'active',createdAt:Date.now(),createdBy:actor.id};
     state.bolos.push(bolo);return bolo;
   });
