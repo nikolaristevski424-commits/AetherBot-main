@@ -90,6 +90,7 @@ async function showReadiness(config=readinessConfig){
   ['Discord login',readinessConfig?.oauthConfigured?'configured':'missing','Discord OAuth configuration on Vercel'],
   ['Signed bot gateway',readinessConfig?.bridgeConfigured?'configured':'missing','Private HTTPS bridge configuration'],
   ['Wispbyte health check',status?.bot==='reachable'?'reachable':status?.bot==='unmonitored'?'unmonitored':status?.bot==='unreachable'?'unreachable':'unverified','Public HTTPS health endpoint only'],
+  ['Discord/database readiness',status?.readiness==='ready'?'reachable':status?.readiness==='not_ready'?'unreachable':status?.readiness==='unmonitored'?'unmonitored':'unverified','Separate from HTTPS availability'],
  ];
  for(const [label,value,description] of checks){
   const good=value==='configured'||value==='reachable';
