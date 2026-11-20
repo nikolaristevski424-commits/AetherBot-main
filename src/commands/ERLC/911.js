@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, MessageFlags, EmbedBuilder } from 'discord.js';
 import { createDiscord911Call, getCadGuildConfig } from '../../services/cad/cadService.js';
+import { signalBaseStation } from '../../services/cad/baseStationService.js';
 
 /** Roleplay-only emergency report, not a real-world emergency service. */
 export default {
@@ -42,6 +43,7 @@ export default {
           dispatchedToChannel = true;
         }
       } catch { /* CAD stores the report even when dispatch channel delivery fails. */ }
+      await signalBaseStation(interaction.guildId).catch(() => false);
       return interaction.editReply({ content: `✅ **ER:LC roleplay report submitted** — case **${call.id.slice(0, 8).toUpperCase()}**.\nLocation: **${call.location}**\n${dispatchedToChannel ? 'Dispatch channel notified.' : 'Recorded in CAD. A dispatcher can review it with \`/cad calls\`.'}\n\n**Real emergency? Call your local emergency services. This command is only for the Roblox roleplay game.**`, allowedMentions: { parse: [] } });
     } catch (error) {
       return interaction.editReply({ content: `Could not submit roleplay report: ${String(error?.message || 'Unknown error').slice(0, 250)}`, allowedMentions: { parse: [] } });

@@ -18,6 +18,12 @@ import {
 } from '../services/cad/cadService.js';
 import { syncCadGuild } from '../services/cad/cadTrackingService.js';
 import { CadAuthService } from '../services/cad/cadAuthService.js';
+import {
+    getMdtState, searchMdt, createMdtRecord, updateMdtRecord, archiveMdtRecord,
+    createMdtBolo, clearMdtBolo, setMdtCalibration, logBaseBulletin,
+} from '../services/cad/mdtService.js';
+import { fitMapCalibration } from '../services/cad/mdtCore.js';
+import { getBaseStation, signalBaseStation } from '../services/cad/baseStationService.js';
 
 const router = express.Router();
 let discordClient;
@@ -150,12 +156,142 @@ router.get('/api/guilds/:guildId', async (req, res) => {
     if (!access) return;
     const state = await getCadState(req.params.guildId);
     if (!access.isManager) state.audit = [];
+    const mdt = access.canDispatch ? await getMdtState(req.params.guildId) : null;
     return res.json({
+        calibration: mdt?.calibration || [],
+        mapTransform: mdt ? fitMapCalibration(mdt.calibration) : null,
         guild: { id: access.guild.id, name: access.guild.name, icon: access.guild.iconURL({ size: 64 }) },
         permissions: { manager: access.isManager, dispatch: access.canDispatch, commands: access.canCommand },
         config: access.isManager ? access.config : null,
         state,
     });
+});
+
+
+const mdtRateLimit = rateLimit({
+    windowMs: 60_000,
+    limit: 45,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: { error: 'Too many MDT requests. Try again soon.' },
+});
+router.use('/api/guilds/:guildId/mdt', mdtRateLimit);
+
+function mdtFailure(res, error) {
+    const message = String(error?.message || '');
+    if (/^(Record type|Record kind|Vehicle records|Invalid Roblox|Plate should|Roleplay character|BOLO type|BOLO subject|BOLO details|BOLO priority|BOLO expiry|Calibration coordinates|Provide at most|Use at least|The selected landmarks|The roleplay record limit|The active roleplay BOLO limit)/i.test(message)) {
+        return res.status(400).json({ error: message.slice(0, 240) });
+    }
+    logger.warn(`[cad] MDT operation failed: ${message.slice(0, 150)}`);
+    return res.status(500).json({ error: 'Could not save the MDT changes. Try again or ask a server manager.' });
+}
+
+router.get('/api/guilds/:guildId/mdt', async (req, res) => {
+    const access = await requireGuild(req, res, 'dispatch');
+    if (!access) return;
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+    try {
+        const [mdt, cad] = await Promise.all([searchMdt(req.params.guildId, q), getCadState(req.params.guildId)]);
+        const fresh = cad.playerSyncAt && Date.now() - cad.playerSyncAt <= 90_000 && cad.serverOnline !== false;
+        const players = fresh ? cad.players.filter(p => !q || [p.player,p.robloxId,p.callsign,p.team,p.location].some(v => String(v || '').toLowerCase().includes(q.toLowerCase()))).slice(0, 70) : [];
+        const assignedCalls = cad.calls.filter(c => c.status !== 'closed' && (c.assignedUnitIds || []).includes(req.cadSession.profile.id)).slice(-20);
+        return res.json({
+            ...mdt, players, assignedCalls,
+            calibrationTransform: fitMapCalibration(mdt.calibration),
+            permissions: { manager: access.isManager, dispatch: access.canDispatch },
+            base: { voice: getBaseStation(req.params.guildId), textChannelId: access.config.dispatchChannelId || null },
+            snapshotAt: fresh ? cad.playerSyncAt : null,
+        });
+    } catch(error) { return mdtFailure(res, error); }
+});
+
+
+router.post('/api/guilds/:guildId/mdt/base/bulletin', async (req, res) => {
+    const access = await requireGuild(req, res, 'dispatch');
+    if (!access) return;
+    const raw = req.body?.message;
+    if (typeof raw !== 'string' || raw.trim().length < 5 || raw.length > 280)
+        return res.status(400).json({ error: 'Roleplay bulletin must be 5–280 characters.' });
+    const channelId = access.config.dispatchChannelId;
+    if (!channelId) return res.status(409).json({error: 'Configure /cad dispatch-channel before sending bulletins.'});
+    try {
+        const state = await getMdtState(req.params.guildId);
+        if (state.bulletins.some(b => b.actorId === req.cadSession.profile.id && Date.now() - b.at < 15_000))
+            return res.status(429).json({ error: 'Please wait 15 seconds between dispatch bulletins.' });
+        const channel = await access.guild.channels.fetch(channelId).catch(() => null);
+        if (!channel?.isTextBased?.() || !channel.send)
+            return res.status(409).json({ error: 'The configured dispatch channel cannot be reached.' });
+        const text = raw.trim();
+        await channel.send({
+            content: `📻 **BASE DISPATCH • ER:LC ROLEPLAY**\n${text}\n— ${req.cadSession.profile.username.slice(0,60)}`,
+            allowedMentions: { parse: [] },
+        });
+        const bulletin = await logBaseBulletin(req.params.guildId, req.cadSession.profile, text, channelId);
+        const voiceAlert = await signalBaseStation(req.params.guildId);
+        return res.status(201).json({ bulletin, voiceAlert });
+    } catch (error) {
+        logger.warn(`[cad] Base Dispatch bulletin failed: ${String(error.message).slice(0,100)}`);
+        return res.status(503).json({ error: 'Could not deliver the dispatch bulletin. Check channel access and retry.' });
+    }
+});
+
+router.post('/api/guilds/:guildId/mdt/records', async (req, res) => {
+    const access = await requireGuild(req, res, 'dispatch');
+    if (!access) return;
+    try {
+        const record = await createMdtRecord(req.params.guildId, req.cadSession.profile, req.body || {});
+        return res.status(201).json({ record });
+    } catch(error) { return mdtFailure(res, error); }
+});
+router.patch('/api/guilds/:guildId/mdt/records/:recordId', async (req, res) => {
+    const access = await requireGuild(req, res, 'dispatch');
+    if (!access) return;
+    try {
+        const record = await updateMdtRecord(req.params.guildId, req.cadSession.profile, req.params.recordId, req.body || {});
+        return record ? res.json({record}) : res.status(404).json({error: 'Record not found.'});
+    } catch(error) { return mdtFailure(res, error); }
+});
+router.delete('/api/guilds/:guildId/mdt/records/:recordId', async (req, res) => {
+    const access = await requireGuild(req, res, 'manage');
+    if (!access) return;
+    try {
+        const record = await archiveMdtRecord(req.params.guildId, req.cadSession.profile, req.params.recordId);
+        return record ? res.json({record}) : res.status(404).json({error: 'Record not found.'});
+    } catch(error) { return mdtFailure(res, error); }
+});
+router.post('/api/guilds/:guildId/mdt/bolos', async (req, res) => {
+    const access = await requireGuild(req, res, 'dispatch');
+    if (!access) return;
+    try {
+        const bolo = await createMdtBolo(req.params.guildId, req.cadSession.profile, req.body || {});
+        if (access.config.dispatchChannelId) {
+            const channel = await access.guild.channels.fetch(access.config.dispatchChannelId).catch(() => null);
+            if (channel?.isTextBased?.()) {
+                await channel.send({
+                    content: `🚨 **ROLEPLAY BOLO** (${bolo.kind}) • **${bolo.subject}**\n${bolo.details.slice(0,600)}\n${bolo.location ? 'Last seen: '+bolo.location+'\n' : ''}Ref: ${bolo.id.slice(0,8).toUpperCase()}`,
+                    allowedMentions: { parse: [] },
+                }).catch(() => {});
+            }
+        }
+        await signalBaseStation(req.params.guildId);
+        return res.status(201).json({ bolo });
+    } catch(error) { return mdtFailure(res, error); }
+});
+router.patch('/api/guilds/:guildId/mdt/bolos/:boloId/clear', async (req, res) => {
+    const access = await requireGuild(req, res, 'dispatch');
+    if (!access) return;
+    try {
+        const bolo = await clearMdtBolo(req.params.guildId, req.cadSession.profile, req.params.boloId);
+        return bolo ? res.json({ bolo }) : res.status(404).json({ error: 'BOLO not found or already cleared.' });
+    } catch(error) { return mdtFailure(res, error); }
+});
+router.put('/api/guilds/:guildId/mdt/calibration', async (req, res) => {
+    const access = await requireGuild(req, res, 'manage');
+    if (!access) return;
+    try {
+        const result = await setMdtCalibration(req.params.guildId, req.cadSession.profile, req.body?.anchors);
+        return res.json({ calibration: result });
+    } catch(error) { return mdtFailure(res, error); }
 });
 
 router.get('/api/guilds/:guildId/roles', async (req, res) => {

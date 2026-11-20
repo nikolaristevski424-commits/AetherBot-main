@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, EmbedBuilder } from 'discord.js';
 import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, updateCadUnit, updateCadCall } from '../../services/cad/cadService.js';
 import { findCallByReference } from '../../services/cad/dispatchCore.js';
+import { handleCadExtended } from './modules/cadExtended.js';
 
 function cadUrl() {
   const input = process.env.CAD_PUBLIC_URL || process.env.CAD_REDIRECT_URI || '';
@@ -33,7 +34,39 @@ export default {
     .addSubcommand(c => c.setName('close').setDescription('Close a completed dispatch call.')
       .addStringOption(o => o.setName('case').setDescription('Case ID: first 8 characters').setMinLength(8).setRequired(true)))
     .addSubcommand(c => c.setName('dispatch-channel').setDescription('Set where roleplay /911 reports are announced (Manage Server only).')
-      .addChannelOption(o => o.setName('channel').setDescription('Dispatch text channel').addChannelTypes(ChannelType.GuildText).setRequired(true))),
+
+      .addChannelOption(o => o.setName('channel').setDescription('Dispatch text channel').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+    .addSubcommandGroup(g => g.setName('mdt').setDescription('Officer mobile data terminal and fictional record searches')
+      .addSubcommand(c => c.setName('open').setDescription('Open your authenticated officer MDT.'))
+      .addSubcommand(c => c.setName('my-calls').setDescription('View dispatch incidents assigned to your unit.'))
+      .addSubcommand(c => c.setName('search').setDescription('Search roleplay records, BOLOs and live ER:LC players.')
+        .addStringOption(o => o.setName('query').setDescription('Person, plate, Roblox username or callsign').setMinLength(2).setMaxLength(100).setRequired(true)))
+      .addSubcommand(c => c.setName('add-record').setDescription('Create a fictional civilian or in-game vehicle record.')
+        .addStringOption(o => o.setName('kind').setDescription('Record type').addChoices({name:'Person / civilian',value:'person'},{name:'Vehicle',value:'vehicle'}).setRequired(true))
+        .addStringOption(o => o.setName('subject').setDescription('Fictional character or vehicle name').setMinLength(2).setMaxLength(90).setRequired(true))
+        .addStringOption(o => o.setName('plate').setDescription('In-game plate (required for vehicles)').setMaxLength(16))
+        .addStringOption(o => o.setName('roblox_username').setDescription('Optional Roblox username').setMaxLength(40))
+        .addStringOption(o => o.setName('description').setDescription('In-game appearance/model').setMaxLength(240))
+        .addStringOption(o => o.setName('notes').setDescription('Roleplay notes only (no real personal data)').setMaxLength(1000)))
+      .addSubcommand(c => c.setName('archive-record').setDescription('Archive a fictional record (Manage Server only).')
+        .addStringOption(o => o.setName('id').setDescription('First 8 characters of record ID').setRequired(true))))
+    .addSubcommandGroup(g => g.setName('bolo').setDescription('In-game roleplay BOLO alerts for dispatch')
+      .addSubcommand(c => c.setName('list').setDescription('List active BOLO alerts.'))
+      .addSubcommand(c => c.setName('add').setDescription('Issue a new roleplay BOLO.')
+        .addStringOption(o => o.setName('kind').setDescription('Person or vehicle').addChoices({name:'Person',value:'person'},{name:'Vehicle',value:'vehicle'}).setRequired(true))
+        .addStringOption(o => o.setName('subject').setDescription('Fictional name or vehicle description').setMinLength(2).setMaxLength(90).setRequired(true))
+        .addStringOption(o => o.setName('details').setDescription('Reason for BOLO (roleplay only)').setMinLength(8).setMaxLength(1000).setRequired(true))
+        .addStringOption(o => o.setName('location').setDescription('Last seen in-game postal or road').setMaxLength(90))
+        .addStringOption(o => o.setName('priority').setDescription('Alert priority').addChoices({name:'Normal',value:'normal'},{name:'Urgent',value:'urgent'}))
+        .addIntegerOption(o => o.setName('expiry_hours').setDescription('Expire after 1–168 hours (default 48)').setMinValue(1).setMaxValue(168)))
+      .addSubcommand(c => c.setName('clear').setDescription('Clear an active BOLO.')
+        .addStringOption(o => o.setName('id').setDescription('BOLO ID prefix from /cad bolo list').setRequired(true))))
+    .addSubcommandGroup(g => g.setName('base').setDescription('Dispatch radio in Discord voice and text')
+      .addSubcommand(c => c.setName('join').setDescription('Join your voice channel as a dispatch alert station.'))
+      .addSubcommand(c => c.setName('leave').setDescription('Leave the dispatch voice channel.'))
+      .addSubcommand(c => c.setName('status').setDescription('Display voice/text Base Dispatch status.'))
+      .addSubcommand(c => c.setName('bulletin').setDescription('Send a roleplay radio bulletin in the dispatch text channel.')
+        .addStringOption(o => o.setName('message').setDescription('Message up to 280 characters').setMinLength(5).setMaxLength(280).setRequired(true)))),
   async execute(interaction, config, client) {
     if (!interaction.inGuild()) return interaction.reply({ content:'Run this in a server.', flags:MessageFlags.Ephemeral });
     await interaction.deferReply({flags:MessageFlags.Ephemeral});
@@ -41,6 +74,10 @@ export default {
       const sub = interaction.options.getSubcommand(true);
       const access = await getCadGuildAccess(client, interaction.user.id, interaction.guildId);
       if (!access) return interaction.editReply('Your account does not have access to this server.');
+      const group = interaction.options.getSubcommandGroup(false);
+      if (['mdt', 'bolo', 'base'].includes(group)) {
+        return await handleCadExtended(interaction, access, group, sub);
+      }
       if (sub === 'dispatch-channel') {
         if (!access.isManager) return interaction.editReply('Manage Server permission required.');
         const channel = interaction.options.getChannel('channel',true);

@@ -1,4 +1,5 @@
 import { renderCadMap } from './map.js';
+import { renderMdt, refreshMdt } from './mdt.js';
 
 const loginView = document.querySelector('#loginView');
 const appView = document.querySelector('#appView');
@@ -7,7 +8,7 @@ const appNotice = document.querySelector('#appNotice');
 const guildSelect = document.querySelector('#serverSelect');
 const avatar = document.querySelector('#userAvatar');
 const initials = document.querySelector('#userInitials');
-const views = ['dispatch', 'map', 'erlc', 'settings'];
+const views = ['dispatch', 'mdt', 'map', 'erlc', 'settings'];
 
 let currentUser = null;
 let currentGuild = null;
@@ -235,6 +236,7 @@ function renderData(data) {
   document.querySelector('#footerServer').textContent = data.guild.name;
   const dispatchNav = document.querySelector('[data-view="dispatch"]');
   dispatchNav.hidden = !data.permissions.dispatch;
+  document.querySelector('[data-view="mdt"]').hidden = !data.permissions.dispatch;
   document.querySelector('[data-view="map"]').hidden = !data.permissions.dispatch;
   document.querySelector('[data-view="erlc"]').hidden = !data.permissions.dispatch && !data.permissions.commands;
   document.querySelector('[data-view="settings"]').hidden = !data.permissions.manager;
@@ -246,6 +248,7 @@ function renderData(data) {
   renderPlayers(data.state.players || [], data.state.playerSyncAt, data.state.serverOnline, data.state.staff || [], data.state.playerEvents || []);
   renderSettings(data);
   renderCadMap(data);
+  renderMdt({ ...data, currentUserId: currentUser?.id });
   document.querySelector('#syncIndicator').classList.add('ready');
   document.querySelector('#syncIndicator').classList.remove('error');
   document.querySelector('#lastUpdateLabel').textContent = `Updated ${formatTime(Date.now())}`;
@@ -337,7 +340,8 @@ async function initialize() {
     guildSelect.value = guilds[0].id;
     currentGuild = guildSelect.value;
     await loadGuildData();
-    if (new URLSearchParams(location.search).get('view') === 'map' && currentData?.permissions.dispatch) setView('map');
+    const desiredView = new URLSearchParams(location.search).get('view');
+    if (['map', 'mdt'].includes(desiredView) && currentData?.permissions.dispatch) setView(desiredView);
   } catch (error) {
     if (/sign in with discord/i.test(error.message)) {
       showLogin(new URLSearchParams(location.search).get('authError'));
@@ -349,7 +353,7 @@ async function initialize() {
   }
 }
 
-document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { setView(button.dataset.view); if (button.dataset.view === 'mdt') void refreshMdt(); }));
 guildSelect.addEventListener('change', loadGuildData);
 document.querySelector('#logoutButton').addEventListener('click', async () => {
   try { await api('/cad/api/logout', { method: 'POST' }); } finally { location.assign('/cad/'); }
