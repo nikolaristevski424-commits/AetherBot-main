@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#49359B">
   <title>Aether CAD</title>
   <link rel="stylesheet" href="/cad/assets/styles.css">
+  <link rel="stylesheet" href="/cad/assets/map.css">
   <script src="/cad/assets/app.js" type="module"></script>
 </head>
 <body>
@@ -26,6 +27,7 @@
       <a class="wordmark" href="/cad/" aria-label="Aether CAD home">A<span>.</span></a>
       <nav class="rail-nav" aria-label="CAD sections">
         <button class="rail-link active" data-view="dispatch" title="Dispatch" aria-label="Dispatch"><span class="rail-icon">⌖</span><span>Dispatch</span></button>
+        <button class="rail-link" data-view="map" title="Live map" aria-label="Live map"><span class="rail-icon">▦</span><span>Map</span></button>
         <button class="rail-link" data-view="erlc" title="ER:LC" aria-label="ER:LC"><span class="rail-icon">◉</span><span>ER:LC</span></button>
         <button class="rail-link" data-view="settings" title="Settings" aria-label="Settings"><span class="rail-icon">⚙</span><span>Settings</span></button>
       </nav>
@@ -81,6 +83,67 @@
               </form>
               <div id="unitsList" class="unit-list"><p class="empty-state">No units signed in.</p></div>
             </section>
+          </div>
+        </section>
+
+
+        <section id="view-map" class="view" hidden>
+          <div class="page-heading">
+            <div><p class="eyebrow">LIBERTY COUNTY / POSITION SNAPSHOTS</p><h1>Live map</h1></div>
+            <span class="muted small">ER:LC v2 coordinates · 30-second server polling</span>
+          </div>
+          <div class="map-toolbar">
+            <div class="map-summary">
+              <div class="map-stat"><strong id="cadMapPlayerCount">0</strong><small>Players located</small></div>
+              <div class="map-stat"><strong id="cadMapCallCount">0</strong><small>Active calls</small></div>
+              <div class="map-stat"><strong id="cadMapPinCount">0</strong><small>Visible markers</small></div>
+            </div>
+            <p id="cadMapState" class="map-state-line" role="status">Waiting for ER:LC sync</p>
+          </div>
+          <div class="map-layout">
+            <section class="map-card" aria-label="Liberty County interactive dispatch map">
+              <div class="map-head">
+                <div><p class="eyebrow">OFFICIAL PRC / FALL POSTALS</p><h2>Liberty County</h2></div>
+                <div class="map-controls" aria-label="Map zoom controls">
+                  <button id="cadMapZoomOut" type="button" aria-label="Zoom out">−</button>
+                  <span id="cadMapZoomValue">100%</span>
+                  <button id="cadMapZoomIn" type="button" aria-label="Zoom in">+</button>
+                  <button id="cadMapReset" type="button" aria-label="Reset map zoom">⌖</button>
+                </div>
+              </div>
+              <div id="cadMapStage" class="map-stage">
+                <div id="cadMapCanvas" class="map-canvas">
+                  <img id="cadMapImage" src="https://api.policeroleplay.community/maps/fall_postals.png" loading="lazy" alt="Official ER:LC Liberty County postal map">
+                  <div id="cadMapPins" class="map-pins" aria-label="Player and incident markers"></div>
+                </div>
+                <div id="cadMapImageError" class="map-image-error" role="status" hidden>Map background unavailable. Player coordinates remain visible in the roster and marker list.</div>
+              </div>
+              <div class="map-hint">Scroll or use + / − to zoom · drag to pan. Markers are periodic API positions, not real-time GPS. The map is for ER:LC roleplay only.</div>
+            </section>
+            <aside class="map-card map-side">
+              <section class="map-side-section">
+                <p class="map-label">FILTER MARKERS</p>
+                <label class="visually-hidden" for="cadMapFilter">Filter map markers by team</label>
+                <select id="cadMapFilter">
+                  <option value="all">All players + calls</option>
+                  <option value="calls">Emergency calls only</option>
+                  <option value="police">Police</option>
+                  <option value="sheriff">Sheriff</option>
+                  <option value="fire">Fire / EMS</option>
+                  <option value="dot">DOT</option>
+                  <option value="civilian">Civilian / criminal</option>
+                  <option value="other">Other teams</option>
+                </select>
+              </section>
+              <section class="map-side-section">
+                <p class="map-label">CURRENT MARKERS</p>
+                <div id="cadMapList" class="map-player-list" aria-live="polite"><p class="map-empty">Waiting for data</p></div>
+              </section>
+              <section class="map-side-section">
+                <p class="map-label">MARKER DETAILS</p>
+                <div id="cadMapDetails" class="map-details">Select a player or incident marker to inspect it.</div>
+              </section>
+            </aside>
           </div>
         </section>
 
