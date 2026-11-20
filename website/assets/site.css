@@ -30,3 +30,15 @@ body.header-dark .site-header .nav-links a[aria-current=page]{color:#91a9ff}
 .ops-record{padding:14px;margin-top:14px;border:1px solid #afbed8;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere}
 #cadConfigPanel{margin-top:16px}#cadConfigPanel option{padding:5px}
 @media(max-width:760px){.console-shell{display:block}.console-sidebar{width:100%!important;display:flex;overflow-x:auto;padding:12px!important;gap:8px}.console-side-label{display:none}.console-side-link{white-space:nowrap;flex-shrink:0}.console-work{min-width:0;padding:16px!important}.console-topline{flex-wrap:wrap;gap:14px}.console-picker{width:100%}.console-subnav{overflow-x:auto;display:flex}.console-subnav button{flex-shrink:0;white-space:nowrap}.panels-grid,.console-card-grid,.metric-grid{grid-template-columns:1fr!important}.map-large{min-height:280px}.panel{min-width:0}}
+
+/* Priority triage: clear operational hierarchy, no fabricated data */
+.ops-triage{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:15px 0 22px;padding:17px;border-radius:15px;background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow)}
+.ops-triage>div{display:flex;flex-direction:column;gap:3px;padding:8px 12px;border-right:1px solid var(--line)}
+.ops-triage>div:nth-child(3){border-right:0}
+.ops-triage small{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+.ops-triage strong{font-size:clamp(18px,2.5vw,27px);line-height:1.3;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ops-triage p{grid-column:1/-1;margin:0;padding:7px 12px 0;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+.ops-heading-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ops-readiness{margin:20px 0}
+.ops-readiness>.panel-head{align-items:center}
+@media(max-width:600px){.ops-triage{gap:6px;padding:10px}.ops-triage>div{padding:6px}.ops-triage small{font-size:10px}.ops-heading-actions .btn{min-height:34px;padding:0 10px}}
