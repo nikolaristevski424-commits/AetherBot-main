@@ -4,6 +4,19 @@
 const $=id=>document.getElementById(id),kind=$('consoleRoot')?.dataset.kind, state={user:null,guilds:[],guildId:'',data:null};
 const modes=['calls','map','records','bolos'];
 let cadSnapshot=null;
+let cadPolling=null;
+let cadLoading=false;
+const CAD_REFRESH_MS=30000;
+function stopCadPolling(){if(cadPolling!==null){clearInterval(cadPolling);cadPolling=null;}}
+function startCadPolling(){
+ stopCadPolling();
+ if(kind!=='cad')return;
+ cadPolling=setInterval(()=>{
+  if(document.hidden||!state.guildId||!permitted('dispatch')||cadLoading)return;
+  void loadCad({silent:true}).catch(()=>{});
+ },CAD_REFRESH_MS);
+}
+
 const text=(node,value)=>{if(node)node.textContent=value==null?'—':String(value);};
 function elem(tag,cls,content){const e=document.createElement(tag);if(cls)e.className=cls;if(content!=null)e.textContent=String(content);return e;}
 function empty(node,title,desc){if(!node)return;node.replaceChildren();const div=elem('div','empty-state');div.append(elem('div','illustration','◈'),elem('b','',title),elem('p','',desc));node.append(div);}
@@ -27,12 +40,14 @@ function saveSelected(gid){try{sessionStorage.setItem('aether_guild',gid)}catch{
 function getSelected(){try{return sessionStorage.getItem('aether_guild')||''}catch{return ''}}
 function permitted(key){const g=state.guilds.find(g=>g.id===state.guildId);return !!g?.permissions?.[key];}
 async function chooseGuild(guildId){
- state.guildId=guildId;state.data=null;saveSelected(guildId);
+ stopCadPolling();state.guildId=guildId;state.data=null;saveSelected(guildId);
+ if(kind==='cad'){cadSnapshot=null;const calls=$('cadCallsList');if(calls)empty(calls,'Loading dispatch queue','Checking the selected server’s latest calls.');}
  if(!guildId){notice('Choose one of your connected Discord servers.');return;}
  connection('Loading server...',false);notice('Loading authorized server data...');
  try{
   if(kind==='dashboard')await loadOverview();else if(kind==='cad')await loadCad();else if(kind==='staff')await loadStaff();
   connection('Connected to Aether',true);notice('');
+  if(kind==='cad')startCadPolling();
  }catch(e){connection('Unable to load server',false);notice(e.message,true);}
 }
 function renderOverview(data){
@@ -74,7 +89,25 @@ function renderCad(data){cadSnapshot=data;text($('cadCallCount'),data.calls.filt
  renderMap(data);renderBolos(data.bolos);
 }
 function renderBolos(bolos){const node=$('cadBolosList');node.replaceChildren();if(!bolos.length)return empty(node,'No active BOLOs','Issue a fictional roleplay BOLO from the form.');for(const b of bolos){const div=row(b.subject,b.details||b.location||'Roleplay alert','⚑',(b.priority||'normal').toUpperCase(),b.priority==='urgent'?'red':'');div.append(actions(div,'Clear',async()=>{if(!confirm('Clear this roleplay BOLO?'))return;await gate(`guilds/${state.guildId}/mdt/bolos/${b.id}/clear`,{method:'PATCH',body:'{}'});await loadCad()}));node.append(div)}}
-async function loadCad(){if(!permitted('dispatch'))throw Error('You need the server’s configured CAD dispatch role to open this data.');const data=await gate(`guilds/${state.guildId}/cad`);state.data=data;renderCad(data);}
+async function loadCad({silent=false}={}){
+ if(!permitted('dispatch'))throw Error('You need the server’s configured CAD dispatch role to open this data.');
+ if(cadLoading)return;
+ const guildId=state.guildId;
+ cadLoading=true;
+ try{
+  const data=await gate(`guilds/${guildId}/cad`);
+  if(guildId!==state.guildId)return;
+  state.data=data;renderCad(data);
+  const stamp=$('cadRefreshStamp');if(stamp)stamp.textContent=`Updated ${new Date().toLocaleTimeString()} · every 30s while visible`;
+  if(!silent)notice('');
+ }catch(err){
+  if(guildId===state.guildId){
+   const stamp=$('cadRefreshStamp');if(stamp)stamp.textContent='Refresh failed · last successful data retained';
+   if(!silent)throw err;
+   connection('Refresh unavailable',false);
+  }
+ }finally{cadLoading=false;}
+}
 async function loadMdt(){if(!state.guildId)return;const q=$('mdtSearch').value.trim();const response=await gate(`guilds/${state.guildId}/mdt?q=${encodeURIComponent(q)}`);const list=$('mdtRecordsList');list.replaceChildren();if(!response.records.length)empty(list,'No matching fictional records','Try a different search or create a roleplay record.');else response.records.slice(0,50).forEach(rec=>list.append(row(rec.subject,`${rec.kind} • ${rec.plate||rec.robloxUsername||rec.description||'roleplay'}`,'▤')));}
 function showCadTab(mode){if(!modes.includes(mode))return;document.querySelectorAll('[data-cad-view]').forEach(b=>b.classList.toggle('active',b.dataset.cadView===mode));modes.forEach(x=>{const n=$(x==='calls'?'cadCallsPanel':x==='map'?'cadMapPanel':x==='records'?'cadRecordsPanel':'cadBolosPanel');n.hidden=x!==mode});if(mode==='records')void loadMdt().catch(e=>notice(e.message,true));}
 function renderStaff(data){const node=$('staffCasesList');node.replaceChildren();if(!data.cases?.length)empty(node,'No moderation cases yet','Warnings and timeouts made through the bot will appear here.');else data.cases.slice(0,35).forEach(c=>node.append(row(`#${c.caseId} · ${c.action||'Moderation case'}`,`${c.target||'Unknown member'} • ${c.reason||'No reason'} • ${c.createdAt?new Date(c.createdAt).toLocaleString():''}`,'⚑')));
@@ -83,6 +116,8 @@ function renderStaff(data){const node=$('staffCasesList');node.replaceChildren()
 async function loadStaff(){if(!permitted('moderator'))throw Error('Moderator permission required for this server.');const data=await gate(`guilds/${state.guildId}/staff`);state.data=data;renderStaff(data)}
 function bindForms(){
  $('refreshCad')?.addEventListener('click',()=>loadCad().catch(e=>notice(e.message,true)));
+ document.addEventListener('visibilitychange',()=>{if(kind==='cad'&&!document.hidden&&state.guildId&&permitted('dispatch'))void loadCad({silent:true});});
+ window.addEventListener('pagehide',stopCadPolling);
  $('refreshStaff')?.addEventListener('click',()=>loadStaff().catch(e=>notice(e.message,true)));
  document.querySelectorAll('[data-cad-view]').forEach(btn=>btn.addEventListener('click',()=>showCadTab(btn.dataset.cadView)));
  $('mdtSearchButton')?.addEventListener('click',()=>loadMdt().catch(e=>notice(e.message,true)));
