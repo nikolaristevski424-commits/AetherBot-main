@@ -20,7 +20,7 @@ async function json(url,options={}){
  let data;try{data=await r.json()}catch{data={error:'The server returned an unreadable response.'};}
  if(!r.ok)throw Error(data?.error||`Request failed (${r.status})`);return data;
 }
-function gate(route, options){return json('/api/console/'+route,options);}
+function gate(route, options){const [path,query='']=route.split('?');return json('/api/gateway?route='+encodeURIComponent(path)+(query?'&'+query:''),options);}
 function actions(button,label,fn){const b=elem('button','btn btn-ghost btn-small',label);b.type='button';b.addEventListener('click',async()=>{b.disabled=true;try{await fn()}catch(e){notice(e.message,true)}finally{b.disabled=false}});return b;}
 function fromForm(form){return Object.fromEntries(new FormData(form).entries());}
 function saveSelected(gid){try{sessionStorage.setItem('aether_guild',gid)}catch{}}
