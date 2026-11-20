@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { PermissionFlagsBits } from 'discord.js';
 import { deleteFromDb, getFromDb, setInDb } from '../../utils/database.js';
 import { validate911Input, normalizeErlc911 } from './dispatchCore.js';
+import { clearMdtGuild } from './mdtService.js';
+import { leaveBaseStation } from './baseStationService.js';
 
 const STATE_LIMIT = 500;
 const AUDIT_LIMIT = 1000;
@@ -364,5 +366,6 @@ export async function listCadGuildAccess(client, session) {
 }
 
 export async function clearCadGuildData(guildId) {
-    await Promise.all([deleteFromDb(stateKey(guildId)), deleteFromDb(configKey(guildId))]);
+    leaveBaseStation(guildId);
+    await Promise.all([deleteFromDb(stateKey(guildId)), deleteFromDb(configKey(guildId)), clearMdtGuild(guildId)]);
 }
