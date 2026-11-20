@@ -1,7 +1,7 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
 import { getCadState, getCadGuildConfig, setCadGuildConfig } from '../../../services/cad/cadService.js';
 import {
-  getMdtState,searchMdt,createMdtRecord,archiveMdtRecord,createMdtBolo,clearMdtBolo,
+  getMdtState,searchMdt,createMdtRecord,archiveMdtRecord,createMdtBolo,clearMdtBolo,logBaseBulletin,
 } from '../../../services/cad/mdtService.js';
 import { isBoloActive } from '../../../services/cad/mdtCore.js';
 import {
@@ -102,7 +102,11 @@ export async function handleCadExtended(interaction,access,group,sub){
       const channel=await interaction.guild.channels.fetch(cfg.dispatchChannelId).catch(()=>null);
       if(!channel?.isTextBased())return interaction.editReply('Configured dispatch text channel is inaccessible.');
       const message=interaction.options.getString('message',true).trim().slice(0,280);
+      const state = await getMdtState(guildId);
+      if(state.bulletins.some(b=>b.actorId===interaction.user.id && Date.now()-b.at<15_000))
+        return interaction.editReply('Wait 15 seconds between Base Dispatch bulletins.');
       await channel.send({content:`📻 **BASE DISPATCH • ROLEPLAY**\n${message}\n— ${brief(interaction.user.username)}`,allowedMentions:{parse:[]}});
+      await logBaseBulletin(guildId,actor(interaction),message,cfg.dispatchChannelId);
       const alerted=await signalBaseStation(guildId);
       return interaction.editReply(`✅ Bulletin sent to <#${cfg.dispatchChannelId}>${alerted?' with a voice alert tone':''}.`);
     }
