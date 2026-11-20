@@ -1,6 +1,6 @@
 import { getErlcConfig } from '../erlc/erlcService.js';
 import { erlcClient } from '../erlc/erlcClient.js';
-import { saveCadPlayers } from './cadService.js';
+import { ingestErlc911Calls, saveCadPlayers } from './cadService.js';
 import { logger } from '../../utils/logger.js';
 
 const activeGuildSyncs = new Set();
@@ -76,18 +76,21 @@ export async function syncCadGuild(guildId, actor = null) {
         let response;
         let serverOnline = true;
         try {
-            response = await erlcClient.getServer(config.serverKey, ['Players', 'Staff', 'JoinLogs']);
+            response = await erlcClient.getServer(config.serverKey, ['Players', 'Staff', 'JoinLogs', 'EmergencyCalls']);
         } catch (error) {
             if (error.kind !== 'offline') throw error;
             serverOnline = false;
-            response = { Players: [], Staff: {}, JoinLogs: [] };
+            response = { Players: [], Staff: {}, JoinLogs: [], EmergencyCalls: [] };
         }
 
         const staff = buildStaffRoster(response.Staff);
         const staffById = new Map(staff.map((member) => [member.robloxId, member.role]));
         const players = (response.Players || []).slice(0, 250).map((player) => normalizePlayer(player, staffById));
         const joinLogs = normalizeJoinLogs(response.JoinLogs);
-        return await saveCadPlayers(guildId, actor, players, { staff, joinLogs, serverOnline });
+        const result = await saveCadPlayers(guildId, actor, players, { staff, joinLogs, serverOnline });
+        // One ER:LC request powers both live map positions and 911 imports.
+        const emergencyCalls = await ingestErlc911Calls(guildId, response.EmergencyCalls || []);
+        return { ...result, emergencyCalls };
     } finally {
         activeGuildSyncs.delete(guildId);
     }
