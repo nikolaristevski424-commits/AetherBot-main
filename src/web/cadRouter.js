@@ -178,7 +178,7 @@ router.use('/api/guilds/:guildId/mdt', mdtRateLimit);
 
 function mdtFailure(res, error) {
     const message = String(error?.message || '');
-    if (/^(Record type|Record kind|Vehicle records|Invalid Roblox|Plate should|Roleplay character|BOLO type|BOLO subject|BOLO details|BOLO priority|BOLO expiry|Calibration coordinates|Provide at most|Use at least|The selected landmarks)/i.test(message)) {
+    if (/^(Record type|Record kind|Vehicle records|Invalid Roblox|Plate should|Roleplay character|BOLO type|BOLO subject|BOLO details|BOLO priority|BOLO expiry|Calibration coordinates|Provide at most|Use at least|The selected landmarks|The roleplay record limit|The active roleplay BOLO limit)/i.test(message)) {
         return res.status(400).json({ error: message.slice(0, 240) });
     }
     logger.warn(`[cad] MDT operation failed: ${message.slice(0, 150)}`);
