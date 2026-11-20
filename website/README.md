@@ -99,3 +99,41 @@ The status page shows current Vercel reachability and whether the Wispbyte HTTPS
 
 ---
 Aether is an independent Discord bot project, not affiliated with Discord, Roblox or Police Roleplay Community. The legal pages are project policy drafts and should be reviewed before announcing a formal public release.
+
+## Release checklist — Vercel and Wispbyte
+
+### Vercel settings
+- Project **aetherbot-hq**, root directory **website**, Framework Preset **Other**, output directory empty, no custom build command.
+- Use the GitHub repository **nikolaristevski424-commits/AetherBot-main**.
+- Recommended Node.js runtime 22.x or 24.x when supported. The `website/package.json` requires Node >=22.12.0.
+- Assign `aetherbot-hq.vercel.app` as the canonical production domain (or update every canonical setting if you use a custom domain).
+- The Vercel project must deploy from the `website/` directory, not the Discord bot root. Wispbyte hosts the persistent Discord bot.
+
+### Vercel Production environment variables
+```dotenv
+AETHER_SITE_ORIGIN=https://aetherbot-hq.vercel.app
+AETHER_DISCORD_CLIENT_ID=<public Discord application client ID>
+AETHER_DISCORD_CLIENT_SECRET=<Discord OAuth2 client secret>
+AETHER_SESSION_SECRET=<random value, 32+ characters; unique>
+AETHER_BOT_ORIGIN=https://<PUBLIC HTTPS bot proxy host; no path or port>
+AETHER_BRIDGE_SECRET=<random value, 32+ characters; shared exactly with Wispbyte>
+```
+Only set secrets in Vercel Settings > Environment Variables. Never commit real values. Never set `DISCORD_TOKEN` or an ER:LC private-server key on Vercel. If preview deployments use a different domain, they require their **own** exact `AETHER_SITE_ORIGIN` and an OAuth callback allowlist entry; previews cannot reuse the production origin unchanged.
+
+### Wispbyte persistent bot
+- Deploy the matching **same release** of the repository's bot code and keep the existing bot/database settings.
+- Add `AETHER_BRIDGE_SECRET` with exactly the same value as Vercel; leave `DISCORD_TOKEN`, `CLIENT_ID`, the database configuration and your ER:LC key on Wispbyte.
+- Expose the bot's HTTP service through an actual verified HTTPS reverse proxy. `AETHER_BOT_ORIGIN` rejects an explicit port, HTTP, path and credentials.
+- Verify `https://<bot-host>/health` responds with the expected health JSON before enabling the website bridge.
+- For ER:LC moderation, the bot needs a valid server API key set through `/erlc setup`; the staff member needs the site's configured Discord permissions, and player snapshots must be fresh.
+
+### Discord developer portal
+- Use the **existing Aether application**, not a new bot.
+- In OAuth2 > Redirects add exactly `https://aetherbot-hq.vercel.app/api/auth/callback`.
+- Confirm OAuth Client ID/Secret correspond to the existing Aether bot; enable the necessary bot permissions on each guild.
+
+### Verify before production
+Run `node --test website/tests/*.test.js` and the repository root tests. Verify login/logout, unauthorized access, role revocation, config updates, map data, calls, case search, and the PWA installation in Chrome/Edge. Test warn, kick and ban with test Roblox accounts on a test private server first. Audit actual logs and platform permissions. Enforce reviews on any release that can perform moderation. Never use production accounts as test targets.
+
+### Theme system
+`/assets/theme.js` and `/assets/theme.css` enable light/dark mode across all public and staff pages. Preference is local to the browser; it is not transmitted to the server and is not an authentication setting. The installable ER:LC companion also uses the shared theme.
