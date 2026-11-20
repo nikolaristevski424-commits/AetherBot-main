@@ -19,6 +19,7 @@ import { initializeMusic } from './services/music/riffySetup.js';
 import { shutdownMusic } from './services/music/playerHandler.js';
 import { syncAllCadGuilds } from './services/cad/cadTrackingService.js';
 import { createCadRouter } from './web/cadRouter.js';
+import { createSiteBridgeRouter } from './web/siteBridgeRouter.js';
 import pkg from '../package.json' with { type: 'json' };
 import { EXPECTED_SCHEMA_VERSION, EXPECTED_SCHEMA_LABEL } from './config/database/schemaVersion.js';
 
@@ -158,6 +159,10 @@ class AetherClient extends Client {
       legacyHeaders: false,
       message: { error: 'Too many authentication attempts' },
     }));
+
+    // Private web dashboard API. Authentication and role checks happen inside the bridge.
+    // No change to the existing Discord command handlers or CAD OAuth routes.
+    app.use('/api/site-bridge', createSiteBridgeRouter(this));
 
     app.use('/cad', createCadRouter(this));
 
