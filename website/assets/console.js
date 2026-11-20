@@ -144,8 +144,19 @@ function renderMap(data){const map=$('cadLiveMap');const list=$('mapMarkerList')
  }
 }
 function renderCad(data){cadSnapshot=data;text($('cadCallCount'),data.calls.filter(c=>c.status!=='closed').length);text($('cadUnitCount'),data.units.filter(u=>u.status!=='off_duty').length);text($('cadPlayerCount'),data.players.length);text($('cadBoloCount'),data.bolos.length);
- const calls=$('cadCallsList');calls.replaceChildren();const priority=$('cadPriorityFilter')?.value||'all',status=$('cadStatusFilter')?.value||'active';const visible=data.calls.filter(c=>(status==='all'||(status==='closed'?c.status==='closed':c.status!=='closed'))&&(priority==='all'||c.priority===priority));if(!visible.length)empty(calls,'No open incidents','Discord /911 or website-created calls will appear here.');else visible.slice(0,30).forEach(c=>calls.append(renderCall(c)));
+ const calls=$('cadCallsList');calls.replaceChildren();const priority=$('cadPriorityFilter')?.value||'all',status=$('cadStatusFilter')?.value||'active',search=($('cadCallSearch')?.value||'').trim().toLowerCase();
+ const visible=data.calls.filter(c=>(status==='all'||(status==='closed'?c.status==='closed':c.status!=='closed'))&&(priority==='all'||c.priority===priority)&&(!search||[c.title,c.location,c.details,c.createdByName].some(v=>String(v||'').toLowerCase().includes(search))));if(!visible.length)empty(calls,'No open incidents','Discord /911 or website-created calls will appear here.');else visible.slice(0,30).forEach(c=>calls.append(renderCall(c)));
  const units=$('cadUnitsList');units.replaceChildren();if(!data.units.length)empty(units,'No registered units','Officers register using /cad unit in Discord.');else data.units.slice(0,25).forEach(u=>units.append(row(u.callsign||u.username||'Unit',u.username||'Discord officer','⌁',(u.status||'unknown').replace('_',' ').toUpperCase())));
+ const active=data.calls.filter(c=>c.status!=='closed');
+ const urgent=active.filter(c=>c.priority==='urgent');
+ const unassigned=active.filter(c=>!(c.assignedUnitIds||[]).length);
+ const oldest=active.filter(c=>Number.isFinite(Number(c.createdAt))&&Number(c.createdAt)>0).reduce((min,c)=>Math.min(min,Number(c.createdAt)),Infinity);
+ const elapsed=Number.isFinite(oldest)?Math.max(0,Math.floor((Date.now()-oldest)/60000)):null;
+ text($('triageUrgent'),urgent.length);text($('triageUnassigned'),unassigned.length);
+ text($('triageOldest'),elapsed===null?'—':elapsed<60?elapsed+'m':Math.floor(elapsed/60)+'h '+elapsed%60+'m');
+ text($('triageSummary'),urgent.length&&unassigned.length?
+   'Review unassigned priority calls and confirm officer availability.':
+   active.length?'Dispatch queue data is current as of the last successful refresh.':'No active roleplay incidents.');
  const exportButton=$('exportCadHistory');if(exportButton)exportButton.disabled=!permitted('dispatch')||!(data.audit||[]).length;
  const history=$('cadActivityList');if(history){history.replaceChildren();for(const a of (data.audit||[]).slice(0,35))history.append(row(a.action||'Dispatch event',`${a.actorName||a.actorId||'System'} · ${a.at?new Date(a.at).toLocaleString():'Unknown time'}`,'◷'));if(!history.children.length)empty(history,'No audit entries','Dispatch activity will appear as it happens.');}
  renderMap(data);renderBolos(data.bolos);
@@ -207,6 +218,7 @@ function bindForms(){
  window.addEventListener('hashchange',()=>{if(kind==='cad'){const mode=location.hash.slice(1);if(modes.includes(mode))showCadTab(mode);}});
 
  for(const id of ['cadPriorityFilter','cadStatusFilter'])$(id)?.addEventListener('change',()=>{if(cadSnapshot)renderCad(cadSnapshot);});
+ $('cadCallSearch')?.addEventListener('input',()=>{if(cadSnapshot)renderCad(cadSnapshot);});
  for(const id of ['staffCaseSearch','staffCaseFilter'])$(id)?.addEventListener(id==='staffCaseSearch'?'input':'change',()=>{if(staffSnapshot)renderStaff(staffSnapshot);});
  $('cadConfigForm')?.addEventListener('submit',async e=>{
   e.preventDefault();const form=e.currentTarget,button=form.querySelector('[type=submit]');button.disabled=true;
