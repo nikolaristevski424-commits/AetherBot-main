@@ -1,3 +1,5 @@
+import { renderCadMap } from './map.js';
+
 const loginView = document.querySelector('#loginView');
 const appView = document.querySelector('#appView');
 const loginError = document.querySelector('#loginError');
@@ -5,7 +7,7 @@ const appNotice = document.querySelector('#appNotice');
 const guildSelect = document.querySelector('#serverSelect');
 const avatar = document.querySelector('#userAvatar');
 const initials = document.querySelector('#userInitials');
-const views = ['dispatch', 'erlc', 'settings'];
+const views = ['dispatch', 'map', 'erlc', 'settings'];
 
 let currentUser = null;
 let currentGuild = null;
@@ -233,6 +235,7 @@ function renderData(data) {
   document.querySelector('#footerServer').textContent = data.guild.name;
   const dispatchNav = document.querySelector('[data-view="dispatch"]');
   dispatchNav.hidden = !data.permissions.dispatch;
+  document.querySelector('[data-view="map"]').hidden = !data.permissions.dispatch;
   document.querySelector('[data-view="erlc"]').hidden = !data.permissions.dispatch && !data.permissions.commands;
   document.querySelector('[data-view="settings"]').hidden = !data.permissions.manager;
   document.querySelector('#newCallButton').hidden = !data.permissions.dispatch;
@@ -242,6 +245,7 @@ function renderData(data) {
   renderUnits(data.state.units || []);
   renderPlayers(data.state.players || [], data.state.playerSyncAt, data.state.serverOnline, data.state.staff || [], data.state.playerEvents || []);
   renderSettings(data);
+  renderCadMap(data);
   document.querySelector('#syncIndicator').classList.add('ready');
   document.querySelector('#syncIndicator').classList.remove('error');
   document.querySelector('#lastUpdateLabel').textContent = `Updated ${formatTime(Date.now())}`;
@@ -333,6 +337,7 @@ async function initialize() {
     guildSelect.value = guilds[0].id;
     currentGuild = guildSelect.value;
     await loadGuildData();
+    if (new URLSearchParams(location.search).get('view') === 'map' && currentData?.permissions.dispatch) setView('map');
   } catch (error) {
     if (/sign in with discord/i.test(error.message)) {
       showLogin(new URLSearchParams(location.search).get('authError'));
