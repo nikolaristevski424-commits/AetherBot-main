@@ -148,7 +148,7 @@ function renderStaff(data){staffSnapshot=data;const node=$('staffCasesList');nod
  else cases.slice(0,35).forEach(c=>node.append(row(`#${c.caseId} · ${c.action||'Moderation case'}`,`${c.target||'Unknown member'} • ${c.reason||'No reason'} • ${c.createdAt?new Date(c.createdAt).toLocaleString():''}`,'⚑')));
  const perms=$('staffPerms');perms.replaceChildren();for(const [name,k] of [['Moderate Members','canWarn'],['Issue timeouts','canTimeout'],['Manage Server','manager']])perms.append(row(name,data.permissions?.[k]?'Allowed by your Discord roles':'Requires a higher Discord role','⊗',data.permissions?.[k]?'ENABLED':'RESTRICTED',data.permissions?.[k]?'green':''));
 }
-async function loadStaff(){if(!permitted('moderator'))throw Error('Moderator permission required for this server.');const data=await gate(`guilds/${state.guildId}/staff`);state.data=data;renderStaff(data);if(permitted('manager'))await loadCadConfig();else text($('cadConfigHelp'),'Manage Server permission required to configure roles.');}
+async function loadStaff(){if(!permitted('moderator'))throw Error('Moderator permission required for this server.');const data=await gate(`guilds/${state.guildId}/staff`);state.data=data;renderStaff(data);if(permitted('manager'))await loadCadConfig().catch(e=>text($('cadConfigHelp'),'Unable to load CAD configuration: '+e.message));else text($('cadConfigHelp'),'Manage Server permission required to configure roles.');}
 async function loadCadConfig(){
  const data=await gate(`guilds/${state.guildId}/cad/config`);
  for(const [id,selected] of [['configDispatchRoles',data.config.dispatchRoleIds||[]],['configCommandRoles',data.config.commandRoleIds||[]]]){
