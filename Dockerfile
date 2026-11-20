@@ -1,10 +1,14 @@
-FROM node:22-alpine
-WORKDIR /app
+FROM node:20-alpine
+
+WORKDIR /usr/src/app
+
 ENV NODE_ENV=production
-COPY package.json package-lock.json ./
+
+COPY package*.json ./
 RUN npm ci --omit=dev
-COPY advertisehere ./advertisehere
-RUN mkdir -p /app/data && chown -R node:node /app
-USER node
+
+COPY . .
+
 EXPOSE 3000
-CMD ["node", "advertisehere/bot/index.js"]
+
+CMD ["npm", "start"]
