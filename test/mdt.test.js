@@ -48,3 +48,12 @@ test('calibration keeps map transform separate for each Discord server',async()=
  await assert.rejects(()=>mdt.setMdtCalibration(guild,actor,[...anchors,{worldX:1000,worldZ:1000,mapX:99,mapY:99}]),/disagree/);
  assert.equal((await mdt.getMdtState(guild)).calibration.length,3);
 });
+
+test('Base Dispatch bulletins persist by guild and throttle one officer',async()=>{
+ const guild='70000000000000006';
+ const first=await mdt.logBaseBulletin(guild,actor,'All units be advised: fictional road closure at postal 201.','70000000000000009');
+ assert.equal(first.actorId,actor.id);
+ assert.equal((await mdt.searchMdt(guild)).bulletins.length,1);
+ assert.equal((await mdt.searchMdt('70000000000000007')).bulletins.length,0);
+ await assert.rejects(()=>mdt.logBaseBulletin(guild,actor,'Repeat message within cooldown.','70000000000000009'),/15 seconds/);
+});
