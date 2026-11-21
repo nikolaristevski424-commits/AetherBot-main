@@ -2,6 +2,15 @@
 
 An original animated website inspired by the polished product storytelling and section flow of Seshy. It **does not** reuse their art or source. Aether retains its blue/violet identity and the user's Aether logo.
 
+## Operations release (development branch)
+- Dispatch call priority/status filtering, unit assignment (up to 8 available units per call), and an audited call history.
+- Searchable MDT with a full safe-text detail inspector for fictional records.
+- Staff-case searching/filtering, plus Manage Server-only dispatch and ER:LC command role configuration.
+- Installable browser-based ER:LC companion at `/companion/`, including an authorized online player selector and confirmation-gated warn-message, kick and private-server ban actions. This is a PWA, not a Roblox plugin or native Windows executable.
+- The companion uses an existing encrypted Discord session and the server-side signed bot bridge. No ER:LC API key is ever delivered to the browser.
+- ER:LC actions require Manage Server, a configured server key, a fresh player snapshot, and a 12-second cooldown. The warn control sends a fixed in-game private warning message (`:pm`), not a permanent game-native warning record. Actions are audited by CAD.
+- Browser UI and backend syntax were checked; integration and real ER:LC command tests are still required before production release.
+
 ## What works from the website
 
 - Public homepage, features, commands, setup documentation, FAQ, Terms, Privacy and status.
@@ -90,3 +99,65 @@ The status page shows current Vercel reachability and whether the Wispbyte HTTPS
 
 ---
 Aether is an independent Discord bot project, not affiliated with Discord, Roblox or Police Roleplay Community. The legal pages are project policy drafts and should be reviewed before announcing a formal public release.
+
+## Release checklist — Vercel and Wispbyte
+
+### Vercel settings
+- Project **aetherbot-hq**, root directory **website**, Framework Preset **Other**, output directory empty, no custom build command.
+- Use the GitHub repository **nikolaristevski424-commits/AetherBot-main**.
+- Recommended Node.js runtime 22.x or 24.x when supported. The `website/package.json` requires Node >=22.12.0.
+- Assign `aetherbot-hq.vercel.app` as the canonical production domain (or update every canonical setting if you use a custom domain).
+- The Vercel project must deploy from the `website/` directory, not the Discord bot root. Wispbyte hosts the persistent Discord bot.
+
+### Vercel Production environment variables
+```dotenv
+AETHER_SITE_ORIGIN=https://aetherbot-hq.vercel.app
+AETHER_DISCORD_CLIENT_ID=<public Discord application client ID>
+AETHER_DISCORD_CLIENT_SECRET=<Discord OAuth2 client secret>
+AETHER_SESSION_SECRET=<random value, 32+ characters; unique>
+AETHER_BOT_ORIGIN=https://<PUBLIC HTTPS bot proxy host; no path or port>
+AETHER_BRIDGE_SECRET=<random value, 32+ characters; shared exactly with Wispbyte>
+```
+Only set secrets in Vercel Settings > Environment Variables. Never commit real values. Never set `DISCORD_TOKEN` or an ER:LC private-server key on Vercel. If preview deployments use a different domain, they require their **own** exact `AETHER_SITE_ORIGIN` and an OAuth callback allowlist entry; previews cannot reuse the production origin unchanged.
+
+### Wispbyte persistent bot
+- Deploy the matching **same release** of the repository's bot code and keep the existing bot/database settings.
+- Add `AETHER_BRIDGE_SECRET` with exactly the same value as Vercel; leave `DISCORD_TOKEN`, `CLIENT_ID`, the database configuration and your ER:LC key on Wispbyte.
+- Expose the bot's HTTP service through an actual verified HTTPS reverse proxy. `AETHER_BOT_ORIGIN` rejects an explicit port, HTTP, path and credentials.
+- Verify `https://<bot-host>/health` responds with the expected health JSON before enabling the website bridge.
+- For ER:LC moderation, the bot needs a valid server API key set through `/erlc setup`; the staff member needs the site's configured Discord permissions, and player snapshots must be fresh.
+
+### Discord developer portal
+- Use the **existing Aether application**, not a new bot.
+- In OAuth2 > Redirects add exactly `https://aetherbot-hq.vercel.app/api/auth/callback`.
+- Confirm OAuth Client ID/Secret correspond to the existing Aether bot; enable the necessary bot permissions on each guild.
+
+### Verify before production
+Run `node --test website/tests/*.test.js` and the repository root tests. Verify login/logout, unauthorized access, role revocation, config updates, map data, calls, case search, and the PWA installation in Chrome/Edge. Test warn, kick and ban with test Roblox accounts on a test private server first. Audit actual logs and platform permissions. Enforce reviews on any release that can perform moderation. Never use production accounts as test targets.
+
+### Theme system
+`/assets/theme.js` and `/assets/theme.css` enable light/dark mode across all public and staff pages. Preference is local to the browser; it is not transmitted to the server and is not an authentication setting. The installable ER:LC companion also uses the shared theme.
+
+## Additional operations enhancements
+
+- **Quick jump (Ctrl/Cmd+K):** Searchable keyboard navigation to Dashboard, Dispatch, Officer MDT, BOLOs, Companion, Moderation, Status, Docs and FAQ. This only navigates; it never grants access or executes staff commands.
+- **Dispatch triage:** Authorized call data powers urgent call count, unassigned active calls, oldest waiting incident, and combined search by title, postal, details or reporter name. These numbers do not appear until real CAD data loads.
+- **Staff/dispatch CSV exports:** Users with current in-page permission checks can export only the already-loaded moderation cases or dispatch audit events. CSV is sanitized against spreadsheet formula injection and capped at 500 rows; no data goes to another service. Server-side Discord permissions still control all fetched records.
+- **Deployment readiness:** Dashboard shows actual configured OAuth, configured gateway, and HTTPS bot health states separately. It does not fake historical uptime or expose credentials.
+- **Small-screen operations:** Responsive navigation and layout preserved for touchscreen use. Export buttons and menus have semantic labels and disabled states until data is ready.
+
+### Additional verification
+- Run `node --test website/tests/*.test.js` including `website/tests/exports.test.js` for CSV formula-injection, allowlist and row-bound tests.
+- Test `Ctrl+K` on Windows and `Cmd+K` on macOS, arrow navigation, Escape and mobile focus.
+- Verify CSV import behavior using spreadsheet software, including tricky quote/newline/formula values.
+- Check dashboard readiness when OAuth, bot bridge or Wispbyte HTTPS are intentionally unavailable.
+- Perform end-to-end tests on an authorized Discord test guild and ER:LC private server before production deployment.
+
+## Wispbyte subdomain connection & truthful current uptime
+The Wispbyte Subdomains panel has assigned the Aether application `aether.wispbyte.app:13017`. For the Vercel `AETHER_BOT_ORIGIN`, use the **HTTPS reverse proxy origin without the allocated port**: `https://aether.wispbyte.app`.
+- Set Wispbyte `PORT` to the assigned `13017` if it is the app's primary port; use `WEB_HOST=0.0.0.0`.
+- Test `https://aether.wispbyte.app/health` in a browser. A Wispbyte 'Active' subdomain is not proof the proxy is correctly serving HTTPS.
+- Test `https://aether.wispbyte.app/ready`: status 200 and `ready:true` means the bot's Discord gateway and persistent database are ready; HTTP 503 means it is not ready.
+- The website's `/api/status` now checks both endpoints on each status refresh and reports **HTTPS reachability**, **Discord/database readiness**, and the current process uptime since the last restart. This is a snapshot, not 24/7 history or an uptime percentage.
+- A true historical uptime chart/percentage requires scheduled probes and durable external storage. Never infer a 30-day uptime percentage from one request.
+- `AETHER_BRIDGE_SECRET` is a random 32+-character signing secret. Generate it once, store the **exact same value** on Vercel and Wispbyte, and never put it in website source, GitHub, browser code or support tickets.

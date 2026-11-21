@@ -6,12 +6,13 @@
 import express from 'express';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { PermissionFlagsBits } from 'discord.js';
-import { getCadState, getCadGuildAccess, createCadCall, updateCadCall, updateCadUnit } from '../services/cad/cadService.js';
+import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, isAssignableCadRole, recordCadCommand, createCadCall, updateCadCall, updateCadUnit } from '../services/cad/cadService.js';
 import { searchMdt, createMdtRecord, createMdtBolo, clearMdtBolo } from '../services/cad/mdtService.js';
 import { fitMapCalibration } from '../services/cad/mdtCore.js';
 import { getModerationCases, logModerationAction } from '../utils/moderation.js';
 import { WarningService } from '../services/moderation/warningService.js';
 import { ModerationService } from '../services/moderation/moderationService.js';
+import { getErlcConfig, runServerCommand } from '../services/erlc/erlcService.js';
 import { getGuildTicketStats } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
 
@@ -20,6 +21,7 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const activeNonces = new Map();
 const recache = new Map();
 const RECACHE_MS = 15_000;
+const erlcActionCooldowns = new Map();
 const METHODS = new Set(['GET', 'POST', 'PATCH']);
 
 const reply = (res, status, value) => res.status(status).set('Cache-Control', 'no-store').json(value);
@@ -142,7 +144,7 @@ export function createSiteBridgeRouter(client) {
       calls: state.calls.slice(-100).reverse(), units: state.units,
       players: state.serverOnline !== false && Date.now() - (state.playerSyncAt || 0) < 90_000 ? state.players : [],
       playerSyncAt: state.playerSyncAt || null, serverOnline: state.serverOnline,
-      bolos: mdt.bolos, calibration: mdt.calibration, mapTransform: fitMapCalibration(mdt.calibration),
+      bolos: mdt.bolos, audit: state.audit.slice(-100).reverse(), calibration: mdt.calibration, mapTransform: fitMapCalibration(mdt.calibration),
     });
   });
   router.get('/guilds/:guildId/mdt', async (req, res) => {
@@ -159,8 +161,20 @@ export function createSiteBridgeRouter(client) {
   });
   router.patch('/guilds/:guildId/cad/calls/:callId', async (req, res) => {
     if (!permit(req.siteAccess, 'cad')) return err(res, 403, 'Dispatch role required');
-    if (!uuid.test(req.params.callId) || !['open','assigned','closed'].includes(req.siteBody.status)) return err(res, 400, 'Invalid call reference or status');
-    const call = await updateCadCall(req.params.guildId, actor(req.siteAccess.member, req.siteUserId), req.params.callId, {status:req.siteBody.status});
+    if (!uuid.test(req.params.callId))return err(res,400,'Invalid call reference');
+    const updates={};
+    if(req.siteBody.status!==undefined){if(!['open','assigned','closed'].includes(req.siteBody.status))return err(res,400,'Invalid status');updates.status=req.siteBody.status;}
+    if(req.siteBody.assignedUnitIds!==undefined){
+      const ids=req.siteBody.assignedUnitIds;
+      if(!Array.isArray(ids)||ids.length>8||new Set(ids).size!==ids.length||!ids.every(id=>snowflake.test(id)))return err(res,400,'Invalid unit assignment');
+      const state=await getCadState(req.params.guildId);
+      const available=new Set(state.units.filter(u=>u.status!=='off_duty').map(u=>u.userId));
+      if(!ids.every(id=>available.has(id)))return err(res,400,'Unavailable unit');
+      updates.assignedUnitIds=ids;
+      if(updates.status===undefined)updates.status=ids.length?'assigned':'open';
+    }
+    if(!Object.keys(updates).length)return err(res,400,'No changes');
+    const call=await updateCadCall(req.params.guildId,actor(req.siteAccess.member,req.siteUserId),req.params.callId,updates);
     return call ? reply(res,200,{call}) : err(res,404,'Call not found');
   });
   router.post('/guilds/:guildId/cad/units', async (req, res) => {
@@ -185,6 +199,44 @@ export function createSiteBridgeRouter(client) {
     if (!uuid.test(req.params.boloId))return err(res,400,'Invalid BOLO reference');
     const bolo=await clearMdtBolo(req.params.guildId,actor(req.siteAccess.member,req.siteUserId),req.params.boloId);
     return bolo?reply(res,200,{bolo}):err(res,404,'BOLO not found');
+  });
+  router.get('/guilds/:guildId/cad/config',async(req,res)=>{
+    if(!permit(req.siteAccess,'manager'))return err(res,403,'Manage Server required');
+    return reply(res,200,{config:await getCadGuildConfig(req.params.guildId),
+      roles:[...req.siteGuild.roles.cache.values()].filter(r=>isAssignableCadRole(req.siteGuild,r.id)).map(r=>({id:r.id,name:r.name})),
+      channels:[...req.siteGuild.channels.cache.values()].filter(c=>c.isTextBased()&&!c.isThread()).map(c=>({id:c.id,name:c.name}))});
+  });
+  router.patch('/guilds/:guildId/cad/config',async(req,res)=>{
+    if(!permit(req.siteAccess,'manager'))return err(res,403,'Manage Server required');
+    const v=req.siteBody,g=req.siteGuild;
+    const roles=x=>Array.isArray(x)&&x.length<=20&&new Set(x).size===x.length&&x.every(id=>snowflake.test(id)&&isAssignableCadRole(g,id));
+    if(!roles(v.dispatchRoleIds)||!roles(v.commandRoleIds))return err(res,400,'Invalid roles');
+    if(v.dispatchChannelId!==null&&(!snowflake.test(v.dispatchChannelId||'')||!g.channels.cache.get(v.dispatchChannelId)?.isTextBased()))return err(res,400,'Invalid channel');
+    return reply(res,200,{config:await setCadGuildConfig(req.params.guildId,v)});
+  });
+  router.get('/guilds/:guildId/erlc/players',async(req,res)=>{
+    if(!req.siteAccess.caps.erlc&&!req.siteAccess.caps.manager)return err(res,403,'ER:LC role required');
+    const [state,config]=await Promise.all([getCadState(req.params.guildId),getErlcConfig(req.params.guildId)]);
+    const fresh=state.serverOnline!==false&&Date.now()-(state.playerSyncAt||0)<90000;
+    return reply(res,200,{configured:!!config?.serverKey,players:fresh?state.players:[],fresh,lastSyncAt:state.playerSyncAt,canModerate:req.siteAccess.caps.manager});
+  });
+  router.post('/guilds/:guildId/erlc/moderate',async(req,res)=>{
+    if(!req.siteAccess.caps.manager||!req.siteAccess.caps.erlc)return err(res,403,'Manage Server required');
+    const {action,player,reason}=req.siteBody;
+    if(!['warn','kick','ban'].includes(action)||typeof player!=='string'||!/^[A-Za-z0-9_]{3,20}$/.test(player)||typeof reason!=='string'||reason.trim().length<5||reason.length>240)return err(res,400,'Invalid details');
+    if(!(await getErlcConfig(req.params.guildId))?.serverKey)return err(res,503,'Run /erlc setup first');
+    const state=await getCadState(req.params.guildId);
+    if(state.serverOnline===false||Date.now()-(state.playerSyncAt||0)>=90000||!state.players.some(p=>String(p.player||'').split(':')[0].toLowerCase()===player.toLowerCase()))return err(res,409,'Player not in recent server snapshot');
+    const key=req.params.guildId+':'+req.siteUserId;
+    if((erlcActionCooldowns.get(key)||0)>Date.now())return err(res,429,'Please wait before repeating a command');
+    erlcActionCooldowns.set(key,Date.now()+12000);
+    if(erlcActionCooldowns.size>1000)for(const [k,v] of erlcActionCooldowns)if(v<Date.now())erlcActionCooldowns.delete(k);
+    try{
+      const command=action==='warn'?':pm '+player+' Staff warning: Please review the server rules.':':'+action+' '+player;
+      await runServerCommand(req.params.guildId,command);
+      await recordCadCommand(req.params.guildId,actor(req.siteAccess.member,req.siteUserId),command+' reason: '+reason.trim());
+      return reply(res,200,{ok:true,action,player});
+    }catch(e){logger.warn('[site bridge] ER:LC action blocked '+String(e?.message||e).slice(0,100));return err(res,502,'ER:LC command was not accepted');}
   });
   router.get('/guilds/:guildId/staff', async (req, res) => {
     if (!permit(req.siteAccess,'moderator'))return err(res,403,'Moderator permission required');
