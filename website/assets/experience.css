@@ -211,3 +211,14 @@ body{letter-spacing:-.007em}
  .feature-card:hover,.guide-choice:hover{background-image:none}
  .cad-samples .cad-example{animation:none}
 }
+
+/* Scroll position is informational; a thin line replaces distracting animation. */
+.site-header{--page-progress:0%}
+.site-header::after{
+ content:'';position:absolute;left:0;bottom:-1px;
+ height:2px;width:var(--page-progress);max-width:100%;
+ background:linear-gradient(90deg,#6f8fff,#adc0ff);
+ pointer-events:none;z-index:2;
+ transition:width .1s linear;
+}
+@media(prefers-reduced-motion:reduce){.site-header::after{transition:none}}
