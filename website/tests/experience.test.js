@@ -45,3 +45,17 @@ test('the Wispbyte CAD setting has three choices and privacy-safe backend contro
  assert.match(worker,/aether-companion-v6/);
  assert.match(worker,/\/assets\/experience\.css/);
 });
+
+test('command directory offers real search, category controls and accurate results',()=>{
+ const html=read('commands/index.html');
+ const js=read('assets/command-search.js');
+ assert.match(html,/id="commandSearch"/);
+ assert.match(html,/id="commandCount"/);
+ assert.match(html,/data-command-filter="cad"/);
+ assert.match(html,/data-command-filter="moderation"/);
+ assert.match(html,/data-command-category="cad"/);
+ assert.match(html,/\/assets\/command-search\.css/);
+ assert.match(js,/input\.addEventListener\('input',update\)/);
+ assert.match(js,/card\.hidden/);
+ assert.match(js,/aria-pressed/);
+});
