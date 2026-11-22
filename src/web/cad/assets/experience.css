@@ -140,3 +140,17 @@ body{background:#f4f7fb;color:var(--aether-ink)}
  .call-row,.rail-link{transition:none!important}
  .call-row:hover,.rail-link:hover{transform:none!important}
 }
+
+/* Dispatch timeline uses allowlisted server events, never arbitrary command logs. */
+.activity-section{margin-top:18px}
+.dispatch-activity-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+.dispatch-history-event{display:flex;align-items:center;gap:11px;min-width:0;padding:13px 15px;border:1px solid #e2e9f3;background:#f9fbff;border-radius:9px}
+.dispatch-history-mark{display:block;flex:none;width:8px;height:8px;background:#5d81df;border-radius:3px}
+.dispatch-history-info{min-width:0;flex:1}
+.dispatch-history-info strong{display:block;font-size:12px;color:#2f4667;font-weight:800}
+.dispatch-history-info small{display:block;color:#74859c;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.dispatch-history-event time{color:#8491a4;white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums}
+.dispatch-history-event:has(.dispatch-history-info strong:first-child){transition:border-color .18s}
+.dispatch-history-event:hover{border-color:#bfcee8}
+@media(max-width:950px){.dispatch-activity-list{grid-template-columns:1fr}}
+@media(max-width:640px){.activity-section{margin-top:16px}.dispatch-history-event{padding:12px 10px}}
