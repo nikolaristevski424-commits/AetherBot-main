@@ -114,7 +114,7 @@ function renderCalls(calls) {
       .some((value) => String(value || '').toLowerCase().includes(query));
   }).sort((left, right) => {
     if (left.priority !== right.priority) return left.priority === 'urgent' ? -1 : 1;
-    return left.createdAt - right.createdAt;
+    return right.createdAt - left.createdAt;
   });
   document.querySelector('#openCallCount').textContent = activeCalls.length;
   document.querySelector('#callQueueCount').textContent = filteredCalls.length;
@@ -123,19 +123,37 @@ function renderCalls(calls) {
     list.innerHTML = `<p class="empty-state">${query ? 'No calls match this search.' : 'No calls in this view.'}</p>`;
     return;
   }
-  list.innerHTML = filteredCalls.map((call) => `
-    <article class="call-row ${call.priority === 'urgent' ? 'urgent' : ''} ${call.status === 'closed' ? 'closed' : ''}">
+  list.innerHTML = filteredCalls.map((call) => {
+    const assigned = call.assignedUnitIds || [];
+    const isMyCall = Boolean(currentUser && assigned.includes(currentUser.id));
+    const active = call.status !== 'closed';
+    const source = call.source === 'erlc_911' ? 'ER:LC 911' : call.source === 'discord_911'
+      ? 'Discord 911' : call.source === 'cad_panic' ? 'Officer panic' : 'CAD dispatch';
+    return `
+    <article class="call-row ${call.priority === 'urgent' ? 'urgent' : ''} ${!active ? 'closed' : ''}">
       <span class="call-bar" aria-hidden="true"></span>
       <div class="call-main">
+        <div class="call-overline">
+          <span class="call-ref">CASE ${escapeHtml(String(call.id || '').slice(0, 8).toUpperCase())}</span>
+          <span class="call-source">${source}</span>
+          <span class="call-priority ${call.priority === 'urgent' ? 'high' : 'normal'}">${call.priority === 'urgent' ? 'HIGH PRIORITY' : 'ROUTINE'}</span>
+        </div>
         <h3 class="call-title">${escapeHtml(call.title)}</h3>
-        <div class="call-meta"><span>${escapeHtml(call.location)}</span><span>${formatTime(call.createdAt)}</span><span>${call.status === 'assigned' ? 'Assigned' : escapeHtml(call.status)}</span></div>
+        <div class="call-meta">
+          <span>${escapeHtml(call.location)}</span>
+          <span>${formatTime(call.createdAt)}</span>
+          <span class="call-status">${escapeHtml(call.status === 'assigned' ? 'Assigned' : call.status)}</span>
+          <span>${assigned.length} unit${assigned.length === 1 ? '' : 's'}</span>
+        </div>
         ${call.details ? `<p class="call-details">${escapeHtml(call.details)}</p>` : ''}
       </div>
       <div class="call-actions">
-        ${call.status === 'open' ? `<button class="mini-button" data-action="assign-me" data-id="${escapeHtml(call.id)}">Assign me</button>` : ''}
-        ${call.status === 'closed' ? `<button class="mini-button" data-action="reopen-call" data-id="${escapeHtml(call.id)}">Reopen</button>` : `<button class="mini-button close-call" data-action="close-call" data-id="${escapeHtml(call.id)}">Close</button>`}
+        ${active && !isMyCall ? `<button class="mini-button" type="button" data-action="assign-me" data-id="${escapeHtml(call.id)}">${call.status === 'assigned' ? 'Join response' : 'Respond'}</button>` : ''}
+        ${active && isMyCall ? '<span class="assigned-me">✓ Your unit assigned</span>' : ''}
+        ${!active ? `<button class="mini-button" type="button" data-action="reopen-call" data-id="${escapeHtml(call.id)}">Reopen</button>` : `<button class="mini-button close-call" type="button" data-action="close-call" data-id="${escapeHtml(call.id)}">Close</button>`}
       </div>
-    </article>`).join('');
+    </article>`;
+  }).join('');
 }
 
 function renderUnits(units) {
