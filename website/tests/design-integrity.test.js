@@ -46,7 +46,7 @@ test('redesign respects reduced motion and avoids fake health claims',()=>{
 test('installed ER:LC companion caches the latest Aether theme layer',()=>{
  const worker=read('companion/sw.js');
  assert.match(worker,/\/assets\/refined\.css/);
- assert.match(worker,/aether-companion-v5/);
+ assert.match(worker,/aether-companion-v6/);
 });
 
 test('visual stylesheet syntax has balanced block delimiters',()=>{
