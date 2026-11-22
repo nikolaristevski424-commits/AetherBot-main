@@ -245,6 +245,35 @@ function renderPlayers(players, syncedAt, serverOnline, staff, events) {
   }
 }
 
+function renderDispatchActivity(entries) {
+  const list = document.querySelector('#dispatchActivityList');
+  if (!list) return;
+  const actions = {
+    'call.created': 'Call created',
+    'call.updated': 'Incident updated',
+    'call.closed': 'Call closed',
+    'call.unit_assigned': 'Officer assigned',
+    '911.discord_reported': 'Discord 911 received',
+    '911.ingame_imported': 'ER:LC 911 imported',
+  };
+  const items = (Array.isArray(entries) ? entries : []).filter(item => actions[item.action]).slice(0, 20);
+  if (!items.length) {
+    list.innerHTML = '<p class="empty-state">No dispatch events have been recorded for this server yet.</p>';
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <div class="dispatch-history-event">
+      <span class="dispatch-history-mark" aria-hidden="true"></span>
+      <div class="dispatch-history-info">
+        <strong>${actions[item.action]}</strong>
+        <small>${escapeHtml(item.actorName || 'CAD')}
+          ${item.callId ? ' · Case ' + escapeHtml(item.callId) : ''}
+        </small>
+      </div>
+      <time>${formatTime(item.at)}</time>
+    </div>`).join('');
+}
+
 function renderSettings(data) {
   const settingsForm = document.querySelector('#settingsFormSection');
   const readOnly = document.querySelector('#settingsReadOnly');
@@ -281,6 +310,7 @@ function renderData(data) {
   document.querySelector('#unitForm').hidden = !data.permissions.dispatch;
   document.querySelector('#syncPlayersButton').hidden = !data.permissions.dispatch;
   renderCalls(data.state.calls || []);
+  renderDispatchActivity(data.dispatchActivity || []);
   renderUnits(data.state.units || []);
   renderPlayers(data.state.players || [], data.state.playerSyncAt, data.state.serverOnline, data.state.staff || [], data.state.playerEvents || []);
   renderSettings(data);
