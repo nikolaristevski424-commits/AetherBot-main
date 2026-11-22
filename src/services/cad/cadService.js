@@ -105,8 +105,14 @@ export function isAssignableCadRole(guild, roleId) {
 
 export async function createCadCall(guildId, actor, input) {
     return mutateState(guildId, (state) => {
+        const isPanic = input.source === 'cad_panic';
+        if (isPanic && state.calls.some(c => c.source === 'cad_panic' && c.createdBy === actor.id
+            && Date.now() - c.createdAt < 120_000 && c.status !== 'closed')) {
+            throw new Error('An on-duty unit may only submit one open panic call every two minutes.');
+        }
         const call = {
             id: randomUUID(),
+            ...(isPanic ? {source:'cad_panic'} : {}),
             title: input.title.trim(),
             location: input.location.trim(),
             details: input.details?.trim() || '',
