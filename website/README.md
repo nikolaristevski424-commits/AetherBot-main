@@ -203,3 +203,9 @@ Back up the persistent data directory and retain the current environment setting
 Use a Lavalink v4.2.2 node you control. The included `lavalink/application.yml` configures YouTube Music title search and SoundCloud. If hosting Lavalink separately on Wispbyte, set its `SERVER_PORT` to the allocated port and configure the same `LAVALINK_PASSWORD` on both services. On Aether set `LAVALINK_HOST` to the node hostname, `LAVALINK_PORT` to the service port, and `LAVALINK_SECURE=true` when using a TLS proxy. Keep the node private on a trusted network or use TLS across public networks. For Docker Compose set the host to `lavalink` with port `2333`, a shared password and `LAVALINK_SECURE=false`, then start Compose with `--profile local-lavalink`.
 
 Verify backend authentication and song search with `npm run music:check`. In a test Discord server, verify the bot has Connect and Speak, join a voice channel, and run `/play` with a song title. Confirm playback and queue controls in that channel. Voice playback needs a live Discord session even if the Lavalink search check succeeds.
+
+### Bridge signing keys
+
+New installations can use an Ed25519 key pair. Store the PKCS#8 DER private key as base64url in the production Vercel variable `AETHER_BRIDGE_PRIVATE_KEY`. Configure the SPKI DER public key as base64url in `AETHER_BRIDGE_PUBLIC_KEY` on Wispbyte. Keep the private key confined to Vercel. Without these variables a legacy deployment can still use the existing shared bridge secret.
+
+For direct Wispbyte CAD sign-in, set `AETHER_CAD_SITE_ORIGIN` on Wispbyte to the canonical Aether website HTTPS origin. When native CAD OAuth settings are absent, the CAD uses the website’s existing Discord OAuth flow and a short-lived ticket bound to the browser that started sign-in. Discord guild permissions still govern CAD data access.

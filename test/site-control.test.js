@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { generateKeyPairSync } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -121,4 +122,63 @@ test('an explicit private Lavalink host wins over an optional node file', async 
         { host: 'audio.example.com', port: 443, password: 'test-only', secure: true, name: 'Main' },
     ]);
     assert.throws(() => getLavalinkNodes({ LAVALINK_HOST: 'audio.example.com' }), /Invalid/);
+});
+
+test('Ed25519 bridge rejects legacy signatures, replays and modified requests', async t => {
+    const pair = generateKeyPairSync('ed25519');
+    process.env.AETHER_BRIDGE_PRIVATE_KEY = pair.privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64url');
+    process.env.AETHER_BRIDGE_PUBLIC_KEY = pair.publicKey.export({ format: 'der', type: 'spki' }).toString('base64url');
+    t.after(() => { delete process.env.AETHER_BRIDGE_PRIVATE_KEY; delete process.env.AETHER_BRIDGE_PUBLIC_KEY; });
+    const url = '/api/site-bridge/site/access';
+    const headers = signBridge('GET', url, owner);
+    assert.match(headers['X-Aether-Signature'], /^v2\./);
+    const check = (path, headers) => fetch(origin + path, { headers });
+    assert.equal((await check(url + '?modified=1', headers)).status, 401);
+    assert.equal((await check(url, headers)).status, 200);
+    assert.equal((await check(url, headers)).status, 401);
+    delete process.env.AETHER_BRIDGE_PRIVATE_KEY;
+    assert.equal((await check(url, signBridge('GET', url, owner))).status, 401);
+});
+
+test('anti-nuke distinguishes elevated role grants from edits and permission removals', async () => {
+    const { AuditLogEvent } = await import('discord.js');
+    const { classifyAuditEntry } = await import('../src/services/security/auditCategories.js');
+    const after = P.Administrator.toString();
+    const role = (old, next) => ({ action: AuditLogEvent.RoleUpdate, changes: [{ key: 'permissions', old, new: next }] });
+    assert.equal(classifyAuditEntry(role('0', after)), 'roleEscalation');
+    assert.equal(classifyAuditEntry(role(after, '0')), null);
+    assert.equal(classifyAuditEntry(role('0', P.ViewChannel.toString())), null);
+    assert.equal(classifyAuditEntry(role(undefined, after)), null);
+    assert.equal(classifyAuditEntry({ action: AuditLogEvent.MemberKick }), 'kickSpam');
+    assert.equal(classifyAuditEntry({ action: AuditLogEvent.BotAdd }), 'botAdd');
+});
+
+test('mention bursts add distinct messages and suppress duplicates and repeated responses', async () => {
+    const { trackWindow } = await import('../src/services/security/actionTracker.js');
+    const first = trackWindow(null, { id: 'a', at: 1000, weight: 3 }, 1000, 12, 5, true);
+    assert.equal(first.breached, false);
+    assert.equal(trackWindow(first.state, { id: 'a', at: 1000, weight: 3 }, 1000, 12, 5, true).count, 3);
+    const second = trackWindow(first.state, { id: 'b', at: 2000, weight: 2 }, 2000, 12, 5, true);
+    assert.equal(second.breached, true);
+    assert.equal(trackWindow(second.state, { id: 'c', at: 3000, weight: 2 }, 3000, 12, 5, true).breached, false);
+    assert.equal(trackWindow(second.state, { id: 'd', at: 17000, weight: 1 }, 17000, 12, 5, true).count, 1);
+});
+
+test('website CAD tickets require the initiating browser cookie and only redeem once', async () => {
+    const { beginWebsiteLogin, issueCadTicket, redeemCadTicket } = await import('../src/services/cad/websiteLogin.js');
+    const { CadAuthService } = await import('../src/services/cad/cadAuthService.js');
+    const login = beginWebsiteLogin('https://example.test');
+    const state = new URL(login.url).searchParams.get('state');
+    const profile = { id: owner, username: 'Test user', avatar: null };
+    const ticket = issueCadTicket(state, profile, [guildId]);
+    assert.ok(ticket);
+    assert.equal(issueCadTicket(state, profile, [guildId]), null);
+    assert.equal(redeemCadTicket(ticket, ''), null);
+    const authorized = redeemCadTicket(ticket, login.cookie);
+    assert.deepEqual(authorized.profile, profile);
+    assert.equal(redeemCadTicket(ticket, login.cookie), null);
+    const auth = new CadAuthService({ sessionSecret: 'test-only-session-secret-long-enough' });
+    const session = auth.createSession(authorized.profile, authorized.guildIds);
+    assert.equal(auth.configured, false);
+    assert.deepEqual(auth.getSession(session.sessionCookie).guildIds, [guildId]);
 });

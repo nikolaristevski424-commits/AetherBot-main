@@ -380,8 +380,8 @@ html[data-theme] .comp-footer{margin-top:34px;border-top:1px solid var(--ux-bord
 
 /* AETHER / 2026-Q4 polish pass
    Uses existing brand artwork without editing or distorting the source image. */
-.brand-icon{position:relative;display:block;flex:none;width:43px;height:43px;border-radius:12px;background:linear-gradient(140deg,#101b3c,#1b1740);overflow:hidden;border:1px solid #7789bd34;box-shadow:inset 0 1px 0 #ffffff15}
-.brand-icon img{position:absolute;display:block;max-width:none;width:120%;height:auto;left:-10%;top:-1%;object-fit:contain;clip-path:inset(0 0 20% 0);filter:drop-shadow(0 1px 2px #060b25a3)}
+.brand-icon{position:relative;display:grid;flex:none;width:43px;height:43px;border-radius:12px;background:linear-gradient(140deg,#101b3c,#1b1740);overflow:hidden;border:1px solid #7789bd34;box-shadow:inset 0 1px 0 #ffffff15}
+.brand-icon img{position:static;display:block;width:100%;height:auto;clip-path:inset(0 0 9% 0);transform:translateY(2%)}
 .brand{align-items:center;gap:12px;line-height:1}
 .brand>span:last-child{margin-left:-3px}
 .site-header{transition:box-shadow .22s ease,background .22s ease,border-color .22s ease}

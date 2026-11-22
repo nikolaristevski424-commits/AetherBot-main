@@ -206,8 +206,8 @@
         const automod = formFor('setup', 'automod');
         const rulePicker = byId('protectionRules');
         const ruleNames = {
-            joinSpike: 'Join spike', newAccount: 'New accounts', mentionSpam: 'Mention spam',
-            channelDelete: 'Channel deletion', roleDelete: 'Role deletion', banSpam: 'Repeated bans', webhookCreate: 'Webhook creation',
+            joinSpike: 'Join spike', newAccount: 'New accounts', mentionSpam: 'Mention spam', mentionBurst: 'Mention burst',
+            channelDelete: 'Channel deletion', roleDelete: 'Role deletion', banSpam: 'Repeated bans', webhookCreate: 'Webhook creation', kickSpam: 'Repeated kicks', botAdd: 'New bot added', roleEscalation: 'Role permission escalation',
         };
         let selected = '';
         let revision = 0;

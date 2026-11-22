@@ -2,8 +2,9 @@ import { rateLimit } from 'express-rate-limit';
 import { AutoModerationActionType, AutoModerationRuleEventType, AutoModerationRuleTriggerType, ChannelType, PermissionFlagsBits as P } from 'discord.js';
 import { isBotOwner } from '../config/bot.js';
 import { db } from '../utils/database.js';
+import { cadWebsiteOrigin, issueCadTicket } from '../services/cad/websiteLogin.js';
 import { Mutex } from '../utils/mutex.js';
-import { getSecurityConfig, getSecurityLog, setProtection } from '../services/security/securityConfigService.js';
+import { getSecurityConfig, getSecurityLog, protectionTypes, setProtection } from '../services/security/securityConfigService.js';
 import {
     auditSiteAction, checkedText, ControlError, discordId, maintenancePages,
     publicSiteControl, readSiteControl, siteAccess, updateSiteControl,
@@ -73,6 +74,14 @@ export function mountSiteControlRoutes(router, client) {
     const readLimit = limit(60_000, 36);
     const writeLimit = limit(60_000, 10);
     const sensitiveLimit = limit(60_000, 3);
+    router.get('/site/probe', readLimit, (req, res) => response(res, { verified: true }));
+    router.post('/site/cad-login', writeLimit, (req, res) => {
+        if (!cadWebsiteOrigin() || !client.isReady()) throw new ControlError(503, 'CAD login is unavailable.');
+        const username = checkedText(req.siteBody.username, 80);
+        const ticket = issueCadTicket(req.siteBody.state, { id: req.siteUserId, username, avatar: null }, [...client.guilds.cache.keys()]);
+        if (!ticket) throw new ControlError(409, 'CAD sign-in expired. Start again from CAD.');
+        return response(res, { ticket });
+    });
     router.get('/site/access', readLimit, async (req, res) => response(res, { access: await siteAccess(req.siteUserId) }));
     router.get('/site/team', readLimit, async (req, res) => {
         if (!await siteAccess(req.siteUserId)) throw new ControlError(403, 'Aether staff access is required.');
@@ -157,7 +166,7 @@ export function mountSiteControlRoutes(router, client) {
         const actor = await manager(guild, req.siteUserId);
         const { system, type, enabled, threshold, alertChannelId, action } = req.siteBody;
         const isRaid = system === 'antiraid';
-        const types = isRaid ? ['joinSpike', 'newAccount', 'mentionSpam'] : ['channelDelete', 'roleDelete', 'banSpam', 'webhookCreate'];
+        const types = protectionTypes(system);
         if ((!isRaid && system !== 'antinuke') || !types.includes(type) || typeof enabled !== 'boolean'
             || !Number.isInteger(threshold) || threshold < 1 || threshold > (type === 'newAccount' ? 720 : 100)) {
             throw new ControlError(400, 'Select a valid protection and threshold.');

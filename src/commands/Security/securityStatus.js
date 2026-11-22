@@ -30,6 +30,7 @@ export default {
                         value: [
                             protectionLine('Join Spike', config.antiraid.joinSpike, `${config.antiraid.joinSpike.threshold}/${config.antiraid.joinSpike.windowSeconds}s`),
                             protectionLine('New Account', config.antiraid.newAccount, `<${config.antiraid.newAccount.minAgeHours}h old`),
+                            protectionLine('Mention Burst', config.antiraid.mentionBurst, `${config.antiraid.mentionBurst.threshold}/${config.antiraid.mentionBurst.windowSeconds}s`),
                             protectionLine('Mention Spam', config.antiraid.mentionSpam, `${config.antiraid.mentionSpam.threshold} mentions/msg`),
                         ].join('\n'),
                         inline: false,
@@ -40,6 +41,9 @@ export default {
                             protectionLine('Channel Delete', config.antinuke.channelDelete, `${config.antinuke.channelDelete.threshold}/${config.antinuke.channelDelete.windowSeconds}s`),
                             protectionLine('Role Delete', config.antinuke.roleDelete, `${config.antinuke.roleDelete.threshold}/${config.antinuke.roleDelete.windowSeconds}s`),
                             protectionLine('Ban Spam', config.antinuke.banSpam, `${config.antinuke.banSpam.threshold}/${config.antinuke.banSpam.windowSeconds}s`),
+                            protectionLine('Repeated Kicks', config.antinuke.kickSpam, `${config.antinuke.kickSpam.threshold}/${config.antinuke.kickSpam.windowSeconds}s`),
+                            protectionLine('Bot Added', config.antinuke.botAdd, `${config.antinuke.botAdd.threshold}/${config.antinuke.botAdd.windowSeconds}s`),
+                            protectionLine('Role Escalation', config.antinuke.roleEscalation, `${config.antinuke.roleEscalation.threshold}/${config.antinuke.roleEscalation.windowSeconds}s`),
                             protectionLine('Webhook Create', config.antinuke.webhookCreate, `${config.antinuke.webhookCreate.threshold}/${config.antinuke.webhookCreate.windowSeconds}s`),
                         ].join('\n'),
                         inline: false,

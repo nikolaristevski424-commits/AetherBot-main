@@ -6,6 +6,7 @@
 // testable — this file only knows "given a target and an action, do it and
 // report what happened," nothing about *when* to call it.
 
+import { elevatedPermissions } from './auditCategories.js';
 import { logger } from '../../utils/logger.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logSecurityEvent } from './securityConfigService.js';
@@ -60,10 +61,14 @@ export async function applyNukeAction(member, action, reason) {
             case 'alert':
                 return { applied: true, action: 'alert' };
             case 'strip_roles': {
-                const removable = member.roles.cache.filter((r) => r.id !== member.guild.id && r.editable);
-                if (!member.manageable || !removable.size) return { applied: false, action, error: 'No roles can be removed by Aether.' };
+                const removable = member.roles.cache.filter((r) => r.id !== member.guild.id && r.editable && Boolean(r.permissions.bitfield & elevatedPermissions));
+                if (!member.manageable || !removable.size) return { applied: false, action, error: 'No elevated roles can be removed by Aether.' };
                 await member.roles.remove(removable, reason);
-                return { applied: true, action: 'strip_roles', rolesRemoved: removable.size };
+                const current = await member.guild.members.fetch({ user: member.id, force: true }).catch(() => null);
+                if (!current || (current.permissions.bitfield & elevatedPermissions)) {
+                    return { applied: false, action, rolesRemoved: removable.size, error: 'Could not verify removal of all elevated permissions.' };
+                }
+                return { applied: true, action, rolesRemoved: removable.size };
             }
             case 'kick':
                 await member.kick(reason);

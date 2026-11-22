@@ -14,15 +14,18 @@ export async function handleNukeEvent(guild, category, entry) {
         const protection = config.antinuke[category];
         if (!protection?.enabled) return;
 
-        const member = await guild.members.fetch({ user: executorId, force: true }).catch(() => null);
-        if (!member || isWhitelisted(config, member)) return;
+        if (config.whitelist.userIds.includes(executorId)) return;
 
         const { count, breached } = await recordActionAndCheck(
             guild.id, category, executorId, protection.windowSeconds, protection.threshold, { id, at: createdTimestamp },
         );
         if (!breached) return;
 
-        const result = await applyNukeAction(member, protection.action, `Anti-nuke: ${category} threshold breached`);
+        const member = await guild.members.fetch({ user: executorId, force: true }).catch(() => null);
+        if (member && isWhitelisted(config, member)) return;
+        const result = member || protection.action === 'alert'
+            ? await applyNukeAction(member, protection.action, `Anti-nuke: ${category} threshold breached`)
+            : { action: protection.action, applied: false, error: 'Discord memberships could not be verified.' };
         await recordAndAlert(guild, {
             category, executorId, targetId, count, threshold: protection.threshold,
             actionResult: result, alertChannelId: protection.alertChannelId,

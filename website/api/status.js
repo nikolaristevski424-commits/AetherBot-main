@@ -1,5 +1,5 @@
 import { authResponse, loginReady } from '../lib/auth.js';
-import { bridgeReady, botOrigin } from '../lib/bridge.js';
+import { bridgeReady, botOrigin, signBridge } from '../lib/bridge.js';
 
 // A status request is a *snapshot*, not evidence of historical uptime.
 // Never report an overall "operational" bot unless /ready confirms Discord
@@ -36,7 +36,15 @@ export default async function handler(req, res) {
         ready=body?.ready===true?'ready':'unknown';
       }else if(response.status===503)ready='not_ready';
     }catch{/* preserve the valid /health response */}
-    return authResponse(res,200,{...base,bot:'reachable',readiness:ready,processUptimeSeconds:uptime,
+    let bridgeVerified;
+    if(req.query?.bridge==='1' && ready==='ready' && bridgeReady()){
+      const path='/api/site-bridge/site/probe';
+      try{
+        const probe=await fetch(origin+path,{headers:signBridge('GET',path,'00000000000000000'),signal:AbortSignal.timeout(2200),redirect:'error',cache:'no-store'});
+        bridgeVerified=probe.ok&&(await probe.json()).verified===true;
+      }catch{bridgeVerified=false;}
+    }
+    return authResponse(res,200,{...base,bridgeVerified,bot:'reachable',readiness:ready,processUptimeSeconds:uptime,
       note:ready==='ready'?'HTTPS and Discord/database readiness checks passed. No historical uptime tracked.':
         ready==='not_ready'?'HTTP server responds, but Discord or database is not ready.':
         'HTTPS responds, but Discord/database readiness could not be confirmed.'});

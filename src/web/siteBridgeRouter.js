@@ -1,10 +1,10 @@
 /**
  * Aether Website Bridge – private, signed server-to-server API.
- * Only the Vercel BFF knows AETHER_BRIDGE_SECRET. No Discord token or ER:LC key
+ * The Vercel BFF signs requests. No Discord token or ER:LC key
  * is exposed to the browser. Every request is reauthorized against Discord.
  */
 import express from 'express';
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, createPublicKey, timingSafeEqual, verify } from 'node:crypto';
 import { PermissionFlagsBits } from 'discord.js';
 import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, isAssignableCadRole, recordCadCommand, createCadCall, updateCadCall, updateCadUnit } from '../services/cad/cadService.js';
 import { searchMdt, createMdtRecord, createMdtBolo, clearMdtBolo } from '../services/cad/mdtService.js';
@@ -39,19 +39,29 @@ function validBody(req) {
 }
 function verifyRequest(req) {
   const secret = process.env.AETHER_BRIDGE_SECRET || '';
-  if (secret.length < 32) return null;
+  const publicKey = process.env.AETHER_BRIDGE_PUBLIC_KEY || '';
+  if (!publicKey && secret.length < 32) return null;
   const userId = req.get('x-aether-user') || '';
   const ts = req.get('x-aether-time') || '';
   const nonce = req.get('x-aether-nonce') || '';
   const signature = req.get('x-aether-signature') || '';
-  if (!snowflake.test(userId) || !/^\d{13}$/.test(ts) || !/^[A-Za-z0-9_-]{20,64}$/.test(nonce) || !/^[A-Za-z0-9_-]{43}$/.test(signature)) return null;
+  if (!snowflake.test(userId) || !/^\d{13}$/.test(ts) || !/^[A-Za-z0-9_-]{20,64}$/.test(nonce)) return null;
   if (Math.abs(Date.now() - Number(ts)) > 45_000) return null;
   const rawBody = typeof req.body === 'string' ? req.body : '';
   const digest = createHash('sha256').update(rawBody).digest('hex');
   const path = req.originalUrl;
   const message = [req.method, path, userId, ts, nonce, digest].join('\n');
-  const expected = createHmac('sha256', secret).update(message).digest('base64url');
-  if (!timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) return null;
+  if (publicKey) {
+    if (!/^v2\.[A-Za-z0-9_-]{86}$/.test(signature)) return null;
+    try {
+      const key = createPublicKey({ key: Buffer.from(publicKey, 'base64url'), format: 'der', type: 'spki' });
+      if (key.asymmetricKeyType !== 'ed25519' || !verify(null, Buffer.from('aether-site-bridge-v2\n' + message), key, Buffer.from(signature.slice(3), 'base64url'))) return null;
+    } catch { return null; }
+  } else {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(signature)) return null;
+    const expected = createHmac('sha256', secret).update(message).digest('base64url');
+    if (!timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) return null;
+  }
   if (activeNonces.has(nonce)) return null;
   if (activeNonces.size > 3000) {
     for (const [key, expiry] of activeNonces) if (expiry < Date.now()) activeNonces.delete(key);
