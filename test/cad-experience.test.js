@@ -112,3 +112,51 @@ test('off-duty or nonregistered units cannot join active incidents',async()=>{
  await assert.rejects(cad.assignCadCallUnit(guildId,officer,call.id,officer.id),/on-duty/);
  assert.deepEqual((await cad.getCadState(guildId)).calls[0].assignedUnitIds,[]);
 });
+
+test('dispatch buttons recheck current guild roles and reject revoked staff access',async()=>{
+ const { default: handlers } = await import('../src/interactions/buttons/erlc/cadCallButtons.js');
+ const respond=handlers.find(h=>h.name==='aether_cad_respond');
+ const close=handlers.find(h=>h.name==='aether_cad_dismiss');
+ assert.ok(respond&&close);
+ const guildId='51000000000000030';
+ const ownerId='51000000000000031';
+ const officerId='51000000000000032';
+ const roleId='51000000000000033';
+ const outsiderId='51000000000000034';
+ const owner={id:ownerId,permissions:{has:()=>true},roles:{cache:{has:()=>false}}};
+ let officerHasRole=true;
+ const officer={id:officerId,permissions:{has:()=>false},roles:{cache:{has:id=>id===roleId&&officerHasRole}}};
+ const outsider={id:outsiderId,permissions:{has:()=>false},roles:{cache:{has:()=>false}}};
+ const guild={
+   id:guildId,ownerId,
+   members:{cache:new Map([[ownerId,owner],[officerId,officer],[outsiderId,outsider]])},
+ };
+ const client={guilds:{cache:new Map([[guildId,guild]])}};
+ await cad.setCadGuildConfig(guildId,{dispatchRoleIds:[roleId],experienceMode:'hybrid'});
+ await cad.updateCadUnit(guildId,{id:officerId,username:'Officer'},{callsign:'1-Adam-12',status:'available'});
+ const caseItem=await cad.createCadCall(guildId,{id:ownerId,username:'Dispatcher'},
+    {title:'Test incident',location:'Postal 100',details:'Test roleplay call',priority:'normal'});
+ function click(userId){
+   const messages=[];
+   const interaction={
+      inGuild:()=>true,guildId,user:{id:userId,username:userId},message:{editable:false},
+      async deferReply(){},async editReply(value){messages.push(value);return value;},
+      async reply(value){messages.push(value);return value;},
+   };
+   return {interaction,messages};
+ }
+ const blocked=click(outsiderId);
+ await respond.execute(blocked.interaction,client,[caseItem.id]);
+ assert.match(String(blocked.messages.at(-1)),/dispatch role/i);
+ const allowed=click(officerId);
+ await respond.execute(allowed.interaction,client,[caseItem.id]);
+ assert.match(String(allowed.messages.at(-1)),/assigned/i);
+ officerHasRole=false;
+ const revoked=click(officerId);
+ await close.execute(revoked.interaction,client,[caseItem.id]);
+ assert.match(String(revoked.messages.at(-1)),/dispatch role/i);
+ assert.notEqual((await cad.getCadState(guildId)).calls[0].status,'closed');
+ const manager=click(ownerId);
+ await close.execute(manager.interaction,client,[caseItem.id]);
+ assert.equal((await cad.getCadState(guildId)).calls[0].status,'closed');
+});
