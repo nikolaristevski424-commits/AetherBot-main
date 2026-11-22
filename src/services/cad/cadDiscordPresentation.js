@@ -47,6 +47,25 @@ export function buildCadCallAnnouncement(call, config = {}) {
   if (buttons.length) components.push(new ActionRowBuilder().addComponents(...buttons));
   return { embeds: [embed], components, allowedMentions: { parse: [] } };
 }
+export function buildBoloAlert(bolo, config = {}) {
+  const embed = new EmbedBuilder()
+    .setAuthor({name:'AETHER • DISPATCH INTELLIGENCE'})
+    .setColor(bolo.priority === 'urgent' ? 0xe14960 : 0xf0a848)
+    .setTitle('⚠ ACTIVE BOLO — ' + clean(bolo.subject, 90))
+    .setDescription(clean(bolo.details, 900))
+    .addFields(
+      {name:'TYPE',value:bolo.kind === 'vehicle'?'Vehicle':'Person',inline:true},
+      {name:'PRIORITY',value:bolo.priority === 'urgent'?'Urgent':'Routine',inline:true},
+      {name:'LAST SEEN',value:clean(bolo.location,100),inline:false},
+      {name:'BOLO REF',value:clean(bolo.id?.slice(0,8).toUpperCase(),12),inline:true}
+    )
+    .setFooter({text:'Fictional ER:LC roleplay only • Aether MDT'})
+    .setTimestamp(new Date(bolo.createdAt || Date.now()));
+  const url=cadWebUrl('mdt');
+  const components=url && normalizeCadExperienceMode(config.experienceMode)!=='discord'
+    ? [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(url).setLabel('Open officer MDT').setEmoji('📋'))] : [];
+  return {embeds:[embed],components,allowedMentions:{parse:[]}};
+}
 export function buildMdtLookupEmbeds({ query, records = [], bolos = [] }) {
   const matched = new Set(records.map(r => String(r.subject || '').toLowerCase()));
   const warnings = bolos.slice(0, 3).map(b => new EmbedBuilder()
