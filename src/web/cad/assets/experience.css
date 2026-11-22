@@ -97,3 +97,46 @@ body{background:#f4f7fb;color:var(--aether-ink)}
 .mdt-match-alert small{font-size:10px;color:#ae5c68}
 .mdt-result.bolo-urgent{border-left:4px solid #d94c61;background:#fff8f9}
 .mdt-result.bolo-normal{border-left:4px solid #e0a24d;background:#fffcf5}
+
+/* Dispatch queue: incident metadata is scannable before opening the case. */
+.call-main{padding-block:3px}
+.call-overline{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:0 0 9px}
+.call-ref{color:#5f718b;font:800 10px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.04em}
+.call-source{color:#6780a4;font-size:10px;font-weight:700}
+.call-priority{display:inline-flex;align-items:center;border-radius:5px;padding:4px 7px;font-size:9px;line-height:1.25;font-weight:900;letter-spacing:.04em}
+.call-priority.high{color:#a52c45;background:#ffe6eb;border:1px solid #f2b7c1}
+.call-priority.normal{color:#4165aa;background:#eaf1ff;border:1px solid #cdddf6}
+.call-row.urgent .call-title{color:#792a42}
+.call-status{text-transform:capitalize}
+.assigned-me{font-size:10px;font-weight:800;line-height:1.5;color:#227559;max-width:132px}
+.call-details{line-height:1.55}
+.call-row .mini-button{min-height:34px}
+.view,.content-wrap,.workspace{min-width:0}
+@media(max-width:640px){
+ .rail{z-index:100;height:calc(62px + env(safe-area-inset-bottom,0px));padding:4px 9px max(4px,env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px #050d1b30}
+ .rail .wordmark,.rail .rail-bottom{display:none}
+ .rail-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));width:100%;min-width:0;gap:3px;justify-content:stretch}
+ .rail-link{width:100%;min-width:0;min-height:51px;max-width:none;font-size:9px;gap:2px;white-space:nowrap;padding:3px 1px;transform:none!important}
+ .rail-link .rail-icon{font-size:17px}
+ .rail-link.active{box-shadow:inset 0 -2px 0 #a6bcff}
+ .workspace{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+ .topbar-actions{gap:7px}
+ .topbar .sync-state{max-width:44%;min-width:0;overflow:hidden}
+ .cad-mode-indicator{max-width:76px;overflow:hidden;text-overflow:ellipsis}
+ .call-overline{gap:6px}
+ .call-actions{display:flex;width:100%}
+ .call-row .mini-button{min-height:36px}
+ .call-details{font-size:11px}
+}
+@media(max-width:380px){
+ .rail{padding-inline:4px}
+ .rail-nav{gap:1px}
+ .rail-link{font-size:8px}
+ .topbar-actions .user-chip #userName{max-width:64px;overflow:hidden;text-overflow:ellipsis}
+ .cad-mode-indicator{display:none}
+ .call-source{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){
+ .call-row,.rail-link{transition:none!important}
+ .call-row:hover,.rail-link:hover{transform:none!important}
+}
