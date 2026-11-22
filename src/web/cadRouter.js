@@ -171,6 +171,7 @@ router.get('/api/guilds/:guildId', async (req, res) => {
         guild: { id: access.guild.id, name: access.guild.name, icon: access.guild.iconURL({ size: 64 }) },
         permissions: { manager: access.isManager, dispatch: access.canDispatch, commands: access.canCommand },
         config: access.isManager ? access.config : null,
+        cadExperienceMode: access.config.experienceMode || 'hybrid',
         state,
     });
 });
