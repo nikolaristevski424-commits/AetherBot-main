@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, updateCadUnit, updateCadCall, createCadCall } from '../../services/cad/cadService.js';
+import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, updateCadUnit, createCadCall, assignCadCallUnit, closeCadCall } from '../../services/cad/cadService.js';
 import { buildCadCallAnnouncement, cadModeLabel, cadWebUrl } from '../../services/cad/cadDiscordPresentation.js';
 import { findCallByReference } from '../../services/cad/dispatchCore.js';
 import { handleCadExtended } from './modules/cadExtended.js';
@@ -175,18 +175,19 @@ export default {
         const reference=interaction.options.getString('case',true);
         const call=findCallByReference(state.calls,reference);
         if (!call) return interaction.editReply('Case not found or reference ambiguous. Use `/cad calls` for IDs.');
+        const actor={id:interaction.user.id,username:interaction.user.username};
         if (sub === 'close') {
-          if (call.status==='closed') return interaction.editReply('This case is already closed.');
-          await updateCadCall(interaction.guildId,{id:interaction.user.id,username:interaction.user.username},call.id,{status:'closed'});
+          const result=await closeCadCall(interaction.guildId,actor,call.id);
+          if (!result?.changed) return interaction.editReply('This case is already closed or no longer exists.');
           return interaction.editReply(`✅ Closed case **${call.id.slice(0,8).toUpperCase()}**.`);
         }
-        if (call.status==='closed') return interaction.editReply('Cannot assign a closed case.');
         const userId=sub==='respond'?interaction.user.id:interaction.options.getUser('officer',true).id;
-        const unit=state.units.find(u=>u.userId===userId && u.status!=='off_duty');
-        if (!unit) return interaction.editReply('The officer must register as an on-duty CAD unit first using `/cad unit`.');
-        const assigned=[...new Set([...(call.assignedUnitIds||[]),userId])];
-        await updateCadCall(interaction.guildId,{id:interaction.user.id,username:interaction.user.username},call.id,{status:'assigned',assignedUnitIds:assigned});
-        return interaction.editReply(`✅ **${unit.callsign||unit.username}** assigned to **${call.id.slice(0,8).toUpperCase()}**.`);
+        const result=await assignCadCallUnit(interaction.guildId,actor,call.id,userId);
+        if (!result) return interaction.editReply('The call no longer exists.');
+        const unit=state.units.find(u=>u.userId===userId);
+        return interaction.editReply(result.changed
+          ? `✅ **${unit?.callsign||unit?.username||'Officer'}** assigned to **${call.id.slice(0,8).toUpperCase()}**.`
+          : 'This officer is already assigned to that call.');
       }
     } catch(error) {
       return interaction.editReply(`CAD error: ${errorText(error)}`).catch(()=>{});
