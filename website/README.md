@@ -189,3 +189,17 @@ The Wispbyte CAD files are in `src/web/cad/` and `src/services/cad/`; updating t
 The primary navigation and homepage CTA now link to Wispbyte CAD. The old Vercel `/cad/` operations page remains accessible directly and still uses the signed Aether bridge, so existing functionality is not deleted.
 
 Visual updates include the existing Aether logo rendered without the previous forced-square crop, a responsive login brand panel, restrained interactions and reduced-motion fallbacks.
+
+## Control center release
+
+The owner panel uses the bot's existing `OWNER_IDS` setting on Wispbyte. Staff panel access is granted independently of public listing. Server moderation, CAD and guild settings continue to check Discord guild permissions separately. Website sign-in needs only the Discord `identify` scope.
+
+Owner publishing and moderation settings use the existing persistent bot store and signed bridge. The website falls back to serving canonical pages if the bot content endpoint cannot be reached. Private pages and actions still require authentication and authorization. Website maintenance does not stop the Discord bot or the direct Wispbyte CAD.
+
+### Wispbyte and music
+
+Back up the persistent data directory and retain the current environment settings. Upload the matching GitHub release archive to the existing Aether installation, run `npm ci --omit=dev` and keep `npm start` with the assigned port and `WEB_HOST=0.0.0.0`. The signed bridge secret must match production Vercel. Confirm `/ready` returns JSON with the release version. Live guild, staff and publishing checks require the running bot.
+
+Use a Lavalink v4.2.2 node you control. The included `lavalink/application.yml` configures YouTube Music title search and SoundCloud. If hosting Lavalink separately on Wispbyte, set its `SERVER_PORT` to the allocated port and configure the same `LAVALINK_PASSWORD` on both services. On Aether set `LAVALINK_HOST` to the node hostname, `LAVALINK_PORT` to the service port, and `LAVALINK_SECURE=true` when using a TLS proxy. Keep the node private on a trusted network or use TLS across public networks. For Docker Compose set the host to `lavalink` with port `2333`, a shared password and `LAVALINK_SECURE=false`, then start Compose with `--profile local-lavalink`.
+
+Verify backend authentication and song search with `npm run music:check`. In a test Discord server, verify the bot has Connect and Speak, join a voice channel, and run `/play` with a song title. Confirm playback and queue controls in that channel. Voice playback needs a live Discord session even if the Lavalink search check succeeds.

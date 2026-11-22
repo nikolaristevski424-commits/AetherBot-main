@@ -73,3 +73,5 @@ export function ensureOrigin(req) {
   return !!expected && req.headers.origin === expected;
 }
 export function newNonce() { return randomBytes(24).toString('base64url'); }
+
+export const loginDestinations = ['/dashboard/', '/cad/', '/staff/', '/owner/', '/team/panel/'];

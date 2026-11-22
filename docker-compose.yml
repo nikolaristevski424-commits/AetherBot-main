@@ -20,7 +20,6 @@ services:
       - POSTGRES_SSL=false
       - AUTO_MIGRATE=true
       - LOG_LEVEL=${LOG_LEVEL:-warn}
-      - LAVALINK_NODES_FILE=lavalink/nodes.json
       - PORT=3000
       - WEB_HOST=0.0.0.0
     ports:
@@ -40,13 +39,13 @@ services:
   lavalink:
     profiles:
       - local-lavalink
-    image: ghcr.io/lavalink-devs/lavalink:4
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2
     container_name: aether-lavalink
     restart: unless-stopped
     environment:
-      - LAVALINK_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
+      - LAVALINK_PASSWORD=${LAVALINK_PASSWORD:-}
     volumes:
-      - ./lavalink/application.yml:/opt/Lavalink/application.yml
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
     networks:
       - aether-network
 

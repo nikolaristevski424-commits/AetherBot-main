@@ -28,5 +28,78 @@
         }
       ]
     }
+  ],
+  "buildCommand": "node build-static.js",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/page.js": {
+      "includeFiles": "{index.html,**/index.html}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/page?page=home"
+    },
+    {
+      "source": "/index.html",
+      "destination": "/api/page?page=home"
+    },
+    {
+      "source": "/team/panel/:index(index.html)?",
+      "destination": "/api/page?page=team-panel"
+    },
+    {
+      "source": "/features/:index(index.html)?",
+      "destination": "/api/page?page=features"
+    },
+    {
+      "source": "/commands/:index(index.html)?",
+      "destination": "/api/page?page=commands"
+    },
+    {
+      "source": "/docs/:index(index.html)?",
+      "destination": "/api/page?page=docs"
+    },
+    {
+      "source": "/faq/:index(index.html)?",
+      "destination": "/api/page?page=faq"
+    },
+    {
+      "source": "/status/:index(index.html)?",
+      "destination": "/api/page?page=status"
+    },
+    {
+      "source": "/staff/:index(index.html)?",
+      "destination": "/api/page?page=staff"
+    },
+    {
+      "source": "/team/:index(index.html)?",
+      "destination": "/api/page?page=team"
+    },
+    {
+      "source": "/devlog/:index(index.html)?",
+      "destination": "/api/page?page=devlog"
+    },
+    {
+      "source": "/protection/:index(index.html)?",
+      "destination": "/api/page?page=protection"
+    },
+    {
+      "source": "/dashboard/:index(index.html)?",
+      "destination": "/api/page?page=dashboard"
+    },
+    {
+      "source": "/companion/:index(index.html)?",
+      "destination": "/api/page?page=companion"
+    },
+    {
+      "source": "/cad/:index(index.html)?",
+      "destination": "/api/page?page=cad"
+    },
+    {
+      "source": "/owner/:index(index.html)?",
+      "destination": "/api/page?page=owner"
+    }
   ]
 }

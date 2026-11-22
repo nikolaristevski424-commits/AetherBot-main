@@ -55,6 +55,7 @@ function getSelected(){try{return sessionStorage.getItem('aether_guild')||''}cat
 function permitted(key){const g=state.guilds.find(g=>g.id===state.guildId);return !!g?.permissions?.[key];}
 async function chooseGuild(guildId){
  stopCadPolling();state.guildId=guildId;state.data=null;saveSelected(guildId);
+ document.dispatchEvent(new CustomEvent('aether:guild-selected', { detail: { guildId, manager: permitted('manager') } }));
  if(kind==='cad'){cadSnapshot=null;const calls=$('cadCallsList');if(calls)empty(calls,'Loading dispatch queue','Checking the selected server’s latest calls.');}
  if(!guildId){notice('Choose one of your connected Discord servers.');return;}
  connection('Loading server...',false);notice('Loading authorized server data...');

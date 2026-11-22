@@ -1,47 +1,35 @@
-// securityGuildMemberAdd.js
-//
-// Anti-raid detection on member join: guild-wide join-rate spikes, and
-// individual accounts younger than the configured minimum age. Registered
-// as its own listener (see loadEvents — multiple files can share an event
-// name) so this never touches the existing guildMemberAdd.js, which
-// handles welcome messages/logging and stays untouched.
-
 import { Events } from 'discord.js';
-import { getSecurityConfig } from '../services/security/securityConfigService.js';
+import { getSecurityConfig, isWhitelisted } from '../services/security/securityConfigService.js';
 import { recordJoinAndCheck } from '../services/security/actionTracker.js';
 import { applyRaidAction, recordAndAlert } from '../services/security/securityActionsService.js';
 import { logger } from '../utils/logger.js';
 
+const severity = ['alert', 'timeout', 'quarantine', 'kick', 'ban'];
+
 export default {
     name: Events.GuildMemberAdd,
-    once: false,
     async execute(member) {
+        if (member.user.bot) return;
         try {
             const config = await getSecurityConfig(member.guild.id);
-
+            if (isWhitelisted(config, member)) return;
             const { joinSpike, newAccount } = config.antiraid;
-
+            const detections = [];
             if (joinSpike.enabled) {
-                const { count, breached } = await recordJoinAndCheck(member.guild.id, joinSpike.windowSeconds, joinSpike.threshold);
-                if (breached) {
-                    const result = await applyRaidAction(member, joinSpike.action, 'Anti-raid: join spike detected', config.quarantineRoleId);
-                    await recordAndAlert(member.guild, {
-                        category: 'Join Spike', targetId: member.id, count, threshold: joinSpike.threshold,
-                        actionResult: result, alertChannelId: joinSpike.alertChannelId,
-                    });
-                }
+                const { count, breached } = await recordJoinAndCheck(member.guild.id, joinSpike.windowSeconds, joinSpike.threshold, member);
+                if (breached) detections.push({ category: 'Join Spike', count, threshold: joinSpike.threshold, rule: joinSpike });
             }
-
-            if (newAccount.enabled) {
-                const ageHours = (Date.now() - member.user.createdTimestamp) / (60 * 60 * 1000);
-                if (ageHours < newAccount.minAgeHours) {
-                    const result = await applyRaidAction(member, newAccount.action, 'Anti-raid: account below minimum age', config.quarantineRoleId);
-                    await recordAndAlert(member.guild, {
-                        category: 'New Account', targetId: member.id, count: 1, threshold: 1,
-                        actionResult: result, alertChannelId: newAccount.alertChannelId,
-                    });
-                }
+            const ageHours = (Date.now() - member.user.createdTimestamp) / 3_600_000;
+            if (newAccount.enabled && ageHours < newAccount.minAgeHours) {
+                detections.push({ category: 'New Account', count: 1, threshold: 1, rule: newAccount });
             }
+            if (!detections.length) return;
+            detections.sort((a, b) => severity.indexOf(b.rule.action) - severity.indexOf(a.rule.action));
+            const { category, count, threshold, rule } = detections[0];
+            const result = await applyRaidAction(member, rule.action, `Anti-raid: ${category}`, config.quarantineRoleId);
+            await recordAndAlert(member.guild, {
+                category, targetId: member.id, count, threshold, actionResult: result, alertChannelId: rule.alertChannelId,
+            });
         } catch (error) {
             logger.error('[security] Error in anti-raid join handler:', error);
         }

@@ -1,41 +1,39 @@
-// actionTracker.js
-//
-// Generic sliding-window event counter shared by anti-raid (guild-wide join
-// rate) and anti-nuke (per-executor destructive-action rate). Records a
-// timestamp, discards anything older than the configured window, and
-// reports whether the remaining count breaches the threshold — the same
-// primitive either system needs, just keyed differently.
-
-import { getFromDb, setInDb } from '../../utils/database.js';
+import { db } from '../../utils/database.js';
 import { getSecurityJoinsKey, getSecurityActionsKey } from '../../utils/database/keys.js';
+import { Mutex } from '../../utils/mutex.js';
 
-const MAX_TRACKED_TIMESTAMPS = 200; // hard cap so a runaway loop can't grow a key unbounded
+const maxEntries = 200;
 
-async function recordAndCheck(key, windowSeconds, threshold) {
-    const now = Date.now();
+export function trackWindow(previous, event, now, windowSeconds, threshold, cooldown) {
     const cutoff = now - windowSeconds * 1000;
-
-    const existing = await getFromDb(key, []);
-    const withinWindow = existing.filter((ts) => ts > cutoff);
-    withinWindow.push(now);
-
-    const trimmed = withinWindow.length > MAX_TRACKED_TIMESTAMPS
-        ? withinWindow.slice(withinWindow.length - MAX_TRACKED_TIMESTAMPS)
-        : withinWindow;
-
-    // TTL a bit past the window — if nothing else happens, the key cleans
-    // itself up instead of sitting around forever.
-    await setInDb(key, trimmed, windowSeconds + 30);
-
-    return { count: trimmed.length, breached: trimmed.length >= threshold };
+    // Older releases used an array of timestamps. Preserve the remaining window.
+    const current = Array.isArray(previous)
+        ? { events: previous.map(at => ({ at })), respondedAt: null }
+        : previous || { events: [], respondedAt: null };
+    const events = current.events.filter(item => item.at > cutoff);
+    if (event.at <= cutoff || (event.id && events.some(item => item.id === event.id))) {
+        return { state: current, count: events.length, breached: false };
+    }
+    events.push(event);
+    const count = Math.min(events.length, maxEntries);
+    const breached = count >= threshold && (!cooldown || current.respondedAt === null || current.respondedAt <= cutoff);
+    const state = { events: events.slice(-maxEntries), respondedAt: breached && cooldown ? now : current.respondedAt };
+    return { state, count, breached };
 }
 
-/** Guild-wide join-rate tracking for anti-raid. */
-export async function recordJoinAndCheck(guildId, windowSeconds, threshold) {
-    return recordAndCheck(getSecurityJoinsKey(guildId), windowSeconds, threshold);
+function record(key, event, windowSeconds, threshold, cooldown) {
+    return Mutex.runExclusive(key, async () => {
+        const now = Date.now();
+        const result = trackWindow(await db.get(key), event, now, windowSeconds, threshold, cooldown);
+        await db.set(key, result.state, windowSeconds + 65);
+        return result;
+    });
 }
 
-/** Per-executor destructive-action tracking for anti-nuke. */
-export async function recordActionAndCheck(guildId, category, executorId, windowSeconds, threshold) {
-    return recordAndCheck(getSecurityActionsKey(guildId, category, executorId), windowSeconds, threshold);
+export function recordJoinAndCheck(guildId, windowSeconds, threshold, member) {
+    return record(getSecurityJoinsKey(guildId), { id: `${member.id}:${member.joinedTimestamp}`, at: Date.now() }, windowSeconds, threshold, false);
+}
+
+export function recordActionAndCheck(guildId, category, executorId, windowSeconds, threshold, event) {
+    return record(getSecurityActionsKey(guildId, category, executorId), event, windowSeconds, threshold, true);
 }

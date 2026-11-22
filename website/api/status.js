@@ -24,7 +24,10 @@ export default async function handler(req, res) {
     try{
       const data=await health.json();
       if(Number.isFinite(data?.uptime)&&data.uptime>=0)uptime=Math.floor(data.uptime);
-    }catch{/* a responding HTTP health URL can still have malformed JSON */}
+      else if(data?.status!=='healthy')throw new Error('Invalid health response');
+    }catch{
+      return authResponse(res,200,{...base,bot:'unreachable',readiness:'unknown',note:'The hosting endpoint responded without a valid Aether health report.'});
+    }
     let ready='unknown';
     try {
       const response=await fetch(origin+'/ready',{signal:abort.signal,cache:'no-store',redirect:'manual'});

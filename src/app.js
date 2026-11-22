@@ -20,6 +20,7 @@ import { shutdownMusic } from './services/music/playerHandler.js';
 import { syncAllCadGuilds } from './services/cad/cadTrackingService.js';
 import { createCadRouter } from './web/cadRouter.js';
 import { createSiteBridgeRouter } from './web/siteBridgeRouter.js';
+import { servePublicSiteContent } from './web/siteControlRoutes.js';
 import pkg from '../package.json' with { type: 'json' };
 import { EXPECTED_SCHEMA_VERSION, EXPECTED_SCHEMA_LABEL } from './config/database/schemaVersion.js';
 
@@ -38,7 +39,7 @@ class AetherClient extends Client {
 
         GatewayIntentBits.GuildVoiceStates,             
 
-        GatewayIntentBits.GuildBans,                    
+        GatewayIntentBits.GuildModeration,
       ],
     });
 
@@ -164,6 +165,7 @@ class AetherClient extends Client {
     // No change to the existing Discord command handlers or CAD OAuth routes.
     app.use('/api/site-bridge', createSiteBridgeRouter(this));
 
+    app.get('/api/site-content', servePublicSiteContent);
     app.use('/cad', createCadRouter(this));
 
     app.get('/health', (req, res) => {
@@ -201,6 +203,8 @@ class AetherClient extends Client {
         return res.status(200).json({
           ready: true,
           message: 'Bot is ready',
+          version: pkg.version,
+          music: { connectedNodes: this.riffy?.leastUsedNodes?.length ?? 0 },
           metrics,
         });
       }

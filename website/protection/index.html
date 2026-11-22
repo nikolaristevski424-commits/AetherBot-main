@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101329">
+  <title>Discord server protection | Aether</title>
+  <link rel="icon" href="/assets/aether-mark.webp">
+  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/control.css">
+  <script defer src="/assets/control.js"></script>
+</head>
+<body class="control protection">
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="control-header"><nav class="container control-nav" aria-label="Main navigation">
+    <a class="brand" href="/"><img src="/assets/aether-mark.webp" width="34" height="34" alt=""> Aether</a>
+    <a href="/protection/">Protection</a><a href="/devlog/">Devlog</a><a href="/team/">Team</a><a href="/status/">Status</a><a href="/dashboard/">Dashboard</a>
+  </nav></header>
+  <main class="container control-main" id="main">
+    <div class="control-hero"><h1>Discord server protection</h1><p>Spot coordinated joins and destructive activity. Give your moderators a clear record and a response they control.</p></div>
+
+    <div class="control-actions"><a class="btn btn-primary" href="/dashboard/#guildSetup">Configure protection</a><a class="btn btn-ghost" href="/commands/">View commands</a></div>
+    <div class="control-grid protection-grid">
+      <article class="control-card"><div class="protection-signal" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div><h2>Anti-raid</h2><p>Track join spikes, account age, and mention spam. Start with alerts, then use Discord commands to choose a response suited to your community.</p><p><code>/antiraid-setup</code></p></article>
+      <article class="control-card"><div class="protection-audit" aria-hidden="true"><i></i><i></i><i></i></div><h2>Anti-nuke</h2><p>Aether uses Discord’s audit log to attribute channel deletions, role deletions, repeated bans, and new webhooks. It checks the actor’s exemptions before taking the configured action.</p><p><code>/antinuke-setup</code></p></article>
+      <article class="control-card"><div class="protection-lock" aria-hidden="true">◈</div><h2>Discord AutoMod</h2><p>Block messages that exceed your mention limit and turn on Discord’s mention-raid protection. Configure Aether’s rule from the dashboard.</p><p><a href="/dashboard/#guildSetup">Open server setup ↗</a></p></article>
+    </div>
+    <section class="control-card protection-preview" aria-labelledby="preview-title">
+      <h2 id="preview-title">What moderators see</h2>
+      <div class="control-actions" aria-label="Preview an example" data-security-preview>
+        <button type="button" class="btn btn-ghost" data-example="joins" aria-pressed="true">Join spike</button>
+        <button type="button" class="btn btn-ghost" data-example="audit" aria-pressed="false">Audit alert</button>
+        <button type="button" class="btn btn-ghost" data-example="mentions" aria-pressed="false">AutoMod block</button>
+      </div>
+      <div class="protection-preview-detail" aria-live="polite">
+        <h3 id="preview-event">Join threshold reached</h3>
+        <p id="preview-detail">Aether records the join spike and sends an alert to your configured staff channel.</p>
+      </div>
+    </section>
+    <section class="control-card"><h2>Before enabling protection</h2><p>Give Aether View Audit Log for anti-nuke detection. If you choose an automated moderation action, verify Aether has the corresponding permission and sits above the roles it needs to manage.</p></section>
+  </main>
+</body>
+</html>

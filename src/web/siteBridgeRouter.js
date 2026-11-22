@@ -15,6 +15,8 @@ import { ModerationService } from '../services/moderation/moderationService.js';
 import { getErlcConfig, runServerCommand } from '../services/erlc/erlcService.js';
 import { getGuildTicketStats } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
+import { ControlError } from '../services/siteControlService.js';
+import { mountSiteControlRoutes } from './siteControlRoutes.js';
 
 const snowflake = /^[0-9]{17,20}$/;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,7 +55,7 @@ function verifyRequest(req) {
   if (activeNonces.has(nonce)) return null;
   if (activeNonces.size > 3000) {
     for (const [key, expiry] of activeNonces) if (expiry < Date.now()) activeNonces.delete(key);
-    if (activeNonces.size > 3000) activeNonces.clear();
+    if (activeNonces.size > 3000) return null;
   }
   activeNonces.set(nonce, Date.now() + 70_000);
   return userId;
@@ -124,6 +126,7 @@ export function createSiteBridgeRouter(client) {
     req.siteGuild = access.guild;
     next();
   });
+  mountSiteControlRoutes(router, client);
   router.get('/guilds/:guildId/overview', async (req, res) => {
     const a = req.siteAccess, guild = req.siteGuild;
     const state = a.caps.dispatch ? await getCadState(guild.id) : null;
@@ -270,6 +273,7 @@ export function createSiteBridgeRouter(client) {
   });
   router.use((error, req, res, next) => {
     logger.warn(`[site bridge] request rejected: ${String(error.message).slice(0,200)}`);
+    if (error instanceof ControlError) return err(res, error.status, error.message);
     if (error.status === 413) return err(res, 413, 'Request too large');
     return err(res,500,'Could not complete request securely');
   });

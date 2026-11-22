@@ -5,7 +5,8 @@
 // from anti-nuke actions, lockdown state, and a capped recent-events log
 // that /security-status reads from.
 
-import { getFromDb, setInDb } from '../../utils/database.js';
+import { db } from '../../utils/database.js';
+import { Mutex } from '../../utils/mutex.js';
 import { getSecurityConfigKey, getSecurityLogKey } from '../../utils/database/keys.js';
 import { wrapServiceBoundary } from '../../utils/errorHandler.js';
 
@@ -52,7 +53,7 @@ function mergeConfig(existing) {
 }
 
 export const getSecurityConfig = wrapServiceBoundary(async function getSecurityConfig(guildId) {
-    const existing = await getFromDb(getSecurityConfigKey(guildId), null);
+    const existing = await db.get(getSecurityConfigKey(guildId), null);
     return mergeConfig(existing);
 }, {
     service: 'securityConfigService', operation: 'getSecurityConfig',
@@ -60,45 +61,53 @@ export const getSecurityConfig = wrapServiceBoundary(async function getSecurityC
 });
 
 export const setProtection = wrapServiceBoundary(async function setProtection(guildId, system, type, updates) {
-    const config = mergeConfig(await getFromDb(getSecurityConfigKey(guildId), null));
-    config[system][type] = { ...config[system][type], ...updates };
-    await setInDb(getSecurityConfigKey(guildId), config);
-    return config[system][type];
+    return Mutex.runExclusive(getSecurityConfigKey(guildId), async () => {
+        const config = mergeConfig(await db.get(getSecurityConfigKey(guildId), null));
+        config[system][type] = { ...config[system][type], ...updates };
+        await db.set(getSecurityConfigKey(guildId), config);
+        return config[system][type];
+    });
 }, {
     service: 'securityConfigService', operation: 'setProtection',
     message: 'Failed to update protection config', userMessage: 'Failed to update that protection setting.',
 });
 
 export const setQuarantineRole = wrapServiceBoundary(async function setQuarantineRole(guildId, roleId) {
-    const config = mergeConfig(await getFromDb(getSecurityConfigKey(guildId), null));
-    config.quarantineRoleId = roleId;
-    await setInDb(getSecurityConfigKey(guildId), config);
-    return config;
+    return Mutex.runExclusive(getSecurityConfigKey(guildId), async () => {
+        const config = mergeConfig(await db.get(getSecurityConfigKey(guildId), null));
+        config.quarantineRoleId = roleId;
+        await db.set(getSecurityConfigKey(guildId), config);
+        return config;
+    });
 }, {
     service: 'securityConfigService', operation: 'setQuarantineRole',
     message: 'Failed to set quarantine role', userMessage: 'Failed to set the quarantine role.',
 });
 
 export const addToWhitelist = wrapServiceBoundary(async function addToWhitelist(guildId, targetType, targetId) {
-    const config = mergeConfig(await getFromDb(getSecurityConfigKey(guildId), null));
-    const list = targetType === 'role' ? config.whitelist.roleIds : config.whitelist.userIds;
-    if (!list.includes(targetId)) list.push(targetId);
-    await setInDb(getSecurityConfigKey(guildId), config);
-    return config.whitelist;
+    return Mutex.runExclusive(getSecurityConfigKey(guildId), async () => {
+        const config = mergeConfig(await db.get(getSecurityConfigKey(guildId), null));
+        const list = targetType === 'role' ? config.whitelist.roleIds : config.whitelist.userIds;
+        if (!list.includes(targetId)) list.push(targetId);
+        await db.set(getSecurityConfigKey(guildId), config);
+        return config.whitelist;
+    });
 }, {
     service: 'securityConfigService', operation: 'addToWhitelist',
     message: 'Failed to update whitelist', userMessage: 'Failed to add to the whitelist.',
 });
 
 export const removeFromWhitelist = wrapServiceBoundary(async function removeFromWhitelist(guildId, targetType, targetId) {
-    const config = mergeConfig(await getFromDb(getSecurityConfigKey(guildId), null));
-    if (targetType === 'role') {
-        config.whitelist.roleIds = config.whitelist.roleIds.filter((id) => id !== targetId);
-    } else {
-        config.whitelist.userIds = config.whitelist.userIds.filter((id) => id !== targetId);
-    }
-    await setInDb(getSecurityConfigKey(guildId), config);
-    return config.whitelist;
+    return Mutex.runExclusive(getSecurityConfigKey(guildId), async () => {
+        const config = mergeConfig(await db.get(getSecurityConfigKey(guildId), null));
+        if (targetType === 'role') {
+            config.whitelist.roleIds = config.whitelist.roleIds.filter((id) => id !== targetId);
+        } else {
+            config.whitelist.userIds = config.whitelist.userIds.filter((id) => id !== targetId);
+        }
+        await db.set(getSecurityConfigKey(guildId), config);
+        return config.whitelist;
+    });
 }, {
     service: 'securityConfigService', operation: 'removeFromWhitelist',
     message: 'Failed to update whitelist', userMessage: 'Failed to remove from the whitelist.',
@@ -115,29 +124,33 @@ export function isWhitelisted(config, member) {
 }
 
 export const setLockdown = wrapServiceBoundary(async function setLockdown(guildId, { active, engagedBy, reason, lockedChannelIds }) {
-    const config = mergeConfig(await getFromDb(getSecurityConfigKey(guildId), null));
-    config.lockdown = active
-        ? { active: true, engagedBy, engagedAt: Date.now(), reason: reason || null, lockedChannelIds: lockedChannelIds || [] }
-        : { active: false, engagedBy: null, engagedAt: null, reason: null, lockedChannelIds: [] };
-    await setInDb(getSecurityConfigKey(guildId), config);
-    return config.lockdown;
+    return Mutex.runExclusive(getSecurityConfigKey(guildId), async () => {
+        const config = mergeConfig(await db.get(getSecurityConfigKey(guildId), null));
+        config.lockdown = active
+            ? { active: true, engagedBy, engagedAt: Date.now(), reason: reason || null, lockedChannelIds: lockedChannelIds || [] }
+            : { active: false, engagedBy: null, engagedAt: null, reason: null, lockedChannelIds: [] };
+        await db.set(getSecurityConfigKey(guildId), config);
+        return config.lockdown;
+    });
 }, {
     service: 'securityConfigService', operation: 'setLockdown',
     message: 'Failed to update lockdown state', userMessage: 'Failed to update lockdown state.',
 });
 
 export const logSecurityEvent = wrapServiceBoundary(async function logSecurityEvent(guildId, event) {
-    const key = getSecurityLogKey(guildId);
-    const log = await getFromDb(key, []);
-    log.unshift({ ...event, timestamp: Date.now() });
-    await setInDb(key, log.slice(0, MAX_LOG_ENTRIES));
+    return Mutex.runExclusive(getSecurityLogKey(guildId), async () => {
+        const key = getSecurityLogKey(guildId);
+        const log = await db.get(key) || [];
+        log.unshift({ ...event, timestamp: Date.now() });
+        await db.set(key, log.slice(0, MAX_LOG_ENTRIES));
+    });
 }, {
     service: 'securityConfigService', operation: 'logSecurityEvent',
     message: 'Failed to write security log', userMessage: 'Failed to log the security event.',
 });
 
 export const getSecurityLog = wrapServiceBoundary(async function getSecurityLog(guildId, limit = 10) {
-    const log = await getFromDb(getSecurityLogKey(guildId), []);
+    const log = await db.get(getSecurityLogKey(guildId)) || [];
     return log.slice(0, limit);
 }, {
     service: 'securityConfigService', operation: 'getSecurityLog',

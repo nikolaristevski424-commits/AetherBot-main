@@ -1,18 +1,18 @@
 server:
-  port: 2333
+  port: ${SERVER_PORT:2333}
   address: 0.0.0.0
 
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.13.5"
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
       snapshot: false
   server:
-    password: "${LAVALINK_PASSWORD:youshallnotpass}"
+    password: "${LAVALINK_PASSWORD}"
     sources:
       youtube: false
       bandcamp: true
       soundcloud: true
-      http: true
+      http: false
       local: false
 
 plugins:
@@ -23,5 +23,5 @@ plugins:
     allowDirectPlaylistIds: true
     clients:
       - MUSIC
-      - ANDROID_TESTSUITE
       - WEB
+      - WEBEMBEDDED
