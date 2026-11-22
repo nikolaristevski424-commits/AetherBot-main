@@ -377,3 +377,96 @@ html[data-theme] .comp-footer{margin-top:34px;border-top:1px solid var(--ux-bord
  html[data-theme] .comp-grid{grid-template-columns:1fr}
  html[data-theme] .comp-panel{padding:20px}
 }
+
+/* AETHER / 2026-Q4 polish pass
+   Uses existing brand artwork without editing or distorting the source image. */
+.brand-icon{position:relative;display:block;flex:none;width:43px;height:43px;border-radius:12px;background:linear-gradient(140deg,#101b3c,#1b1740);overflow:hidden;border:1px solid #7789bd34;box-shadow:inset 0 1px 0 #ffffff15}
+.brand-icon img{position:absolute;display:block;max-width:none;width:120%;height:auto;left:-10%;top:-1%;object-fit:contain;clip-path:inset(0 0 20% 0);filter:drop-shadow(0 1px 2px #060b25a3)}
+.brand{align-items:center;gap:12px;line-height:1}
+.brand>span:last-child{margin-left:-3px}
+.site-header{transition:box-shadow .22s ease,background .22s ease,border-color .22s ease}
+.site-header.sticky{box-shadow:0 10px 36px #070d2311}
+body.header-dark>.site-header.sticky{box-shadow:0 12px 34px #0206173d}
+.nav-links a{position:relative;padding:8px 0;transition:color .2s}
+.nav-links a:after{content:'';position:absolute;bottom:2px;left:0;right:100%;height:2px;border-radius:2px;background:currentColor;transition:right .23s ease}
+.nav-links a:hover:after,.nav-links a[aria-current=page]:after{right:0}
+.btn .arrow{display:inline-block;transition:transform .18s ease}
+.btn:hover .arrow{transform:translate(2px,-2px)}
+/* Richer but controlled first impression, still product-first */
+.hero-wrap{background:radial-gradient(ellipse 78% 90% at 96% 9%,#21284b 0%,transparent 59%),linear-gradient(110deg,#0d1423,#101a2d 76%);isolation:isolate}
+.hero-wrap:before{display:block;position:absolute;inset:0;z-index:-1;pointer-events:none;content:'';background:linear-gradient(111deg,transparent 40%,#7b96ff05 50%,transparent 60%);background-size:240% 100%;animation:aetherLightSweep 17s ease-in-out infinite}
+.hero-wrap .hero{isolation:isolate}
+.hero-copy{animation:aetherEnter .78s cubic-bezier(.22,1,.36,1) both}
+.hero-showcase{animation:aetherEnter .9s .1s cubic-bezier(.22,1,.36,1) both}
+.hero .eyebrow:before{box-shadow:0 0 0 5px #aebfff16}
+.preview-shell{box-shadow:0 28px 80px #0008,0 1px 0 #ffffff18 inset;transition:transform .35s ease,box-shadow .35s ease}
+.preview-shell:hover{transform:translateY(-5px);box-shadow:0 38px 95px #0009,0 1px 0 #ffffff18 inset}
+.preview-top span:first-child{background:#8e9ccc}
+.preview-top span:nth-child(2){background:#6e84b5}
+.preview-top span:nth-child(3){background:#4ca78f}
+.trust-row strong{display:flex;align-items:center;gap:8px}
+.trust-row strong:before{display:inline-grid;place-items:center;width:18px;height:18px;background:#b5c7ff17;border-radius:5px;margin:0}
+.feature-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.feature-card{position:relative;display:grid;grid-template-columns:50px 1fr;grid-template-rows:auto auto 1fr;align-items:start;column-gap:18px;min-height:224px;padding:28px 30px 25px;border-radius:12px;background:var(--ux-panel);overflow:hidden}
+.feature-card:before{position:absolute;right:23px;top:19px;float:none;letter-spacing:.12em}
+.feature-card .feature-icon,.feature-card:nth-child(2) .feature-icon,.feature-card:nth-child(3) .feature-icon,.feature-card:nth-child(5) .feature-icon,.feature-card:nth-child(6) .feature-icon{grid-row:1 / span 2;grid-column:1;width:45px;height:45px;margin:0}
+.feature-card h3{grid-row:1;grid-column:2;margin:1px 0 9px;padding-right:18px;font-size:18px}
+.feature-card p{grid-row:2;grid-column:2;margin:0;max-width:430px;font-size:13px}
+.feature-card .card-foot{grid-row:3;grid-column:2;margin-top:22px;align-self:end}
+.feature-card:after{content:'';position:absolute;inset:auto 0 0;height:2px;background:linear-gradient(90deg,#4160ed,#94a7ff);transform:scaleX(0);transform-origin:left;transition:transform .25s ease}
+.feature-card:hover:after,.feature-card:focus-within:after{transform:scaleX(1)}
+.showcase-art{background:radial-gradient(circle at 74% 19%,#31478f99,transparent 55%),#14233a}
+.showcase-art .art-card{transition:transform .3s ease}
+.showcase-art .art-card:hover{transform:translateY(-4px)}
+/* Low-distraction motion that never implies fictional real-time data */
+.reveal{transition-delay:var(--aether-enter-delay,0ms)}
+.item-row,.panel,.status-panel,.metric,.console-banner{transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}
+.item-row:hover{border-color:color-mix(in srgb,var(--ux-brand) 38%,var(--ux-border))}
+.panel:focus-within{border-color:color-mix(in srgb,var(--ux-brand) 30%,var(--ux-border))}
+.metric:hover{box-shadow:0 10px 28px #1522460c}
+.console-subnav button{transition:color .18s,background .18s}
+.connection-box.online i{box-shadow:0 0 0 4px #1c9e6822}
+/* Correctly-sized full logo on the sign-in page, not an arbitrary crop */
+.login-aside{overflow:hidden}
+.auth-brand-art{width:min(380px,95%);aspect-ratio:1;display:grid;place-items:center;margin:28px 0 0;position:relative}
+.auth-brand-art:before{content:'';position:absolute;width:80%;height:80%;border-radius:50%;background:#4f6eff20;filter:blur(44px);pointer-events:none}
+.auth-brand-art img{width:100%;height:100%;max-width:100%;object-fit:contain;object-position:center;position:relative;filter:drop-shadow(0 18px 32px #080d2870)}
+.auth-route-card{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-top:23px;border:1px solid var(--ux-border);border-radius:10px;padding:18px;background:var(--ux-panel-2)}
+.auth-route-copy{flex:1;min-width:220px}
+.auth-route-label{display:block;color:var(--ux-brand);font-size:9px;font-weight:800;letter-spacing:.13em;margin-bottom:6px}
+.auth-route-copy strong{display:block;color:var(--ux-ink);font-size:14px;letter-spacing:-.02em}
+.auth-route-copy p{font-size:11px;margin:5px 0 0;max-width:350px;line-height:1.6}
+.auth-troubleshoot{margin-top:18px;border-top:1px solid var(--ux-border);padding-top:17px}
+.auth-troubleshoot summary{font-size:12px;font-weight:800;color:var(--ux-ink);cursor:pointer}
+.auth-troubleshoot p{font-size:12px;line-height:1.7;margin:10px 0}
+.auth-troubleshoot code{display:block;font-size:11px;color:var(--ux-ink-2);padding:9px 10px;border:1px solid var(--ux-border);background:var(--ux-panel-2);margin:7px 0;border-radius:6px;overflow-wrap:anywhere}
+/* The Vercel connected view remains available, while Wispbyte owns primary CAD. */
+.cad-origin-hint{display:flex;align-items:center;gap:14px;padding:15px 18px;margin:0 0 16px;background:var(--ux-tint);border:1px solid var(--ux-border);border-radius:10px}
+.cad-origin-hint>span{display:grid;place-items:center;width:32px;height:32px;flex-shrink:0;background:var(--ux-panel);color:var(--ux-brand);border-radius:8px;font-size:17px}
+.cad-origin-hint>div{flex:1;min-width:0}
+.cad-origin-hint strong{font-size:12px;color:var(--ux-ink)}
+.cad-origin-hint p{margin:3px 0 0;color:var(--ux-muted);font-size:11px}
+.cad-origin-hint .btn{flex-shrink:0}
+@keyframes aetherEnter{from{opacity:0;transform:translateY(19px)}to{opacity:1;transform:translateY(0)}}
+@keyframes aetherLightSweep{0%,100%{background-position:0 0;opacity:.3}50%{background-position:100% 0;opacity:.75}}
+@media(max-width:900px){
+ .feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .feature-card{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto;gap:6px}
+ .feature-card .feature-icon,.feature-card:nth-child(2) .feature-icon,.feature-card:nth-child(3) .feature-icon,.feature-card:nth-child(5) .feature-icon,.feature-card:nth-child(6) .feature-icon{grid-row:1;grid-column:1;margin-bottom:15px}
+ .feature-card h3{grid-row:2;grid-column:1}
+ .feature-card p{grid-row:3;grid-column:1}
+ .feature-card .card-foot{grid-row:4;grid-column:1}
+}
+@media(max-width:620px){
+ .feature-grid{grid-template-columns:1fr}
+ .feature-card{min-height:0;gap:8px;padding:23px}
+ .cad-origin-hint{align-items:flex-start;flex-wrap:wrap}
+ .cad-origin-hint .btn{width:100%}
+ .auth-brand-art{width:min(300px,80%)}
+ .brand-icon{width:38px;height:38px}
+ .login-aside{padding:43px 25px}
+}
+@media(prefers-reduced-motion:reduce){
+ .hero-wrap:before,.hero-copy,.hero-showcase{animation:none!important}
+ .reveal,.feature-card,.preview-shell,.item-row,.btn,.nav-links a{transition:none!important}
+}
