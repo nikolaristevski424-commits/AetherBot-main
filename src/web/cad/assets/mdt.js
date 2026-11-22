@@ -14,8 +14,9 @@ function notice(message,error=false){const target=$('mdtNotice');if(!target)retu
 function fmtTime(n){return n?new Date(n).toLocaleString():'—';}
 function tag(kind){return kind==='vehicle'?'VEHICLE':'PERSON';}
 function age(ts){if(!ts)return '—';return Math.max(0,Math.round((Date.now()-ts)/60000))+' min ago';}
-function card(label,meta,body,actions=''){
-  return `<article class="mdt-result"><div class="mdt-result-head"><div><strong>${esc(label)}</strong><span>${esc(meta)}</span></div>${actions}</div><p>${esc(body||'No details available.')}</p></article>`;
+function card(label,meta,body,actions='',style=''){
+  const css=['bolo-urgent','bolo-normal'].includes(style) ? ' '+style : '';
+  return `<article class="mdt-result${css}"><div class="mdt-result-head"><div><strong>${esc(label)}</strong><span>${esc(meta)}</span></div>${actions}</div><p>${esc(body||'No details available.')}</p></article>`;
 }
 function render(){
   if(!cached)return;
@@ -24,13 +25,26 @@ function render(){
   $('mdtBoloCount').textContent=bolos.length;
   $('mdtPlayerCount').textContent=players.length;
   $('mdtAssignmentCount').textContent=assignedCalls.length;
+  const alertBox=$('mdtActiveAlerts');
+  const matchingBolos=bolos.filter(b=>records.some(r=>{
+    const subject=String(r.subject||'').trim().toLowerCase();
+    const plate=String(r.plate||'').trim().toLowerCase();
+    const target=String(b.subject||'').trim().toLowerCase();
+    return target && (subject===target || (plate && plate===target));
+  })).slice(0,5);
+  alertBox.hidden=!matchingBolos.length;
+  alertBox.innerHTML=matchingBolos.map(b=>`<article class="mdt-match-alert">
+    <strong>⚠ ACTIVE BOLO MATCH — ${esc(b.subject)}</strong>
+    <p>${esc(b.details)}</p>
+    <small>${esc(b.location||'Location unknown')} • ${esc(b.priority||'normal').toUpperCase()} priority</small>
+  </article>`).join('');
   const recordList=$('mdtRecordList');
   recordList.innerHTML=records.length?records.map(r=>card(r.subject,`${tag(r.kind)} • ${r.id.slice(0,8).toUpperCase()}${r.plate?' • '+r.plate:''}`,
     [r.description,r.robloxUsername&&'Roblox: '+r.robloxUsername,r.notes].filter(Boolean).join(' · '),`<button class="mdt-mini-button" data-record="${esc(r.id)}">View / edit</button>`)).join(''):
     '<p class="mdt-empty">No matching fictional records. Create one for your roleplay community.</p>';
   const boloList=$('mdtBoloList');
   boloList.innerHTML=bolos.length?bolos.map(b=>card(b.subject,`${b.priority.toUpperCase()} ${tag(b.kind)} • ${b.id.slice(0,8).toUpperCase()} • Expires ${fmtTime(b.expiresAt)}`,
-    `${b.details}${b.location?' · Last known: '+b.location:''}`, `<button class="mdt-mini-button mdt-clear" data-bolo="${esc(b.id)}">Clear</button>`)).join(''):
+    `${b.details}${b.location?' · Last known: '+b.location:''}`, `<button class="mdt-mini-button mdt-clear" data-bolo="${esc(b.id)}">Clear</button>`,b.priority==='urgent'?'bolo-urgent':'bolo-normal')).join(''):
     '<p class="mdt-empty">No active BOLOs.</p>';
   $('mdtPlayerList').innerHTML=players.length?players.map(p=>card(p.player||'Player',
     `${p.team||'Unknown team'} • ${p.callsign||'No callsign'} • ${age(p.lastSeenAt)}`,
