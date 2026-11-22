@@ -1,0 +1,15 @@
+/* Discovery-first command directory */
+.command-search-wrap{background:var(--ux-panel);border:1px solid var(--ux-border);border-radius:12px;padding:23px 26px;margin-bottom:23px}
+.command-search-label{display:block;font-size:10px;color:var(--ux-muted);font-weight:900;letter-spacing:.13em;margin-bottom:10px}
+#commandSearch{width:100%;min-height:52px;background:var(--ux-panel-2);border:1px solid var(--ux-border);border-radius:9px;padding:14px 16px;color:var(--ux-ink);outline:none;font-size:13px}
+#commandSearch:focus{border-color:var(--ux-brand);box-shadow:0 0 0 3px var(--ux-ring)}
+.command-filters{display:flex;flex-wrap:wrap;gap:7px;margin-top:17px}
+.command-filter{min-height:36px;padding:8px 13px;border-radius:7px;border:1px solid var(--ux-border);background:var(--ux-panel-2);color:var(--ux-muted);font-size:11px;font-weight:800;transition:background .2s,color .2s,border-color .2s}
+.command-filter.active{background:var(--ux-tint);border-color:var(--ux-brand);color:var(--ux-brand)}
+.command-filter:hover{border-color:var(--ux-brand)}
+.command-count{margin:14px 0 0;font-size:11px;color:var(--ux-muted)}
+.command-item[hidden]{display:none!important}
+.command-item{transition:background .18s,border-color .18s}
+.command-item:hover{background:var(--ux-panel-2);border-color:var(--ux-brand)}
+@media(max-width:640px){.command-search-wrap{padding:16px}.command-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.command-filter{white-space:normal}}
+@media(prefers-reduced-motion:reduce){.command-filter,.command-item{transition:none!important}}
