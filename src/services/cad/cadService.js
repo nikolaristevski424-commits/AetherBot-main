@@ -25,16 +25,27 @@ function getPlayerId(player) {
     return separator >= 0 ? name.slice(separator + 1) : name;
 }
 
-export function getCadGuildConfig(guildId) {
-    return getFromDb(configKey(guildId), { dispatchRoleIds: [], commandRoleIds: [], dispatchChannelId: null });
+export const CAD_EXPERIENCE_MODES = Object.freeze(['hybrid', 'discord', 'web']);
+export function normalizeCadExperienceMode(value) {
+    return CAD_EXPERIENCE_MODES.includes(value) ? value : 'hybrid';
+}
+
+export async function getCadGuildConfig(guildId) {
+    const config = await getFromDb(configKey(guildId), { dispatchRoleIds: [], commandRoleIds: [], dispatchChannelId: null });
+    return { ...config, experienceMode: normalizeCadExperienceMode(config?.experienceMode) };
 }
 
 export async function setCadGuildConfig(guildId, updates) {
     const current = await getCadGuildConfig(guildId);
+    // All writes share this allowlist. Never persist arbitrary request-body keys.
+    if (updates.experienceMode !== undefined && !CAD_EXPERIENCE_MODES.includes(updates.experienceMode)) {
+        throw new Error('CAD experience must be Discord, Web, or Hybrid.');
+    }
     const config = {
         dispatchRoleIds: updates.dispatchRoleIds ?? current.dispatchRoleIds ?? [],
         commandRoleIds: updates.commandRoleIds ?? current.commandRoleIds ?? [],
         dispatchChannelId: updates.dispatchChannelId ?? current.dispatchChannelId ?? null,
+        experienceMode: updates.experienceMode ?? current.experienceMode ?? 'hybrid',
     };
     if (!await setInDb(configKey(guildId), config)) throw new Error('Could not save CAD settings.');
     return config;
