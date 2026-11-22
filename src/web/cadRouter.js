@@ -14,6 +14,7 @@ import {
     recordCadCommand,
     setCadGuildConfig,
     updateCadCall,
+    assignCadCallUnit,
     updateCadUnit,
 } from '../services/cad/cadService.js';
 import { syncCadGuild } from '../services/cad/cadTrackingService.js';
@@ -365,7 +366,26 @@ router.post('/api/guilds/:guildId/calls', async (req, res) => {
 router.patch('/api/guilds/:guildId/calls/:callId', async (req, res) => {
     const access = await requireGuild(req, res, 'dispatch');
     if (!access) return;
-    const { status, assignedUnitIds } = req.body || {};
+    const { status, assignedUnitIds, addAssignedUnitId } = req.body || {};
+    if (addAssignedUnitId !== undefined) {
+        // Incremental assignments are serialized server-side; clients must not
+        // send stale arrays that overwrite another officer's response.
+        if (status !== undefined || assignedUnitIds !== undefined
+            || typeof addAssignedUnitId !== 'string' || !idPattern.test(addAssignedUnitId)) {
+            return res.status(400).json({ error: 'Provide only one valid officer ID to assign.' });
+        }
+        try {
+            const result = await assignCadCallUnit(req.params.guildId, req.cadSession.profile,
+                req.params.callId, addAssignedUnitId);
+            if (!result) return res.status(404).json({ error: 'CAD call not found.' });
+            return res.json({ call: result.call, changed: result.changed });
+        } catch (error) {
+            if (/already closed|on-duty CAD unit|maximum number of assigned units/.test(String(error?.message))) {
+                return res.status(409).json({ error: error.message });
+            }
+            return res.status(500).json({ error: 'Could not assign the officer.' });
+        }
+    }
     if (status === undefined && assignedUnitIds === undefined) {
         return res.status(400).json({ error: 'Provide a call status or unit assignment to update.' });
     }
