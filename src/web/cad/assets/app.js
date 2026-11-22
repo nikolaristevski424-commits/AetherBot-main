@@ -16,6 +16,8 @@ let currentData = null;
 let guilds = [];
 let currentCallFilter = 'active';
 let refreshInFlight = false;
+let settingsDirty = false;
+let unitDirty = false;
 
 function showNotice(message, isError = false) {
   appNotice.textContent = message;
@@ -157,19 +159,23 @@ function renderCalls(calls) {
 }
 
 function renderUnits(units) {
-  const active = units.filter((unit) => unit.status !== 'off_duty');
+  const active = units.filter(unit => ['available', 'busy', 'on_scene'].includes(unit.status));
   document.querySelector('#unitCount').textContent = active.length;
   const list = document.querySelector('#unitsList');
   if (!units.length) {
     list.innerHTML = '<p class="empty-state">No units signed in.</p>';
+    if (!unitDirty) {
+      document.querySelector('#callsignInput').value = '';
+      document.querySelector('#unitStatusSelect').value = 'available';
+    }
     return;
   }
   list.innerHTML = units.slice().sort((left, right) => (left.callsign || left.username).localeCompare(right.callsign || right.username)).map((unit) => `
     <div class="unit-row"><div><span class="unit-name">${escapeHtml(unit.username)}</span><span class="unit-callsign">${escapeHtml(unit.callsign || 'No callsign')}</span></div><span class="unit-status ${escapeHtml(unit.status || 'off_duty')}">${escapeHtml((unit.status || 'off_duty').replace('_', ' '))}</span></div>`).join('');
   const ownUnit = units.find((unit) => unit.userId === currentUser.id);
-  if (ownUnit) {
-    document.querySelector('#callsignInput').value = ownUnit.callsign || '';
-    document.querySelector('#unitStatusSelect').value = ownUnit.status || 'available';
+  if (!unitDirty) {
+    document.querySelector('#callsignInput').value = ownUnit?.callsign || '';
+    document.querySelector('#unitStatusSelect').value = ownUnit?.status || 'available';
   }
 }
 
@@ -245,14 +251,12 @@ function renderSettings(data) {
   settingsForm.hidden = !data.permissions.manager;
   readOnly.hidden = data.permissions.manager;
   document.querySelector('#commandSection').hidden = !data.permissions.commands;
-  if (!data.permissions.manager) return;
+  if (!data.permissions.manager || settingsDirty) return;
 
   const selectedMode = ['discord','web','hybrid'].includes(data.config?.experienceMode)
     ? data.config.experienceMode : 'hybrid';
   for (const radio of document.querySelectorAll('input[name="cadExperience"]')) {
-    if (!document.querySelector('.cad-interface-fieldset')?.contains(document.activeElement)) {
-      radio.checked = radio.value === selectedMode;
-    }
+    radio.checked = radio.value === selectedMode;
   }
   const selectedDispatch = new Set(data.config?.dispatchRoleIds || []);
   const selectedCommand = new Set(data.config?.commandRoleIds || []);
@@ -292,6 +296,8 @@ function renderData(data) {
 async function loadGuildData() {
   if (!guildSelect.value) return;
   currentGuild = guildSelect.value;
+  settingsDirty = false;
+  unitDirty = false;
   const guild = guilds.find((item) => item.id === currentGuild);
   document.querySelector('#footerServer').textContent = guild?.name || 'CAD';
   showNotice('');
@@ -424,6 +430,8 @@ document.querySelector('#callFilters').addEventListener('click', (event) => {
   renderCalls(currentData?.state.calls || []);
 });
 document.querySelector('#refreshButton').addEventListener('click', refreshData);
+document.querySelector('#unitForm').addEventListener('input', () => { unitDirty = true; });
+document.querySelector('#unitForm').addEventListener('change', () => { unitDirty = true; });
 document.querySelector('#unitForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
@@ -431,6 +439,7 @@ document.querySelector('#unitForm').addEventListener('submit', async (event) => 
       method: 'PUT',
       body: JSON.stringify({ callsign: document.querySelector('#callsignInput').value, status: document.querySelector('#unitStatusSelect').value }),
     });
+    unitDirty = false;
     await refreshData();
   } catch (error) { showNotice(error.message, true); }
 });
@@ -453,6 +462,7 @@ document.querySelector('#commandForm').addEventListener('submit', async (event) 
     showNotice('ER:LC command sent.');
   } catch (error) { showNotice(error.message, true); }
 });
+document.querySelector('#settingsForm').addEventListener('change', () => { settingsDirty = true; });
 document.querySelector('#settingsForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const selectedValues = (selector) => [...document.querySelector(selector).selectedOptions].map((option) => option.value);
@@ -466,6 +476,7 @@ document.querySelector('#settingsForm').addEventListener('submit', async (event)
       }),
     });
     currentData.config = result.config;
+    settingsDirty = false;
     showNotice('CAD experience and role access saved. Your Discord commands and web CAD continue sharing one database.');
     await refreshData();
   } catch (error) { showNotice(error.message, true); }
