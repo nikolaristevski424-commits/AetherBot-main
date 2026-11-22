@@ -315,8 +315,17 @@ function renderData(data) {
   renderUnits(data.state.units || []);
   renderPlayers(data.state.players || [], data.state.playerSyncAt, data.state.serverOnline, data.state.staff || [], data.state.playerEvents || []);
   renderSettings(data);
-  renderCadMap(data);
-  renderMdt({ ...data, currentUserId: currentUser?.id });
+  if (data.permissions.dispatch) {
+    renderCadMap(data);
+    renderMdt({ ...data, currentUserId: currentUser?.id });
+  } else {
+    // A user who loses CAD dispatch access must not keep stale MDT or map
+    // contents on screen, or continue making unauthorized refresh requests.
+    for (const id of ['mdtRecordList','mdtBoloList','mdtPlayerList','mdtAssignedList','mdtBaseHistory',
+      'mdtActiveAlerts','cadMapPins','cadMapList','cadMapDetails']) {
+      document.getElementById(id)?.replaceChildren();
+    }
+  }
   document.querySelector('#syncIndicator').classList.add('ready');
   document.querySelector('#syncIndicator').classList.remove('error');
   document.querySelector('#lastUpdateLabel').textContent = `Updated ${formatTime(Date.now())}`;
