@@ -131,10 +131,18 @@ export default {
         return interaction.editReply(`🚨 **Panic submitted** • #${call.id.slice(0,8).toUpperCase()} • ${call.location}\nDispatch has a new urgent roleplay call. Real emergency? Call local emergency services.`);
       }
       if (sub === 'dashboard' || sub === 'map') {
-        const url=cadUrl();
-        return interaction.editReply(url
-          ? `**Aether CAD** — ${url}${sub === 'map' ? '?view=map' : ''}\nDiscord sign-in and your server's CAD roles are required.`
-          : 'The bot CAD website is not configured for public HTTPS access yet. Set `CAD_REDIRECT_URI` and configure Discord OAuth.');
+        const current=await getCadGuildConfig(interaction.guildId);
+        const url=cadWebUrl(sub==='map'?'map':'');
+        const pref=current.experienceMode || 'hybrid';
+        const message=pref==='discord'
+          ? 'Your server prefers Discord commands: `/cad calls`, `/cad mdt search`, `/cad bolo list` and `/cad unit`. The web view is still available.'
+          : pref==='web'
+            ? 'Your server prefers Web CAD. Open the dispatch board or map below; Discord commands still work for field officers.'
+            : 'Your server uses Hybrid CAD. Discord actions and the browser stay synchronized using the same case records.';
+        return interaction.editReply({
+          content:`**Aether CAD • ${cadModeLabel(pref)}**\n${message}\n${url || 'A public CAD URL has not been configured.'}`,
+          allowedMentions:{parse:[]}
+        });
       }
       if (sub === 'calls') {
         const state=await getCadState(interaction.guildId);
