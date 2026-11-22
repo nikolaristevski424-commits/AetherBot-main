@@ -39,7 +39,7 @@ test('redesign respects reduced motion and avoids fake health claims',()=>{
  assert.match(css,/html\[data-theme="dark"\]/);
  const home=read('index.html');
  assert.match(home,/ILLUSTRATIVE PRODUCT PREVIEW/);
- assert.match(home,/NOT LIVE DATA/);
+ assert.match(css,/NOT LIVE DATA/);
  assert.ok(!home.includes('600Servers'));
 });
 
