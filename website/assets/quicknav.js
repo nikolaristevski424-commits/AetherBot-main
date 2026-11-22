@@ -4,8 +4,8 @@
  const destinations=[
   {title:'Server dashboard',detail:'Real Discord metrics and setup health',href:'/dashboard/',icon:'▦'},
   {title:'Dispatch CAD',detail:'Incidents, units and assignment queue',href:'https://aether.wispbyte.app/cad/',icon:'◈'},
-  {title:'Officer MDT',detail:'Search fictional people and vehicle records',href:'https://aether.wispbyte.app/cad/',icon:'▤'},
-  {title:'BOLO board',detail:'Active roleplay alerts',href:'https://aether.wispbyte.app/cad/',icon:'⚑'},
+  {title:'Officer MDT',detail:'Search fictional people and vehicle records',href:'https://aether.wispbyte.app/cad/?view=mdt',icon:'▤'},
+  {title:'BOLO board',detail:'Roleplay alerts in the CAD MDT',href:'https://aether.wispbyte.app/cad/?view=mdt',icon:'⚑'},
   {title:'ER:LC companion',detail:'Installable staff companion interface',href:'/companion/',icon:'◉'},
   {title:'Staff moderation',detail:'Case history, actions and role settings',href:'/staff/',icon:'⌘'},
   {title:'Bot commands',detail:'Find Aether slash commands',href:'/commands/',icon:'⌕'},
