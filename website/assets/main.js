@@ -23,10 +23,10 @@
     window.addEventListener('scroll', update, { passive: true }); update();
   }
   const featureModules = {
-    cad: { eyebrow:'Operational visibility',title:'Dispatch with context.',description:'Respond to roleplay emergencies, assign units, inspect BOLOs and open the same CAD from Discord or your browser.',url:'/cad/',artTitle:'Active dispatch',rows:[['911 call reported','Received'],['Unit 1-Adam-12 assigned','Assigned'],['BOLO record updated','Review']] },
+    cad: { eyebrow:'Operational visibility',title:'Dispatch with context.',description:'Respond to roleplay emergencies, assign units, inspect BOLOs and open the same CAD from Discord or your browser.',url:'https://aether.wispbyte.app/cad/',artTitle:'Active dispatch',rows:[['911 call reported','Received'],['Unit 1-Adam-12 assigned','Assigned'],['BOLO record updated','Review']] },
     moderation: { eyebrow:'Keep your community safe',title:'Moderate with clarity.',description:'Record the why behind each warning and timeout. Staff permissions and Discord role hierarchy remain enforced by the bot.',url:'/staff/',artTitle:'Moderation desk',rows:[['Rule violation reviewed','Case'],['Member warning issued','Logged'],['Staff history updated','Synced']] },
     staff: { eyebrow:'One team, one workspace',title:'Give staff their own desk.',description:'Review recent cases, use permission-checked actions, and handle assignments without losing context between Discord and the web.',url:'/staff/',artTitle:'Staff operations',rows:[['Moderator permissions','Checked'],['Recent cases','Visible'],['Staff action','Audited']] },
-    erlc: { eyebrow:'A connected private server',title:'Bring Liberty County closer.',description:'Use ER:LC API snapshots to show available player locations, 911 calls and server data while respecting API entitlements and rate limits.',url:'/cad/',artTitle:'ER:LC integration',rows:[['Player position snapshots','Timed'],['911 incidents imported','Linked'],['Liberty County map','Calibrated']] },
+    erlc: { eyebrow:'A connected private server',title:'Bring Liberty County closer.',description:'Use ER:LC API snapshots to show available player locations, 911 calls and server data while respecting API entitlements and rate limits.',url:'https://aether.wispbyte.app/cad/',artTitle:'ER:LC integration',rows:[['Player position snapshots','Timed'],['911 incidents imported','Linked'],['Liberty County map','Calibrated']] },
   };
   const tabs = document.querySelectorAll('[data-feature]');
   const setFeature = key => {
