@@ -229,6 +229,13 @@ function renderSettings(data) {
   document.querySelector('#commandSection').hidden = !data.permissions.commands;
   if (!data.permissions.manager) return;
 
+  const selectedMode = ['discord','web','hybrid'].includes(data.config?.experienceMode)
+    ? data.config.experienceMode : 'hybrid';
+  for (const radio of document.querySelectorAll('input[name="cadExperience"]')) {
+    if (!document.querySelector('.cad-interface-fieldset')?.contains(document.activeElement)) {
+      radio.checked = radio.value === selectedMode;
+    }
+  }
   const selectedDispatch = new Set(data.config?.dispatchRoleIds || []);
   const selectedCommand = new Set(data.config?.commandRoleIds || []);
   for (const [selectId, selected] of [['dispatchRoles', selectedDispatch], ['commandRoles', selectedCommand]]) {
@@ -239,6 +246,8 @@ function renderSettings(data) {
 
 function renderData(data) {
   currentData = data;
+  const mode = ['discord','web','hybrid'].includes(data.config?.experienceMode) ? data.config.experienceMode : 'hybrid';
+  document.querySelector('#cadModeIndicator').textContent = {discord:'Discord first',web:'Web CAD',hybrid:'Hybrid'}[mode];
   document.querySelector('#footerServer').textContent = data.guild.name;
   const dispatchNav = document.querySelector('[data-view="dispatch"]');
   dispatchNav.hidden = !data.permissions.dispatch;
@@ -431,10 +440,14 @@ document.querySelector('#settingsForm').addEventListener('submit', async (event)
   try {
     const result = await api(`/cad/api/guilds/${currentGuild}/settings`, {
       method: 'PUT',
-      body: JSON.stringify({ dispatchRoleIds: selectedValues('#dispatchRoles'), commandRoleIds: selectedValues('#commandRoles') }),
+      body: JSON.stringify({
+        dispatchRoleIds: selectedValues('#dispatchRoles'),
+        commandRoleIds: selectedValues('#commandRoles'),
+        experienceMode: document.querySelector('input[name="cadExperience"]:checked')?.value || 'hybrid',
+      }),
     });
     currentData.config = result.config;
-    showNotice('CAD role access saved.');
+    showNotice('CAD experience and role access saved. Your Discord commands and web CAD continue sharing one database.');
     await refreshData();
   } catch (error) { showNotice(error.message, true); }
 });
