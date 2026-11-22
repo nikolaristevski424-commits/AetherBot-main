@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, updateCadUnit, updateCadCall, createCadCall } from '../../services/cad/cadService.js';
 import { buildCadCallAnnouncement, cadModeLabel, cadWebUrl } from '../../services/cad/cadDiscordPresentation.js';
 import { findCallByReference } from '../../services/cad/dispatchCore.js';
@@ -22,6 +22,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('cad').setDescription('Aether CAD dispatch, calls, units and ER:LC map.').setDMPermission(false)
     .addSubcommand(c => c.setName('dashboard').setDescription('Open the shared CAD or use Discord commands, based on your server preference.'))
+    .addSubcommand(c => c.setName('setup').setDescription('Choose Discord, Web or Hybrid CAD with a guided setup (Manage Server).'))
     .addSubcommand(c => c.setName('interface').setDescription('View or set the server CAD experience (Manage Server to change).')
       .addStringOption(o => o.setName('mode').setDescription('Preferred CAD interface; leave blank to view current choice')
         .addChoices({name:'Discord commands and dispatch cards',value:'discord'},
@@ -86,6 +87,19 @@ export default {
       const group = interaction.options.getSubcommandGroup(false);
       if (['mdt', 'bolo', 'base'].includes(group)) {
         return await handleCadExtended(interaction, access, group, sub);
+      }
+      if (sub === 'setup') {
+        if (!access.isManager) return interaction.editReply('Only server managers can configure a CAD interface.');
+        const current=await getCadGuildConfig(interaction.guildId);
+        const row=new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('aether_cad_mode:discord').setLabel('Discord commands').setEmoji('⌨️').setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId('aether_cad_mode:web').setLabel('Web CAD').setEmoji('🖥️').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('aether_cad_mode:hybrid').setLabel('Hybrid • both').setEmoji('🔗').setStyle(ButtonStyle.Success),
+        );
+        return interaction.editReply({
+          content:`## Aether CAD • Setup\n**Current preference:** ${cadModeLabel(current.experienceMode)}\n\nChoose how your staff will normally run dispatch. **Discord and Web always share the same persistent records and role permissions**.\n\nAfter choosing, set a dispatch channel with \`/cad dispatch-channel\` and assign CAD roles using the authenticated web CAD settings.`,
+          components:[row],allowedMentions:{parse:[]}
+        });
       }
       if (sub === 'interface') {
         const selected = interaction.options.getString('mode');
