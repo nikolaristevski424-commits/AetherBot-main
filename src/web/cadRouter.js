@@ -315,13 +315,16 @@ router.get('/api/guilds/:guildId/roles', async (req, res) => {
 router.put('/api/guilds/:guildId/settings', async (req, res) => {
     const access = await requireGuild(req, res, 'manage');
     if (!access) return;
-    const { dispatchRoleIds, commandRoleIds } = req.body || {};
+    const { dispatchRoleIds, commandRoleIds, experienceMode } = req.body || {};
+    if (experienceMode !== undefined && !['discord','web','hybrid'].includes(experienceMode)) {
+        return res.status(400).json({ error: 'Choose Discord, Web or Hybrid CAD mode.' });
+    }
     const roleLists = [dispatchRoleIds, commandRoleIds];
     if (roleLists.some((list) => !Array.isArray(list) || list.length > 20 || list.some((id) => typeof id !== 'string' || !idPattern.test(id) || !isAssignableCadRole(access.guild, id)))) {
         return res.status(400).json({ error: 'Choose valid roles from this Discord server.' });
     }
     try {
-        const config = await setCadGuildConfig(req.params.guildId, { dispatchRoleIds, commandRoleIds });
+        const config = await setCadGuildConfig(req.params.guildId, { dispatchRoleIds, commandRoleIds, ...(experienceMode ? {experienceMode} : {}) });
         return res.json({ config });
     } catch {
         return res.status(500).json({ error: 'Could not save CAD role settings.' });
