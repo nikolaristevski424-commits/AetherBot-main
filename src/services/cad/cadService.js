@@ -193,6 +193,32 @@ export async function ingestErlc911Calls(guildId, rawEvents) {
     });
 }
 
+/**
+ * Assign an on-duty unit atomically alongside the call in the same guild write
+ * queue. Avoid stale snapshots overwriting other officers' assignments, or
+ * reopening a call that has already been closed on another device.
+ */
+export async function assignCadCallUnit(guildId, actor, callId, userId) {
+    return mutateState(guildId, (state) => {
+        const call = state.calls.find(entry => entry.id === callId);
+        if (!call) return null;
+        if (call.status === 'closed') throw new Error('This call was already closed.');
+        const unit = state.units.find(entry => entry.userId === userId && entry.status && entry.status !== 'off_duty');
+        if (!unit) throw new Error('The officer must be an on-duty CAD unit.');
+        const assignments = new Set(call.assignedUnitIds || []);
+        if (assignments.size >= 20 && !assignments.has(userId)) throw new Error('This call already has the maximum number of assigned units.');
+        const changed = !assignments.has(userId);
+        if (changed) {
+            assignments.add(userId);
+            call.assignedUnitIds = [...assignments];
+            call.status = 'assigned';
+            call.updatedAt = Date.now();
+            addAudit(state, actor, 'call.unit_assigned', { callId, userId });
+        }
+        return { call, changed };
+    });
+}
+
 export async function updateCadCall(guildId, actor, callId, updates) {
     return mutateState(guildId, (state) => {
         const call = state.calls.find((entry) => entry.id === callId);
