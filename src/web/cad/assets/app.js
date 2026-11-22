@@ -74,9 +74,15 @@ function showLogin(error) {
   appView.hidden = true;
   loginView.hidden = false;
   if (error) {
-    loginError.textContent = error === 'not_configured'
-      ? 'CAD sign-in has not been configured by the bot operator.'
-      : 'Discord sign-in did not complete. Please try again.';
+    const explanations = {
+      not_configured: 'CAD OAuth is not fully configured on Wispbyte. Check CLIENT_ID, CAD_DISCORD_CLIENT_SECRET, CAD_SESSION_SECRET and CAD_REDIRECT_URI.',
+      state: 'The login state cookie expired or did not match. Restart here on the same browser and hostname; avoid switching between domains mid-login.',
+      credentials: 'Discord rejected the CAD authorization. Verify the Wispbyte CAD OAuth client secret belongs to the same Discord application and the registered callback matches this domain.',
+      account: 'Discord login succeeded but the CAD could not read your account or guilds. Start again and confirm the requested permissions.',
+      denied: 'Discord authorization was cancelled. You can safely try again.',
+      login_failed: 'CAD sign-in could not finish. Check the bot console for a non-sensitive OAuth error category and retry.'
+    };
+    loginError.textContent = explanations[error] || explanations.login_failed;
     loginError.classList.add('error');
     loginError.hidden = false;
   }
