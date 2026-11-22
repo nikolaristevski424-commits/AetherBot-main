@@ -24,7 +24,7 @@ import {
     createMdtBolo, clearMdtBolo, setMdtCalibration, logBaseBulletin,
 } from '../services/cad/mdtService.js';
 import { fitMapCalibration } from '../services/cad/mdtCore.js';
-import { projectDispatchActivity } from '../services/cad/dispatchCore.js';
+import { projectDispatchActivity, projectCadGuildState } from '../services/cad/dispatchCore.js';
 import { getBaseStation, signalBaseStation } from '../services/cad/baseStationService.js';
 
 const router = express.Router();
@@ -166,7 +166,9 @@ router.get('/api/guilds/:guildId', async (req, res) => {
     if (!access) return;
     const state = await getCadState(req.params.guildId);
     const dispatchActivity = access.canDispatch ? projectDispatchActivity(state.audit) : [];
-    if (!access.isManager) state.audit = [];
+    const publicState = projectCadGuildState(state, {
+        manager: access.isManager, dispatch: access.canDispatch, commands: access.canCommand,
+    });
     const mdt = access.canDispatch ? await getMdtState(req.params.guildId) : null;
     return res.json({
         calibration: mdt?.calibration || [],
@@ -176,7 +178,7 @@ router.get('/api/guilds/:guildId', async (req, res) => {
         config: access.isManager ? access.config : null,
         cadExperienceMode: access.config.experienceMode || 'hybrid',
         dispatchActivity,
-        state,
+        state: publicState,
     });
 });
 
