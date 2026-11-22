@@ -316,3 +316,64 @@ body.header-dark>.site-header .btn-primary{color:white}
 @media(prefers-reduced-motion:reduce){
  .hero-wrap:before,.preview-shell,.art-card,.feature-card,.btn{animation:none!important;transition:none!important}
 }
+
+/* Intentional homepage proof notes */
+.hero-proof{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin-top:22px}
+.hero-proof span{display:inline-flex;align-items:center;gap:7px;font-size:10px;color:#b7c4db;font-weight:700;line-height:1.5}
+.hero-proof i{width:6px;height:6px;flex:none;border:1px solid #a9bcff;border-radius:50%;background:#7f98ff}
+/* Polished operational forms, responsive content, and truthful loading states */
+.panel-head .btn{flex-shrink:0}
+.ops-heading-actions{display:flex;align-items:center;gap:7px}
+.console-work [hidden],.panel [hidden]{display:none!important}
+.console-work .notice[hidden]{display:none!important}
+.console-banner>a:hover,.panel-head a:hover{text-decoration:underline}
+.status-grid{gap:12px}
+.status-panel{padding:24px}
+.state-text.good{color:#138461}
+.state-text.wait{color:#a77b20}
+.status-panel h3{font-size:15px;letter-spacing:-.03em}
+.status-panel p{font-size:12px;line-height:1.7}
+.form-stack label{color:var(--ux-muted)}
+.form-stack textarea{resize:vertical}
+@media(max-width:760px){.ops-heading-actions{flex-wrap:wrap}.console-banner{flex-wrap:wrap}.console-banner>a{margin-left:0;width:100%;padding-left:52px}.hero-proof{gap:8px 12px}}
+/* Companion app uses the same data-first visual language as the rest of Aether.
+   Leave application state, actions and access enforcement to companion.js. */
+html[data-theme] body:has(.companion){background:var(--ux-bg);color:var(--ux-ink)}
+html[data-theme] .companion{max-width:1250px;padding:32px 30px 80px;color:var(--ux-ink)}
+html[data-theme] .comp-head{padding-bottom:24px;margin-bottom:46px;border-bottom:1px solid var(--ux-border);align-items:center}
+html[data-theme] .comp-brand{color:var(--ux-ink);font:800 21px 'Manrope',sans-serif;letter-spacing:-.05em}
+html[data-theme] .comp-brand img{width:34px;height:34px;border-radius:8px}
+html[data-theme] .comp-head a{color:var(--ux-ink-2);font-size:12px;font-weight:800}
+html[data-theme] .comp-head a:hover{color:var(--ux-brand)}
+html[data-theme] .comp-top{gap:10px}
+html[data-theme] .comp-note{font-size:12px;line-height:1.8;color:var(--ux-muted)}
+html[data-theme] .comp-title{font:800 clamp(2.45rem,5vw,4.25rem)/1.08 'Manrope',sans-serif;letter-spacing:-.065em;color:var(--ux-ink);max-width:900px}
+html[data-theme] .comp-grid{grid-template-columns:minmax(0,1.45fr) minmax(285px,1fr);gap:14px}
+html[data-theme] .comp-panel{background:var(--ux-panel);border:1px solid var(--ux-border);border-radius:12px;padding:27px;box-shadow:none}
+html[data-theme] .comp-panel h2{font:800 18px 'Manrope',sans-serif;letter-spacing:-.035em;color:var(--ux-ink)}
+html[data-theme] .comp-stat{gap:8px;color:var(--ux-muted)}
+html[data-theme] .comp-tag{border-radius:7px;border:1px solid var(--ux-border);padding:5px 9px;color:var(--ux-ink-2);font-size:11px}
+html[data-theme] .comp-row{border-bottom:1px solid var(--ux-border);padding:13px 0;color:var(--ux-ink)}
+html[data-theme] .comp-row b{font-size:13px}
+html[data-theme] .comp-input{background:var(--ux-panel-2);color:var(--ux-ink);border:1px solid var(--ux-border);border-radius:8px;min-height:44px;padding:10px 12px;font-size:12px}
+html[data-theme] .comp-input:focus{outline:2px solid var(--ux-ring);border-color:var(--ux-brand);outline-offset:1px}
+html[data-theme] .comp-button{background:#425cf5;color:#fff;border-radius:8px;font:800 12px 'DM Sans',sans-serif;padding:11px 16px;transition:background .15s}
+html[data-theme] .comp-button:hover{background:#3147d7}
+html[data-theme] .comp-button.comp-secondary{background:var(--ux-panel-2);color:var(--ux-ink-2);border:1px solid var(--ux-border)}
+html[data-theme] .comp-button.comp-secondary:hover{border-color:var(--ux-brand)}
+html[data-theme] .comp-button.comp-danger{background:#ad3c50;color:#fff}
+html[data-theme] .comp-button.comp-danger:hover{background:#96283c}
+html[data-theme] .comp-button:disabled{opacity:.48}
+html[data-theme] .comp-status{background:var(--ux-tint);border:1px solid var(--ux-border);color:var(--ux-ink-2);border-radius:8px;padding:13px 16px;font-size:12px}
+html[data-theme] .comp-status.error{background:#351b29;color:#ffd5dc;border-color:#793f4e}
+html[data-theme="light"] .comp-status.error{background:#fff1f3;color:#903448;border-color:#f2c0c9}
+html[data-theme] .comp-panel label{color:var(--ux-muted);font-size:11px;font-weight:800;margin-top:16px}
+html[data-theme] .comp-muted,html[data-theme] .comp-footer{color:var(--ux-muted)}
+html[data-theme] .comp-footer{margin-top:34px;border-top:1px solid var(--ux-border);padding-top:24px;font-size:11px}
+@media(max-width:790px){
+ html[data-theme] .companion{padding:19px 16px 55px}
+ html[data-theme] .comp-head{margin-bottom:33px}
+ html[data-theme] .comp-title{font-size:clamp(2.25rem,8vw,3.2rem)}
+ html[data-theme] .comp-grid{grid-template-columns:1fr}
+ html[data-theme] .comp-panel{padding:20px}
+}
