@@ -14,6 +14,7 @@ const DISCORD_911_COOLDOWN_MS = 5 * 60 * 1000;
 const TRACKING_CONTINUITY_MS = 90 * 1000;
 const UNIT_STATUSES = new Set(['available', 'busy', 'on_scene', 'off_duty']);
 const writeQueues = new Map();
+const configWriteQueues = new Map();
 
 const stateKey = (guildId) => `guild:${guildId}:cad:state`;
 const configKey = (guildId) => `guild:${guildId}:cad:config`;
@@ -36,19 +37,30 @@ export async function getCadGuildConfig(guildId) {
 }
 
 export async function setCadGuildConfig(guildId, updates) {
-    const current = await getCadGuildConfig(guildId);
-    // All writes share this allowlist. Never persist arbitrary request-body keys.
+    // Serialize configuration writes too: two administrators may change the
+    // dispatch channel and interface mode at the same time.
     if (updates.experienceMode !== undefined && !CAD_EXPERIENCE_MODES.includes(updates.experienceMode)) {
         throw new Error('CAD experience must be Discord, Web, or Hybrid.');
     }
-    const config = {
-        dispatchRoleIds: updates.dispatchRoleIds ?? current.dispatchRoleIds ?? [],
-        commandRoleIds: updates.commandRoleIds ?? current.commandRoleIds ?? [],
-        dispatchChannelId: updates.dispatchChannelId ?? current.dispatchChannelId ?? null,
-        experienceMode: updates.experienceMode ?? current.experienceMode ?? 'hybrid',
-    };
-    if (!await setInDb(configKey(guildId), config)) throw new Error('Could not save CAD settings.');
-    return config;
+    const previous = configWriteQueues.get(guildId) || Promise.resolve();
+    let release;
+    const current = new Promise(resolve => { release = resolve; });
+    configWriteQueues.set(guildId, current);
+    await previous;
+    try {
+        const existing = await getCadGuildConfig(guildId);
+        const config = {
+            dispatchRoleIds: updates.dispatchRoleIds ?? existing.dispatchRoleIds ?? [],
+            commandRoleIds: updates.commandRoleIds ?? existing.commandRoleIds ?? [],
+            dispatchChannelId: updates.dispatchChannelId ?? existing.dispatchChannelId ?? null,
+            experienceMode: updates.experienceMode ?? existing.experienceMode ?? 'hybrid',
+        };
+        if (!await setInDb(configKey(guildId), config)) throw new Error('Could not save CAD settings.');
+        return config;
+    } finally {
+        release();
+        if (configWriteQueues.get(guildId) === current) configWriteQueues.delete(guildId);
+    }
 }
 
 function normalizeState(value) {
