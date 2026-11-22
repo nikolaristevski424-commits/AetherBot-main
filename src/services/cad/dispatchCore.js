@@ -57,3 +57,24 @@ export function findCallByReference(calls, reference) {
   const matches = calls.filter(call => typeof call.id === 'string' && call.id.toLowerCase().startsWith(id));
   return matches.length === 1 ? matches[0] : null;
 }
+
+/**
+ * A non-sensitive, bounded dispatcher timeline. Never return arbitrary audit
+ * details: they can include staff-only commands, targets or other metadata.
+ */
+export function projectDispatchActivity(audit, limit = 20) {
+  if (!Array.isArray(audit)) return [];
+  const visible = new Set([
+    'call.created', 'call.updated', 'call.closed', 'call.unit_assigned',
+    '911.discord_reported', '911.ingame_imported',
+  ]);
+  const safeLimit = Number.isInteger(limit) ? Math.max(1, Math.min(limit, 30)) : 20;
+  return audit.filter(item => item && visible.has(item.action))
+    .slice(-safeLimit).reverse().map(item => ({
+      id: typeof item.id === 'string' ? item.id : null,
+      action: item.action,
+      at: Number.isFinite(item.at) ? item.at : null,
+      actorName: String(item.actorName || 'CAD').slice(0, 80),
+      callId: typeof item.details?.callId === 'string' ? item.details.callId.slice(0, 8).toUpperCase() : null,
+    }));
+}
