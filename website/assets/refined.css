@@ -470,3 +470,11 @@ body.header-dark>.site-header.sticky{box-shadow:0 12px 34px #0206173d}
  .hero-wrap:before,.hero-copy,.hero-showcase{animation:none!important}
  .reveal,.feature-card,.preview-shell,.item-row,.btn,.nav-links a{transition:none!important}
 }
+
+/* CAD external destination is a primary product route, not an internal mirror. */
+.nav-links a.nav-cad-link{display:inline-flex;align-items:center;gap:5px;color:var(--ux-brand);font-weight:800}
+.nav-links a.nav-cad-link span{font-size:13px;line-height:1;transition:transform .2s ease}
+.nav-links a.nav-cad-link:hover span{transform:translate(2px,-2px)}
+body.header-dark>.site-header .nav-links a.nav-cad-link{color:#b3c5ff}
+body.header-dark>.site-header .nav-links a.nav-cad-link:hover{color:#fff}
+@media(prefers-reduced-motion:reduce){.nav-links a.nav-cad-link span{transition:none}.nav-links a.nav-cad-link:hover span{transform:none}}
