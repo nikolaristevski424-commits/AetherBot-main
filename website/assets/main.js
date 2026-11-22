@@ -18,10 +18,15 @@
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
   } else document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
   const header = document.querySelector('#siteHeader');
-  if (header && header.closest('.hero-wrap')) {
+  if (header) {
     const update = () => header.classList.toggle('sticky', window.scrollY > 20);
     window.addEventListener('scroll', update, { passive: true }); update();
   }
+  // Give existing content reveals a subtle editorial rhythm without timers or
+  // repeated animations. The visibility observer respects reduced-motion.
+  document.querySelectorAll('.feature-card,.timeline .step,.status-panel').forEach((card,index)=>{
+    card.style.setProperty('--aether-enter-delay',Math.min(index%6*65,325)+'ms');
+  });
   const featureModules = {
     cad: { eyebrow:'Operational visibility',title:'Dispatch with context.',description:'Respond to roleplay emergencies, assign units, inspect BOLOs and open the same CAD from Discord or your browser.',url:'https://aether.wispbyte.app/cad/',artTitle:'Active dispatch',rows:[['911 call reported','Received'],['Unit 1-Adam-12 assigned','Assigned'],['BOLO record updated','Review']] },
     moderation: { eyebrow:'Keep your community safe',title:'Moderate with clarity.',description:'Record the why behind each warning and timeout. Staff permissions and Discord role hierarchy remain enforced by the bot.',url:'/staff/',artTitle:'Moderation desk',rows:[['Rule violation reviewed','Case'],['Member warning issued','Logged'],['Staff history updated','Synced']] },
