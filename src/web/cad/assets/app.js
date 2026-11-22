@@ -110,7 +110,8 @@ function renderCalls(calls) {
   const query = document.querySelector('#callSearch').value.trim().toLowerCase();
   const filteredCalls = calls.filter((call) => {
     if (currentCallFilter === 'active' && call.status === 'closed') return false;
-    if (currentCallFilter !== 'active' && call.status !== currentCallFilter) return false;
+    if (currentCallFilter === 'urgent' && (call.status === 'closed' || call.priority !== 'urgent')) return false;
+    if (!['active', 'urgent'].includes(currentCallFilter) && call.status !== currentCallFilter) return false;
     if (!query) return true;
     return [call.title, call.location, call.details, call.createdByName, ...(call.assignedUnitIds || [])]
       .some((value) => String(value || '').toLowerCase().includes(query));
@@ -456,6 +457,7 @@ document.querySelector('#callFilters').addEventListener('click', (event) => {
   currentCallFilter = button.dataset.filter;
   for (const filterButton of document.querySelectorAll('.filter-button')) {
     filterButton.classList.toggle('active', filterButton === button);
+    filterButton.setAttribute('aria-pressed', String(filterButton === button));
   }
   renderCalls(currentData?.state.calls || []);
 });
