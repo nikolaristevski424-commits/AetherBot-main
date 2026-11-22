@@ -162,3 +162,52 @@ body{letter-spacing:-.007em}
  .btn,.feature-card,.cad-example,.cad-choice-tab,.guide-choice,.reveal{transition:none!important;animation:none!important;transform:none!important}
  .reveal{opacity:1!important;visibility:visible!important}
 }
+
+/* Motion polish: tactile surfaces, no perpetual bouncing or counterfeit telemetry. */
+.feature-card:hover,
+.guide-choice:hover{
+ background-image:radial-gradient(340px circle at var(--pointer-x,50%) var(--pointer-y,50%),
+   color-mix(in srgb,var(--ux-brand) 8%,transparent),transparent 70%);
+}
+.cad-choice-wrap:hover .cad-choice-left{
+ box-shadow:inset 0 0 0 1px #8399f02b,0 18px 50px #030c1d1f;
+ transition:box-shadow .35s var(--motion-soft);
+}
+.cad-choice-tab.active{
+ box-shadow:inset 3px 0 0 #a0b5ff,0 5px 18px #09172d2b;
+}
+.cad-choice-tab:focus-visible{
+ outline:3px solid #bed0ff;
+ outline-offset:3px;
+}
+.cad-samples .cad-example{
+ animation:aether-preview-arrive .52s var(--motion-soft) both;
+}
+.cad-samples .cad-example:nth-child(2){animation-delay:.085s}
+.cad-choice-copy h3,
+.cad-choice-copy>p:not(.cad-overline):not(.cad-choice-note){
+ transition:color .22s ease;
+}
+.guide-step,.guide-choice{
+ transition:transform .35s var(--motion-soft),box-shadow .35s var(--motion-soft),border-color .2s;
+}
+.guide-step:hover,.guide-choice:hover{
+ transform:translateY(-4px);
+ box-shadow:0 16px 38px #101d3d12;
+}
+.hero-ctas .btn:focus-visible,.cad-choice-actions .btn:focus-visible{
+ outline:3px solid #a6bcff;outline-offset:3px;
+}
+@keyframes aether-preview-arrive{
+ from{opacity:.5;transform:translateY(10px) scale(.985)}
+ to{opacity:1;transform:translateY(0) scale(1)}
+}
+@media(prefers-reduced-motion:reduce){
+ .cad-samples .cad-example{animation:none!important}
+ .guide-step,.guide-choice,.cad-choice-wrap .cad-choice-left{transition:none!important}
+ .guide-step:hover,.guide-choice:hover{transform:none!important}
+}
+@media(pointer:coarse){
+ .feature-card:hover,.guide-choice:hover{background-image:none}
+ .cad-samples .cad-example{animation:none}
+}
