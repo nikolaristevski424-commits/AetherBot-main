@@ -315,11 +315,12 @@ async function handleAction(action) {
       await api(`/cad/api/guilds/${currentGuild}/calls/${callId}`, { method: 'PATCH', body: JSON.stringify({ status: 'closed' }) });
     } else if (target.dataset.action === 'assign-me') {
       const units = currentData.state.units || [];
-      if (!units.some((unit) => unit.userId === currentUser.id)) throw new Error('Set your unit status before assigning calls.');
-      const call = currentData.state.calls.find((entry) => entry.id === callId);
+      if (!units.some(unit => unit.userId === currentUser.id && unit.status && unit.status !== 'off_duty')) {
+        throw new Error('Set an on-duty status before assigning yourself to a call.');
+      }
       await api(`/cad/api/guilds/${currentGuild}/calls/${callId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'assigned', assignedUnitIds: [...new Set([...(call?.assignedUnitIds || []), currentUser.id])] }),
+        body: JSON.stringify({ addAssignedUnitId: currentUser.id }),
       });
     } else if (target.dataset.action === 'reopen-call') {
       await api(`/cad/api/guilds/${currentGuild}/calls/${callId}`, { method: 'PATCH', body: JSON.stringify({ status: 'open' }) });
