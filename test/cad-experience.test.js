@@ -160,3 +160,18 @@ test('dispatch buttons recheck current guild roles and reject revoked staff acce
  await close.execute(manager.interaction,client,[caseItem.id]);
  assert.equal((await cad.getCadState(guildId)).calls[0].status,'closed');
 });
+
+test('simultaneous CAD configuration edits preserve roles, channel and preferred interface',async()=>{
+ const id='51000000000000040';
+ await Promise.all([
+   cad.setCadGuildConfig(id,{experienceMode:'discord'}),
+   cad.setCadGuildConfig(id,{dispatchChannelId:'51000000000000041'}),
+   cad.setCadGuildConfig(id,{dispatchRoleIds:['51000000000000042']}),
+   cad.setCadGuildConfig(id,{commandRoleIds:['51000000000000043']}),
+ ]);
+ const config=await cad.getCadGuildConfig(id);
+ assert.equal(config.experienceMode,'discord');
+ assert.equal(config.dispatchChannelId,'51000000000000041');
+ assert.deepEqual(config.dispatchRoleIds,['51000000000000042']);
+ assert.deepEqual(config.commandRoleIds,['51000000000000043']);
+});
