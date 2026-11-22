@@ -161,3 +161,9 @@ The Wispbyte Subdomains panel has assigned the Aether application `aether.wispby
 - The website's `/api/status` now checks both endpoints on each status refresh and reports **HTTPS reachability**, **Discord/database readiness**, and the current process uptime since the last restart. This is a snapshot, not 24/7 history or an uptime percentage.
 - A true historical uptime chart/percentage requires scheduled probes and durable external storage. Never infer a 30-day uptime percentage from one request.
 - `AETHER_BRIDGE_SECRET` is a random 32+-character signing secret. Generate it once, store the **exact same value** on Vercel and Wispbyte, and never put it in website source, GitHub, browser code or support tickets.
+
+## Design refresh — Aether Studio UI (November 2026)
+The design-only `website/assets/refined.css` layer is imported *after* `site.css` and `theme.css` on all 14 site pages. It keeps original templates and form/JS IDs in place while giving the pages a consistent visual system: editorial dark product homepage, navy operations rail, deliberate card density, typography, accessible forms, responsive layouts, and coordinated light/dark palettes.
+The homepage remains explicitly **illustrative** (not fake live usage statistics); the authenticated CAD and staff modules still request real data and preserve all original permission checks.
+The installable ER:LC companion PWA caches the refined design layer with a bumped service-worker version. No client-side bridge keys or tokens are added.
+Review layout at desktop, laptop and narrow mobile widths with both theme modes; inspect loaded UI while authenticated as an authorized staff member. Automated HTML/DOM-contract tests are in `website/tests/design-integrity.test.js`.
