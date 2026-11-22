@@ -246,7 +246,7 @@ function renderSettings(data) {
 
 function renderData(data) {
   currentData = data;
-  const mode = ['discord','web','hybrid'].includes(data.config?.experienceMode) ? data.config.experienceMode : 'hybrid';
+  const mode = ['discord','web','hybrid'].includes(data.cadExperienceMode) ? data.cadExperienceMode : 'hybrid';
   document.querySelector('#cadModeIndicator').textContent = {discord:'Discord first',web:'Web CAD',hybrid:'Hybrid'}[mode];
   document.querySelector('#footerServer').textContent = data.guild.name;
   const dispatchNav = document.querySelector('[data-view="dispatch"]');
