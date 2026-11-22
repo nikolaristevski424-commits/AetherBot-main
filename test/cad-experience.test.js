@@ -72,3 +72,43 @@ test('civilian and BOLO embeds distinguish warning from ordinary records',()=>{
  assert.deepEqual(alert.allowedMentions,{parse:[]});
  assert.equal(alert.components.length,1);
 });
+
+test('concurrent field responses retain both officers and never reopen a closed incident',async()=>{
+ const guildId='51000000000000016';
+ const officerA={id:'51000000000000017',username:'Alpha'};
+ const officerB={id:'51000000000000018',username:'Bravo'};
+ const supervisor={id:'51000000000000019',username:'Dispatcher'};
+ await cad.updateCadUnit(guildId,officerA,{callsign:'1-Adam-12',status:'available'});
+ await cad.updateCadUnit(guildId,officerB,{callsign:'2-Adam-03',status:'on_scene'});
+ const call=await cad.createCadCall(guildId,supervisor,{title:'Roleplay traffic stop',location:'Postal 104',details:'In-game call',priority:'normal'});
+ const assigned=await Promise.all([
+   cad.assignCadCallUnit(guildId,officerA,call.id,officerA.id),
+   cad.assignCadCallUnit(guildId,officerB,call.id,officerB.id)
+ ]);
+ assert.equal(assigned.every(x=>x.changed),true);
+ const shared=(await cad.getCadState(guildId)).calls.find(x=>x.id===call.id);
+ assert.deepEqual(new Set(shared.assignedUnitIds),new Set([officerA.id,officerB.id]));
+ assert.equal(shared.status,'assigned');
+ const duplicate=await cad.assignCadCallUnit(guildId,officerA,call.id,officerA.id);
+ assert.equal(duplicate.changed,false);
+ const closed=await cad.closeCadCall(guildId,supervisor,call.id);
+ assert.equal(closed.changed,true);
+ const repeat=await cad.closeCadCall(guildId,supervisor,call.id);
+ assert.equal(repeat.changed,false);
+ await assert.rejects(cad.assignCadCallUnit(guildId,officerB,call.id,officerB.id),/already closed/);
+ const finalState=await cad.getCadState(guildId);
+ const finalCall=finalState.calls.find(x=>x.id===call.id);
+ assert.equal(finalCall.status,'closed');
+ assert.equal(finalCall.assignedUnitIds.length,2);
+ assert.equal(finalState.audit.filter(x=>x.action==='call.unit_assigned').length,2);
+ assert.equal(finalState.audit.filter(x=>x.action==='call.closed').length,1);
+});
+test('off-duty or nonregistered units cannot join active incidents',async()=>{
+ const guildId='51000000000000020';
+ const officer={id:'51000000000000021',username:'Offline officer'};
+ const call=await cad.createCadCall(guildId,officer,{title:'Roleplay case',location:'Postal 205',details:'',priority:'normal'});
+ await assert.rejects(cad.assignCadCallUnit(guildId,officer,call.id,officer.id),/on-duty/);
+ await cad.updateCadUnit(guildId,officer,{callsign:'2-Lincoln-4',status:'off_duty'});
+ await assert.rejects(cad.assignCadCallUnit(guildId,officer,call.id,officer.id),/on-duty/);
+ assert.deepEqual((await cad.getCadState(guildId)).calls[0].assignedUnitIds,[]);
+});
