@@ -219,6 +219,20 @@ export async function assignCadCallUnit(guildId, actor, callId, userId) {
     });
 }
 
+/** Close once; preserves the final state if two dispatch interfaces act at once. */
+export async function closeCadCall(guildId, actor, callId) {
+    return mutateState(guildId, (state) => {
+        const call = state.calls.find(entry => entry.id === callId);
+        if (!call) return null;
+        if (call.status === 'closed') return { call, changed: false };
+        call.status = 'closed';
+        call.closedAt = Date.now();
+        call.updatedAt = call.closedAt;
+        addAudit(state, actor, 'call.closed', { callId });
+        return { call, changed: true };
+    });
+}
+
 export async function updateCadCall(guildId, actor, callId, updates) {
     return mutateState(guildId, (state) => {
         const call = state.calls.find((entry) => entry.id === callId);
