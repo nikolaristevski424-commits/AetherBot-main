@@ -251,3 +251,73 @@ tbody tr:last-child td { border-bottom: 0; }
   .login-panel h1 { font-size: 56px; }
   .login-mark { min-height: 28vh; font-size: 145px; }
 }
+/* Aether CAD visual alignment with the public brand.
+   This supplements the original CAD rules without changing its workflows. */
+:root{
+ --ink:#17233d;--muted:#65738a;--line:#dfe5f0;--paper:#f5f7fb;--white:#fff;
+ --forest:#101827;--forest-soft:#233452;
+ --aether-primary:#4a64eb;--aether-secondary:#6b83ef;--aether-accent:#aec2ff;
+ --green-deep:#1c7c5d;--blue:#3c5fd0;
+ --font:Inter,"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+}
+body{background:var(--paper);line-height:1.52;-webkit-font-smoothing:antialiased}
+a,button,input,select,textarea{accent-color:var(--aether-primary)}
+a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #7895ff;outline-offset:3px}
+.rail{background:#0e1727;border-right:1px solid #2d3c55}
+.wordmark{border-radius:10px;background:#243557;border:1px solid #405783;box-shadow:0 8px 26px #030a1933}
+.wordmark:hover{background:#31466d}
+.rail-nav{gap:8px}
+.rail-link{border-radius:9px;min-height:60px;transition:background .18s,color .18s,transform .18s}
+.rail-link:hover{transform:translateY(-1px);background:#253650}
+.rail-link.active{background:#283c63;color:#f5f8ff;box-shadow:inset 3px 0 0 #8facff}
+.rail-link.active .rail-icon{color:#bcd0ff}
+.topbar{background:#ffffffed;backdrop-filter:blur(14px);border-color:var(--line)}
+.topbar:before{height:2px;background:linear-gradient(90deg,#405ee8,#8299f9,transparent)}
+.breadcrumb{letter-spacing:.08em}
+.breadcrumb strong{color:#17233a}
+.sync-state .status-dot.ready{box-shadow:0 0 0 4px #2e98651b}
+.content-wrap{max-width:1660px;margin-inline:auto;width:100%}
+.page-heading h1{letter-spacing:-.052em}
+.page-heading .eyebrow{letter-spacing:.14em}
+.metric-strip{gap:11px}
+.metric{border:1px solid var(--line);background:#fff;border-radius:10px;box-shadow:none;transition:border-color .2s,box-shadow .2s}
+.metric:hover{border-color:#b2c2ed;box-shadow:0 12px 28px #1e325414}
+.section-block,.mdt-panel{border:1px solid var(--line);border-radius:11px;background:#fff;box-shadow:none}
+.section-heading h2,.mdt-panel h2{letter-spacing:-.035em}
+.call-list,.unit-list{gap:8px}
+.call-item,.unit-item{border-radius:9px;transition:border-color .18s,background .18s}
+.call-item:hover,.unit-item:hover{border-color:#96aaf1}
+.search-field input,.unit-form input,.unit-form select,.server-select-wrap select{border-radius:8px;border-color:#d4dceb}
+.search-field input:focus,.unit-form input:focus,.unit-form select:focus{outline:2px solid #819bf955;outline-offset:1px;border-color:#5b7deb}
+.button,.filter-button,.icon-button{border-radius:8px;transition:background .18s,color .18s,transform .18s,border-color .18s}
+.button:hover,.icon-button:hover{transform:translateY(-1px)}
+.button-primary{background:#4963e9;color:#fff;border-color:#4963e9}
+.button-primary:hover{background:#3654d8}
+.button-secondary{color:#2945a8;border-color:#c8d4f3;background:#f4f6ff}
+.button-secondary:hover{background:#e8eeff}
+.notice{border-radius:9px}
+.login-view{background:radial-gradient(ellipse at 75% 40%,#2b3970 0%,transparent 54%),#0e1729}
+.login-panel{background:#f8faff;padding:clamp(30px,8vw,104px)}
+.login-panel h1{font-size:clamp(56px,7vw,93px);line-height:1;letter-spacing:-.07em}
+.login-panel .eyebrow{letter-spacing:.15em;color:#4566d9}
+.login-copy{font-size:15px;color:#65748d;line-height:1.75}
+.login-mark{position:relative;isolation:isolate;color:#9db5ff;font-size:clamp(180px,24vw,340px);font-weight:900;text-shadow:0 17px 70px #090c30}
+.login-mark:before{content:'';position:absolute;width:min(74%,500px);aspect-ratio:1;border-radius:50%;border:1px solid #a6bbff55;box-shadow:0 0 0 28px #7796f70b,0 0 0 64px #6179ec06;transform:rotate(-23deg);z-index:-1}
+.login-mark:after{content:'';position:absolute;width:min(75%,520px);height:28%;border-radius:50%;border:7px solid #ac9dff77;transform:rotate(-23deg);z-index:1;pointer-events:none}
+.cad-login-meta{margin-top:24px;max-width:320px;font-size:11px;color:#7788a3;line-height:1.7}
+.cad-login-links{display:flex;flex-wrap:wrap;gap:13px;margin-top:18px}
+.cad-login-links a{font-size:12px;color:#4b65d8;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.cad-login-links a:hover{color:#253d9c}
+@media(max-width:900px){.topbar{padding:0 20px}.content-wrap{padding-inline:18px}.login-mark{font-size:170px}}
+@media(max-width:640px){
+ .topbar{height:auto;min-height:64px;padding:10px 12px}
+ .topbar-actions{gap:9px;flex-wrap:wrap}
+ .server-select-wrap{min-width:0}
+ .server-select-wrap select{max-width:160px}
+ .rail{background:#0d1728;border-color:#354764}
+ .rail-link{border-radius:8px}
+ .login-view{grid-template-columns:1fr}
+ .login-mark{display:none}
+ .login-panel{min-height:100vh;padding:45px 25px}
+}
+@media(prefers-reduced-motion:reduce){.rail-link,.button,.icon-button,.metric,.call-item,.unit-item{transition:none!important}.rail-link:hover,.button:hover,.icon-button:hover{transform:none}}
