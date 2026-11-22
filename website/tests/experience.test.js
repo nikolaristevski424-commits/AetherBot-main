@@ -59,3 +59,18 @@ test('command directory offers real search, category controls and accurate resul
  assert.match(js,/card\.hidden/);
  assert.match(js,/aria-pressed/);
 });
+
+test('navigation and animations are keyboard accessible and respect reduced motion',()=>{
+ const main=read('assets/main.js');
+ const css=read('assets/experience.css');
+ const motion=read('assets/experience.js');
+ assert.match(main,/e\.key === 'Escape'/);
+ assert.match(main,/menu\?\.focus\(\)/);
+ assert.match(main,/requestAnimationFrame\(update\)/);
+ assert.match(css,/--page-progress/);
+ assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
+ assert.match(motion,/prefers-reduced-motion: reduce/);
+ assert.match(motion,/pointer: fine/);
+ assert.match(motion,/requestAnimationFrame/);
+ assert.match(motion,/cancelAnimationFrame/);
+});
