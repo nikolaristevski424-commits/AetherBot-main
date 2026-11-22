@@ -1,5 +1,5 @@
 import { MessageFlags } from 'discord.js';
-import { getCadGuildAccess, getCadState, getCadGuildConfig, updateCadCall } from '../../../services/cad/cadService.js';
+import { getCadGuildAccess, getCadGuildConfig, assignCadCallUnit, closeCadCall } from '../../../services/cad/cadService.js';
 import { buildCadCallAnnouncement } from '../../../services/cad/cadDiscordPresentation.js';
 
 const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -12,24 +12,19 @@ async function act(interaction, client, [id], action) {
     // Re-evaluate Discord roles for every button click, not when the alert was sent.
     const access = await getCadGuildAccess(client, interaction.user.id, interaction.guildId);
     if (!access?.canDispatch) return interaction.editReply('A dispatch role or Manage Server permission is required.');
-    const state = await getCadState(interaction.guildId);
-    const call = state.calls.find(entry => entry.id === id);
-    if (!call) return interaction.editReply('This roleplay call no longer exists.');
-    if (call.status === 'closed') return interaction.editReply('This roleplay call is already closed.');
     const actor = { id: interaction.user.id, username: interaction.user.username };
-    let patch;
+    let result;
     if (action === 'respond') {
-      const unit = state.units.find(entry => entry.userId === actor.id && entry.status !== 'off_duty');
-      if (!unit) return interaction.editReply('Register as an on-duty officer using `/cad unit` before responding.');
-      patch = { status: 'assigned', assignedUnitIds: [...new Set([...(call.assignedUnitIds || []), actor.id])] };
+      result = await assignCadCallUnit(interaction.guildId, actor, id, actor.id);
     } else {
-      // Closing a call is reserved for a server manager. Any on-duty dispatcher
-      // can respond, but arbitrary responders cannot dismiss other people's calls.
-      if (!access.isManager) return interaction.editReply('Only server managers can close a call from the Discord alert. Dispatchers can use their CAD role to respond.');
-      patch = { status: 'closed' };
+      if (!access.isManager) return interaction.editReply('Only server managers can close a call from a Discord alert. Dispatchers can still respond.');
+      result = await closeCadCall(interaction.guildId, actor, id);
     }
-    const updated = await updateCadCall(interaction.guildId, actor, id, patch);
-    if (!updated) return interaction.editReply('The call could not be found or updated.');
+    if (!result) return interaction.editReply('This roleplay call no longer exists.');
+    if (!result.changed) return interaction.editReply(action === 'respond'
+      ? 'You are already assigned to this roleplay call.'
+      : 'This roleplay call has already been closed.');
+    const updated = result.call;
     const config = await getCadGuildConfig(interaction.guildId);
     // Always persist the update first. The channel message is an optional view.
     if (interaction.message?.editable) {
