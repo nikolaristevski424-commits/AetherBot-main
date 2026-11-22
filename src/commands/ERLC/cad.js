@@ -142,7 +142,7 @@ export default {
         if(channel?.isTextBased?.() && channel.send){
           await channel.send(buildCadCallAnnouncement(call, config)).catch(()=>{});
         }
-        return interaction.editReply(`🚨 **Panic submitted** • #${call.id.slice(0,8).toUpperCase()} • ${call.location}\nDispatch has a new urgent roleplay call. Real emergency? Call local emergency services.`);
+        return interaction.editReply(`🚨 **Panic submitted** • #${call.id.slice(0,8).toUpperCase()} • ${call.location}\nThe urgent call was saved in CAD. The dispatch channel is notified when configured and accessible. This is roleplay only; contact local emergency services for real emergencies.`);
       }
       if (sub === 'dashboard' || sub === 'map') {
         const current=await getCadGuildConfig(interaction.guildId);
