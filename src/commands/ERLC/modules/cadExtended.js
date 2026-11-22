@@ -4,7 +4,7 @@ import {
   getMdtState,searchMdt,createMdtRecord,archiveMdtRecord,createMdtBolo,clearMdtBolo,logBaseBulletin,
 } from '../../../services/cad/mdtService.js';
 import { isBoloActive } from '../../../services/cad/mdtCore.js';
-import { buildMdtLookupEmbeds, cadModeLabel, cadWebUrl } from '../../../services/cad/cadDiscordPresentation.js';
+import { buildMdtLookupEmbeds, buildBoloAlert, cadModeLabel } from '../../../services/cad/cadDiscordPresentation.js';
 import {
   joinBaseStation,leaveBaseStation,getBaseStation,signalBaseStation,
 } from '../../../services/cad/baseStationService.js';
@@ -82,7 +82,7 @@ export async function handleCadExtended(interaction,access,group,sub){
       const station=await getCadGuildConfig(guildId);
       if(station.dispatchChannelId){
         const channel=await interaction.guild.channels.fetch(station.dispatchChannelId).catch(()=>null);
-        if(channel?.isTextBased())await channel.send({content:`🚨 **ROLEPLAY BOLO** (${bolo.kind}) · **${brief(bolo.subject)}**\n${brief(bolo.details)}${bolo.location?'\nLast seen: '+brief(bolo.location):''}\nRef: ${fmt(bolo.id)}`,allowedMentions:{parse:[]}}).catch(()=>{});
+        if(channel?.isTextBased() && channel.send)await channel.send(buildBoloAlert(bolo,station)).catch(()=>{});
       }
       await signalBaseStation(guildId);
       return interaction.editReply(`✅ Roleplay BOLO **${fmt(bolo.id)}** issued; expires in ${Math.ceil((bolo.expiresAt-Date.now())/3_600_000)} hours.`);
