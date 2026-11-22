@@ -1,8 +1,8 @@
-import { loginReady, configuredOrigin, cookieNames, seal, setCookie, newNonce, authResponse } from '../../lib/auth.js';
+import { loginReady, configuredOrigin, cookieNames, seal, setCookie, newNonce, authResponse, loginDestinations } from '../../lib/auth.js';
 export default function handler(req, res) {
   if (req.method !== 'GET') return authResponse(res, 405, { error: 'Method not allowed' });
   if (!loginReady()) return res.writeHead(302, { Location: '/login/?error=not-configured', 'Cache-Control': 'no-store' }).end();
-  const next = ['/dashboard/', '/cad/', '/staff/'].includes(req.query?.next) ? req.query.next : '/dashboard/';
+  const next = loginDestinations.includes(req.query?.next) ? req.query.next : '/dashboard/';
   // OAuth state is scoped to a hostname. Always initiate the flow on the
   // canonical production host, even when someone opens a Vercel alias.
   const origin = configuredOrigin();

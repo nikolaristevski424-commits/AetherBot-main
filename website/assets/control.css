@@ -1,0 +1,48 @@
+.control{background:#0e1022;color:#eef0ff;min-height:100vh}
+.control .container{width:min(1100px,calc(100% - 2rem));margin-inline:auto}
+.control-header{border-bottom:1px solid #303451;background:#12152c}
+.control-nav{display:flex;gap:.75rem 1.3rem;align-items:center;flex-wrap:wrap;padding-block:.8rem}
+.control-nav a{color:#e1e5ff;text-decoration:none;min-height:42px;display:inline-flex;align-items:center}
+.control-nav .brand{margin-inline-end:auto;gap:.5rem}
+.control-main{padding-block:clamp(2rem,8vw,6rem)}
+.control-hero{position:relative;margin-bottom:2rem;animation:aether-enter .55s both}
+.control-hero h1{font-size:clamp(2.25rem,8vw,5.1rem);line-height:1.04;letter-spacing:-.045em;color:#f3f1ff;margin:0 0 .75rem}
+.control-hero p,.control-card p,.control-card small{color:#bbc3e4;overflow-wrap:anywhere}
+.control-hero p{max-width:55ch;font-size:1.12rem}
+.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1rem}
+.control-wide{grid-column:1/-1}
+.control-card{border:1px solid #353a61;border-radius:1rem;background:linear-gradient(145deg,#1b2040,#151832);padding:clamp(1rem,4vw,1.6rem);min-width:0}
+.control-card h2{color:#f3f1ff;margin:0 0 .65rem;font-size:1.4rem}
+.control-card h3{color:#f3f1ff;overflow-wrap:anywhere}
+.control-form,.control-list{display:grid;gap:.7rem;margin-top:.9rem}
+.control-form label{display:grid;gap:.25rem;font-weight:600;min-width:0}
+.control-form input:not([type=checkbox]),.control-form textarea,.control-form select{width:100%;min-width:0;min-height:44px;padding:.55rem .75rem;border:1px solid #737eab;border-radius:.55rem;background:#11152e;color:#fff;font:inherit}
+.control-form .control-check{display:flex;align-items:center;gap:.5rem;min-height:44px}
+.control-form button{justify-self:start;cursor:pointer;min-height:44px}
+.control-actions,.control-row,.control-row-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.control-row{border-bottom:1px solid #353a61;padding:.55rem 0;justify-content:space-between;overflow-wrap:anywhere}
+.control-row button,.control-row a{min-height:44px}
+.control-form [disabled]{opacity:.7}
+.control p[role=status],.control-list[role=status]{min-height:1.5rem}
+.control-card p+p{margin-top:.75rem}.control-post{white-space:pre-wrap;overflow-wrap:anywhere}
+.control a:focus-visible,.control button:focus-visible,.control input:focus-visible,.control select:focus-visible,.control textarea:focus-visible,#guildSetup :focus-visible{outline:3px solid #b5b8ff;outline-offset:3px}
+#guildSetup{margin-block:1rem}
+#guildSetup .control-grid{margin-top:1rem}
+#guildSetup .control-card{color:#eef0ff}
+.protection-grid{margin-block:1.5rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))}
+.protection-grid .control-card{animation:aether-enter .6s both;transition:transform .2s,border-color .2s}
+.protection-grid .control-card:nth-child(2){animation-delay:.09s}.protection-grid .control-card:nth-child(3){animation-delay:.18s}
+.protection-grid .control-card:focus-within,.protection-grid .control-card:hover{border-color:#8d99ee}
+.protection-signal,.protection-audit,.protection-lock{height:3rem;display:flex;gap:6px;align-items:end;color:#b5b8ff;margin-bottom:1rem}
+.protection-signal i{width:8px;height:1rem;background:#8d99ee;border-radius:5px;animation:aether-bars .6s both}
+.protection-signal i:nth-child(2n){height:1.65rem}.protection-signal i:nth-child(5){height:2.55rem}.protection-signal i:nth-child(6){height:2.95rem}
+.protection-audit{flex-direction:column;align-items:start;justify-content:center}.protection-audit i{width:52px;height:4px;background:#8d99ee;border-radius:5px}.protection-audit i:nth-child(2){width:32px}.protection-lock{font-size:2.7rem}
+@keyframes aether-enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes aether-bars{from{transform:scaleY(.2);transform-origin:bottom}to{transform:scaleY(1)}}
+@media(prefers-reduced-motion:reduce){.control-hero,.protection-grid .control-card,.protection-signal i{animation:none;transition:none}}
+@media(max-width:550px){.control-nav{gap:0 .8rem}.control-nav .brand{flex-basis:100%}.control-nav a{font-size:.93rem}}
+
+
+.control-grid[hidden]{display:none}
+
+.protection-preview{margin-bottom:1rem}.protection-preview-detail{min-height:6rem;border-left:3px solid #8d99ee;padding:.75rem 1rem;margin-top:1rem}.protection-preview button[aria-pressed=true]{background:#b5b8ff;color:#141733}

@@ -28,5 +28,134 @@
         }
       ]
     }
+  ],
+  "buildCommand": "node build-static.js",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/page.js": {
+      "includeFiles": "{index.html,**/index.html}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/page?page=home"
+    },
+    {
+      "source": "/index.html",
+      "destination": "/api/page?page=home"
+    },
+    {
+      "source": "/team/panel/",
+      "destination": "/api/page?page=team-panel"
+    },
+    {
+      "source": "/team/panel/index.html",
+      "destination": "/api/page?page=team-panel"
+    },
+    {
+      "source": "/features/",
+      "destination": "/api/page?page=features"
+    },
+    {
+      "source": "/features/index.html",
+      "destination": "/api/page?page=features"
+    },
+    {
+      "source": "/commands/",
+      "destination": "/api/page?page=commands"
+    },
+    {
+      "source": "/commands/index.html",
+      "destination": "/api/page?page=commands"
+    },
+    {
+      "source": "/docs/",
+      "destination": "/api/page?page=docs"
+    },
+    {
+      "source": "/docs/index.html",
+      "destination": "/api/page?page=docs"
+    },
+    {
+      "source": "/faq/",
+      "destination": "/api/page?page=faq"
+    },
+    {
+      "source": "/faq/index.html",
+      "destination": "/api/page?page=faq"
+    },
+    {
+      "source": "/status/",
+      "destination": "/api/page?page=status"
+    },
+    {
+      "source": "/status/index.html",
+      "destination": "/api/page?page=status"
+    },
+    {
+      "source": "/staff/",
+      "destination": "/api/page?page=staff"
+    },
+    {
+      "source": "/staff/index.html",
+      "destination": "/api/page?page=staff"
+    },
+    {
+      "source": "/team/",
+      "destination": "/api/page?page=team"
+    },
+    {
+      "source": "/team/index.html",
+      "destination": "/api/page?page=team"
+    },
+    {
+      "source": "/devlog/",
+      "destination": "/api/page?page=devlog"
+    },
+    {
+      "source": "/devlog/index.html",
+      "destination": "/api/page?page=devlog"
+    },
+    {
+      "source": "/protection/",
+      "destination": "/api/page?page=protection"
+    },
+    {
+      "source": "/protection/index.html",
+      "destination": "/api/page?page=protection"
+    },
+    {
+      "source": "/dashboard/",
+      "destination": "/api/page?page=dashboard"
+    },
+    {
+      "source": "/dashboard/index.html",
+      "destination": "/api/page?page=dashboard"
+    },
+    {
+      "source": "/companion/",
+      "destination": "/api/page?page=companion"
+    },
+    {
+      "source": "/companion/index.html",
+      "destination": "/api/page?page=companion"
+    },
+    {
+      "source": "/cad/",
+      "destination": "/api/page?page=cad"
+    },
+    {
+      "source": "/cad/index.html",
+      "destination": "/api/page?page=cad"
+    },
+    {
+      "source": "/owner/",
+      "destination": "/api/page?page=owner"
+    },
+    {
+      "source": "/owner/index.html",
+      "destination": "/api/page?page=owner"
+    }
   ]
 }

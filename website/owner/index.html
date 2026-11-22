@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101329">
+  <title>Owner panel | Aether</title>
+  <link rel="icon" href="/assets/aether-mark.webp">
+  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/control.css">
+  <script defer src="/assets/control.js"></script>
+</head>
+<body class="control ">
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="control-header"><nav class="container control-nav" aria-label="Main navigation">
+    <a class="brand" href="/"><img src="/assets/aether-mark.webp" width="34" height="34" alt=""> Aether</a>
+    <a href="/protection/">Protection</a><a href="/devlog/">Devlog</a><a href="/team/">Team</a><a href="/status/">Status</a><a href="/dashboard/">Dashboard</a>
+  </nav></header>
+  <main class="container control-main" id="main">
+    <div class="control-hero"><h1>Owner panel</h1><p>Manage Aether’s website and Discord installations.</p></div>
+
+    <p role="status" id="controlNotice">Loading owner controls…</p>
+    <div class="control-grid" id="ownerPanel" hidden>
+      <section class="control-card"><h2>Displayed bot status</h2>
+        <form class="control-form" data-owner="status">
+          <label>Status<select name="value"><option value="automatic">Automatic checks</option><option value="operational">Operational</option><option value="degraded">Degraded</option><option value="maintenance">Maintenance</option><option value="offline">Offline</option></select></label>
+          <label>Public message<input name="message" maxlength="240"></label>
+          <button class="btn btn-primary">Save status</button>
+        </form>
+      </section>
+      <section class="control-card"><h2>Page maintenance</h2>
+        <form class="control-form" data-owner="maintenance">
+          <label>Page<select name="page" required id="maintenancePages"></select></label>
+          <label class="control-check"><input name="enabled" type="checkbox"> Show maintenance page</label>
+          <label>Public message<input name="message" maxlength="240"></label>
+          <button class="btn btn-primary">Save maintenance</button>
+        </form>
+      </section>
+      <section class="control-card"><h2>Publish a devlog</h2>
+        <form class="control-form" data-owner="publish">
+          <label>Title<input name="title" maxlength="100" required></label>
+          <label>Update<textarea name="text" rows="5" maxlength="4000" required></textarea></label>
+          <button class="btn btn-primary">Publish devlog</button>
+        </form>
+      </section>
+      <section class="control-card"><h2>Aether staff</h2>
+        <form class="control-form" data-owner="staff">
+          <label>Discord user ID<input name="userId" pattern="[0-9]{17,20}" inputmode="numeric" required></label>
+          <label>Display name<input name="name" maxlength="80" required></label>
+          <label>Staff title<input name="title" maxlength="80" required></label>
+          <label class="control-check"><input name="listed" type="checkbox"> Show on the public team page</label>
+          <label class="control-check"><input name="access" type="checkbox"> Grant access to the Aether staff panel</label>
+          <button class="btn btn-primary">Save staff member</button>
+        </form>
+        <div id="ownerStaff" class="control-list"></div>
+      </section>
+      <section class="control-card control-wide"><h2>Discord servers</h2>
+        <p id="guildSummary" role="status">Loading installed servers…</p>
+        <div id="ownerGuilds" class="control-list"></div>
+      </section>
+      <section class="control-card control-wide"><h2>Owner activity</h2><div id="ownerAudit" class="control-list"></div></section>
+    </div>
+  </main>
+</body>
+</html>

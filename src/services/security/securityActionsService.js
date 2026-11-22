@@ -32,7 +32,12 @@ export async function applyRaidAction(member, action, reason, quarantineRoleId) 
                 if (!quarantineRoleId) {
                     return { applied: false, action: 'quarantine', error: 'No quarantine role configured.' };
                 }
-                await member.roles.set([quarantineRoleId], reason);
+                const role = member.guild.roles.cache.get(quarantineRoleId);
+                if (!member.manageable || !role?.editable || role.id === member.guild.id) {
+                    return { applied: false, action, error: 'Quarantine role or member is above Aether.' };
+                }
+                const retained = member.roles.cache.filter(item => item.id !== member.guild.id && !item.editable);
+                await member.roles.set([...retained.keys(), quarantineRoleId], reason);
                 return { applied: true, action: 'quarantine' };
             default:
                 return { applied: false, action, error: `Unknown action: ${action}` };
@@ -56,6 +61,7 @@ export async function applyNukeAction(member, action, reason) {
                 return { applied: true, action: 'alert' };
             case 'strip_roles': {
                 const removable = member.roles.cache.filter((r) => r.id !== member.guild.id && r.editable);
+                if (!member.manageable || !removable.size) return { applied: false, action, error: 'No roles can be removed by Aether.' };
                 await member.roles.remove(removable, reason);
                 return { applied: true, action: 'strip_roles', rolesRemoved: removable.size };
             }
@@ -83,15 +89,26 @@ export async function alertStaff(guild, alertChannelId, { title, description, fi
     if (!channel?.isTextBased()) return false;
 
     const embed = createEmbed({ title, description, color: 'error', fields: fields || [] });
-    await channel.send({ embeds: [embed] }).catch((error) => {
+    try {
+        await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
+        return true;
+    } catch (error) {
         logger.warn(`[security] Failed to send alert to channel ${alertChannelId}: ${error.message}`);
-    });
-    return true;
+        return false;
+    }
 }
+
+const alertTimes = new Map();
 
 export async function recordAndAlert(guild, { category, executorId, targetId, count, threshold, actionResult, alertChannelId }) {
     await logSecurityEvent(guild.id, { category, executorId, targetId, count, threshold, action: actionResult.action, applied: actionResult.applied });
 
+    if (!alertChannelId) return;
+    const now = Date.now();
+    const key = `${guild.id}:${category}:${actionResult.applied}`;
+    if ((alertTimes.get(key) || 0) > now) return;
+    for (const [id, expires] of alertTimes) if (expires <= now) alertTimes.delete(id);
+    alertTimes.set(key, now + 15_000);
     await alertStaff(guild, alertChannelId, {
         title: `🚨 Security: ${category}`,
         description: [

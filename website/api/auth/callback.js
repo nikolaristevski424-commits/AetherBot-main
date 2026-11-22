@@ -1,9 +1,9 @@
-import { loginReady, configuredOrigin, cookieNames, parseCookie, unseal, setCookie, clearCookie, seal } from '../../lib/auth.js';
+import { loginReady, configuredOrigin, cookieNames, parseCookie, unseal, setCookie, clearCookie, seal, loginDestinations } from '../../lib/auth.js';
 export default async function handler(req, res) {
-  const fail = reason => { clearCookie(res, cookieNames.STATE); res.writeHead(302, { Location: `/login/?error=${reason}`, 'Cache-Control': 'no-store' }); res.end(); };
+  const details = loginReady() ? unseal(parseCookie(req, cookieNames.STATE), 'oauth') : null;
+  const fail = reason => { clearCookie(res, cookieNames.STATE); res.writeHead(302, { Location: '/login/?' + new URLSearchParams({error: reason, ...(details?.next !== '/dashboard/' && loginDestinations.includes(details?.next) ? {next: details.next} : {})}), 'Cache-Control': 'no-store' }); res.end(); };
   if (req.method !== 'GET' || !loginReady()) return fail('not-configured');
   const receivedState = String(req.query?.state || '');
-  const details = unseal(parseCookie(req, cookieNames.STATE), 'oauth');
   if (req.query?.error) return fail('denied');
   if (!details || details.expiresAt < Date.now() || !receivedState || details.state !== receivedState) {
     console.warn('[aether.oauth] state cookie missing, expired, or mismatched; check canonical hostname and browser cookie handling');

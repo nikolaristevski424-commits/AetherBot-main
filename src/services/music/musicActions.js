@@ -27,6 +27,9 @@ export function assertRiffyAvailable(client) {
             'Music is unavailable — Lavalink is not configured.',
         );
     }
+    if (!client.riffy.leastUsedNodes.length) {
+        throw new AetherError('Lavalink disconnected', ErrorTypes.CONFIGURATION, 'Music is unavailable while Aether reconnects to Lavalink.');
+    }
 }
 
 export function assertInVoice(member) {
@@ -135,14 +138,30 @@ export async function playQuery(client, interaction, query) {
         );
     }
 
-    const { player, guildData } = await ensurePlayer(client, interaction);
-
+    if (/^https?:\/\//i.test(query)) {
+        const url = new URL(query);
+        const supported = url.hostname === 'soundcloud.com' || url.hostname.endsWith('.soundcloud.com') || url.hostname.endsWith('.bandcamp.com');
+        if (!supported || url.protocol !== 'https:' || url.username || url.password || url.port) {
+            throw new AetherError('Unsupported music link', ErrorTypes.USER_INPUT, 'Use a song title or a SoundCloud or Bandcamp link.');
+        }
+    }
+    assertRiffyAvailable(client);
+    assertInVoice(interaction.member);
     const result = await client.riffy.resolve({
         query,
         requester: interaction.user,
     });
 
     const { loadType, tracks, playlistInfo } = result;
+    if (!tracks?.length && (loadType === 'error' || loadType === 'LOAD_FAILED')) {
+        throw new AetherError('Music source rejected search', ErrorTypes.CONFIGURATION, 'The music source did not respond. Try another song or link.');
+    }
+    if (!tracks?.length) {
+        throw new AetherError('No search results', ErrorTypes.USER_INPUT, 'No tracks found. Try a different title or artist.');
+    }
+    const existing = getPlayer(client, interaction.guild.id);
+    if (existing) assertCanControl(interaction.member, existing);
+    const { player, guildData } = await ensurePlayer(client, interaction);
 
     if (loadType === 'playlist' || loadType === 'PLAYLIST_LOADED') {
         let added = 0;

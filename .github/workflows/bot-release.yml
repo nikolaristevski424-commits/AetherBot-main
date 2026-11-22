@@ -1,0 +1,40 @@
+name: Bot release
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: npm run build --prefix website
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Package and publish the tagged bot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v$(node -p "require('./package.json').version")"
+          if gh release view "$tag" >/dev/null 2>&1; then exit 0; fi
+          git archive --format=zip --output="aether-bot-$tag.zip" HEAD -- src test scripts lavalink package.json package-lock.json index.js .env.example README.md website/README.md LICENSE THIRD_PARTY_NOTICES.md Dockerfile docker-compose.yml
+          gh release create "$tag" "aether-bot-$tag.zip" --target "$GITHUB_SHA" --title "Aether $tag" --generate-notes

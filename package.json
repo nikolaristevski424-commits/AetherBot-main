@@ -1,11 +1,12 @@
 {
   "name": "aether-bot",
-  "version": "2.1.0",
+  "version": "3.1.0",
   "description": "Aether — modular all-in-one Discord bot",
   "main": "src/app.js",
   "type": "module",
   "scripts": {
     "start": "node src/app.js",
+    "music:check": "node scripts/check-lavalink.js",
     "test": "node --test",
     "migrate": "node scripts/migrate.js apply",
     "migrate:check": "node scripts/migrate.js check",

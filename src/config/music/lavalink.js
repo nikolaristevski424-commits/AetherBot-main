@@ -1,85 +1,33 @@
-import { existsSync, readFileSync } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { readFileSync } from 'node:fs';
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-
-function parseBoolean(value, defaultValue = false) {
-    if (value === undefined || value === null || value === '') {
-        return defaultValue;
-    }
-    return ['true', '1', 'yes'].includes(String(value).toLowerCase());
+function requiredNodes(value) {
+    const nodes = Array.isArray(value) ? value : value?.nodes;
+    if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('Provide at least one Lavalink node.');
+    const names = new Set();
+    return nodes.map((node, index) => {
+        const host = node?.host;
+        const port = Number(node?.port ?? (node?.secure ? 443 : 2333));
+        const name = node?.name || `Lavalink ${index + 1}`;
+        if (typeof host !== 'string' || !/^[a-z0-9.-]+$/i.test(host) || !Number.isInteger(port) || port < 1 || port > 65535
+            || typeof node.password !== 'string' || !node.password.trim() || typeof name !== 'string'
+            || (node.secure !== undefined && typeof node.secure !== 'boolean') || names.has(name)) {
+            throw new Error(`Invalid or duplicate Lavalink node at position ${index + 1}.`);
+        }
+        names.add(name);
+        return { host, port, password: node.password, secure: node.secure === true, name };
+    });
 }
 
-function parseNodesFromEnv() {
-    const raw = process.env.LAVALINK_NODES?.trim();
-    if (!raw) {
-        return null;
+export function getLavalinkNodes(env = process.env) {
+    if (env.LAVALINK_NODES?.trim()) return requiredNodes(JSON.parse(env.LAVALINK_NODES));
+    if (env.LAVALINK_HOST?.trim()) {
+        const tls = env.LAVALINK_SECURE || 'false';
+        if (!['true', 'false', '1', '0', 'yes', 'no'].includes(tls.toLowerCase())) throw new Error('Set LAVALINK_SECURE to true or false.');
+        return requiredNodes([{
+            host: env.LAVALINK_HOST.trim(), port: env.LAVALINK_PORT || undefined, password: env.LAVALINK_PASSWORD,
+            secure: ['true', '1', 'yes'].includes(tls.toLowerCase()), name: env.LAVALINK_NAME || 'Main',
+        }]);
     }
-
-    try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : null;
-    } catch {
-        return null;
-    }
+    if (env.LAVALINK_NODES_FILE?.trim()) return requiredNodes(JSON.parse(readFileSync(env.LAVALINK_NODES_FILE.trim(), 'utf8')));
+    return [];
 }
-
-function parseNodesPayload(parsed) {
-    if (Array.isArray(parsed)) {
-        return parsed;
-    }
-    if (Array.isArray(parsed?.nodes)) {
-        return parsed.nodes;
-    }
-    return null;
-}
-
-function loadNodesFromFile() {
-    const nodesFile = process.env.LAVALINK_NODES_FILE?.trim()
-        || path.join(projectRoot, 'lavalink', 'nodes.json');
-
-    if (!existsSync(nodesFile)) {
-        return null;
-    }
-
-    try {
-        const parsed = JSON.parse(readFileSync(nodesFile, 'utf8'));
-        return parseNodesPayload(parsed);
-    } catch {
-        return null;
-    }
-}
-
-export function getLavalinkNodes() {
-    const fromJson = parseNodesFromEnv();
-    if (fromJson?.length) {
-        return fromJson;
-    }
-
-    const fromFile = loadNodesFromFile();
-    if (fromFile?.length) {
-        return fromFile;
-    }
-
-    const host = process.env.LAVALINK_HOST || 'localhost';
-    const port = Number(process.env.LAVALINK_PORT || 2333);
-    const password = process.env.LAVALINK_PASSWORD || 'youshallnotpass';
-    const secure = parseBoolean(process.env.LAVALINK_SECURE, false);
-
-    return [{
-        host,
-        port,
-        password,
-        secure,
-        name: process.env.LAVALINK_NAME || 'Main',
-    }];
-}
-
-export const lavalinkConfig = {
-    nodes: getLavalinkNodes(),
-    defaultSearchPlatform: process.env.LAVALINK_SEARCH_PLATFORM || 'ytmsearch',
-    restVersion: process.env.LAVALINK_REST_VERSION || 'v4',
-};
-
-export default lavalinkConfig;

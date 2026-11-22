@@ -5,7 +5,7 @@ on:
   pull_request:
     paths:
       - 'website/**'
-      - 'src/web/siteBridgeRouter.js'
+      - 'src/web/**'
       - 'src/app.js'
       - '.github/workflows/aether-hq-tests.yml'
 permissions:
@@ -25,6 +25,7 @@ jobs:
           node --check src/web/siteBridgeRouter.js
           node --check src/app.js
           find website/api website/assets website/lib website/companion -name '*.js' -exec node --check {} \;
+      - run: npm run build --prefix website
       - name: Test website OAuth and bridge signing
         run: node --test website/tests/*.test.js
       - name: Test bot backend
