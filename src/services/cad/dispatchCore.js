@@ -78,3 +78,21 @@ export function projectDispatchActivity(audit, limit = 20) {
       callId: typeof item.details?.callId === 'string' ? item.details.callId.slice(0, 8).toUpperCase() : null,
     }));
 }
+
+/** Public CAD state for a specific authorized guild role scope.
+ * Internal de-duplication keys and sync cursors must never go to the browser.
+ */
+export function projectCadGuildState(state, permissions = {}) {
+  const canDispatch = Boolean(permissions.dispatch || permissions.manager);
+  const canInspectPlayers = canDispatch || Boolean(permissions.commands);
+  return {
+    calls: canDispatch ? (state?.calls || []) : [],
+    units: canDispatch ? (state?.units || []) : [],
+    players: canInspectPlayers ? (state?.players || []) : [],
+    staff: canInspectPlayers ? (state?.staff || []) : [],
+    playerEvents: canInspectPlayers ? (state?.playerEvents || []) : [],
+    playerSyncAt: canInspectPlayers ? (state?.playerSyncAt ?? null) : null,
+    serverOnline: canInspectPlayers ? (state?.serverOnline ?? null) : null,
+    audit: permissions.manager ? (state?.audit || []) : [],
+  };
+}
