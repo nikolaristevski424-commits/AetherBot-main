@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { cookieNames, seal } from '../lib/auth.js';
 import page from '../api/page.js';
 
@@ -38,4 +39,13 @@ test('owner gate, maintenance response and stored message escaping', async t => 
     assert.equal(dashboard.status, 503);
     assert.match(dashboard.body, /&lt;script&gt;example/);
     assert.doesNotMatch(dashboard.body, /<script>example/);
+});
+
+test('Vercel rewrites the slash-ended page and explicit index path', () => {
+    const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url)));
+    for (const [slug, name] of [['protection', 'protection'], ['dashboard', 'dashboard'], ['team/panel', 'team-panel']]) {
+        for (const path of ['/' + slug + '/', '/' + slug + '/index.html']) {
+            assert.ok(config.rewrites.some(rule => rule.source === path && rule.destination === '/api/page?page=' + name));
+        }
+    }
 });
