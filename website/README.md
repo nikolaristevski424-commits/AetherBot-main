@@ -167,3 +167,25 @@ The design-only `website/assets/refined.css` layer is imported *after* `site.css
 The homepage remains explicitly **illustrative** (not fake live usage statistics); the authenticated CAD and staff modules still request real data and preserve all original permission checks.
 The installable ER:LC companion PWA caches the refined design layer with a bumped service-worker version. No client-side bridge keys or tokens are added.
 Review layout at desktop, laptop and narrow mobile widths with both theme modes; inspect loaded UI while authenticated as an authorized staff member. Automated HTML/DOM-contract tests are in `website/tests/design-integrity.test.js`.
+
+## Production CAD domain and Discord OAuth troubleshooting
+
+Aether has **two different web sessions**, not one:
+- Main site, dashboard and staff: `https://aetherbot-hq.vercel.app/`. OAuth redirect exactly `https://aetherbot-hq.vercel.app/api/auth/callback`. Vercel Production needs `AETHER_SITE_ORIGIN`, `AETHER_DISCORD_CLIENT_ID`, `AETHER_DISCORD_CLIENT_SECRET` (OAuth2 Client Secret, **not bot token**), and `AETHER_SESSION_SECRET` (32+ random characters).
+- Primary CAD/MDT, hosted by the Wispbyte process: `https://aether.wispbyte.app/cad/`. OAuth redirect exactly `https://aether.wispbyte.app/cad/auth/callback`. Wispbyte needs `CLIENT_ID`, `CAD_DISCORD_CLIENT_SECRET` (OAuth2 Client Secret for the same application), `CAD_REDIRECT_URI=https://aether.wispbyte.app/cad/auth/callback`, `CAD_SESSION_SECRET` (32+ random characters) and `NODE_ENV=production`. Keep its allocated listener port and `WEB_HOST=0.0.0.0`.
+
+Both callbacks must appear in the **same Discord application** under OAuth2 → Redirects. Each login flow uses a separate host-scoped cookie; signing into the Vercel dashboard does **not** automatically sign into Wispbyte CAD.
+
+After deploying:
+1. Check `https://aetherbot-hq.vercel.app/api/config` gives `oauthConfigured:true` (this checks variable presence and syntax, not validity of provider credentials).
+2. Check `https://aether.wispbyte.app/cad/auth/config` gives `enabled:true` (only available once the matching bot code is running).
+3. Open `/api/auth/login` from the canonical Vercel hostname. An alias is redirected to the canonical origin before a state cookie is issued.
+4. Sign into CAD separately through `https://aether.wispbyte.app/cad/auth/login`.
+5. If a callback fails, inspect the **safe error category** shown on each login page and the Vercel or Wispbyte logs. `credentials` indicates a rejected OAuth client configuration, `code` can indicate an expired/mismatched code or callback, `state` usually indicates a missing/expired cookie or different starting host, and `network` indicates an upstream connection problem. Do not paste OAuth codes, secrets or response bodies in issue trackers.
+6. Check access using a test Discord account on the correct server. The bot enforces role hierarchy independently from either website.
+
+The Wispbyte CAD files are in `src/web/cad/` and `src/services/cad/`; updating the Vercel deployment does **not** update the running Wispbyte bot. Deploy and restart the bot from the matching repository release before expecting the CAD-specific fixes to appear.
+
+The primary navigation and homepage CTA now link to Wispbyte CAD. The old Vercel `/cad/` operations page remains accessible directly and still uses the signed Aether bridge, so existing functionality is not deleted.
+
+Visual updates include the existing Aether logo rendered without the previous forced-square crop, a responsive login brand panel, restrained interactions and reduced-motion fallbacks.
