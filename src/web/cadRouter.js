@@ -81,14 +81,22 @@ router.get('/auth/login', (req, res) => {
 });
 
 router.get('/auth/callback', async (req, res) => {
-    if (req.query.error || !auth.configured) return res.redirect('/cad/?authError=login_failed');
+    if (req.query.error) return res.redirect('/cad/?authError=denied');
+    if (!auth.configured) return res.redirect('/cad/?authError=not_configured');
     try {
         const result = await auth.completeLogin(req.query.code, req.query.state, req.headers.cookie);
         res.append('Set-Cookie', [result.sessionCookie, result.clearStateCookie]);
         return res.redirect('/cad/');
     } catch (error) {
-        logger.warn(`[cad] Discord OAuth callback rejected: ${error.message}`);
-        return res.redirect('/cad/?authError=login_failed');
+        const message = String(error?.message || '');
+        const reason = /state expired|did not match/i.test(message) ? 'state'
+            : /Discord rejected the CAD login/i.test(message) ? 'credentials'
+            : /could not verify the CAD account/i.test(message) ? 'account'
+            : 'login_failed';
+        // Only fixed diagnostic categories and sanitized error text are logged.
+        // OAuth codes, state values, tokens and client secrets are never logged.
+        logger.warn(`[cad] OAuth callback failed (${reason}): ${message.slice(0,120)}`);
+        return res.redirect(`/cad/?authError=${reason}`);
     }
 });
 
