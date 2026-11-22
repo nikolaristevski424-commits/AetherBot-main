@@ -50,6 +50,8 @@ test('Discord call alerts carry real action IDs, and Web mode only links to CAD'
  const hybrid=buildCadCallAnnouncement(call,{experienceMode:'hybrid'});
  assert.deepEqual(discord.allowedMentions,{parse:[]});
  assert.equal(discord.embeds[0].data.title,'PANIC / HIGH-PRIORITY DISPATCH');
+ assert.ok(discord.embeds[0].data.fields.some(field=>field.name==='SOURCE' && field.value==='CAD dispatch'));
+ assert.ok(discord.embeds[0].data.fields.some(field=>field.name==='UNITS ASSIGNED' && field.value==='0'));
  assert.equal(discord.components[0].toJSON().components.length,2);
  assert.equal(web.components[0].toJSON().components.length,1);
  assert.equal(hybrid.components[0].toJSON().components.length,3);
