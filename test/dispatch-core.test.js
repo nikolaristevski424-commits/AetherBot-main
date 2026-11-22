@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { projectWorldToMap, normalizeErlc911, validate911Input, findCallByReference, projectDispatchActivity } from '../src/services/cad/dispatchCore.js';
+import { projectWorldToMap, normalizeErlc911, validate911Input, findCallByReference, projectDispatchActivity, projectCadGuildState } from '../src/services/cad/dispatchCore.js';
 
 test('map centre and axis direction match ER:LC v2 docs', () => {
   assert.deepEqual(projectWorldToMap(0, 0), { xPercent: 50, yPercent: 50 });
@@ -49,4 +49,27 @@ test('public dispatch history never exposes administrative audit details or comm
  assert.ok(!plain.includes('private-session-token'));
  assert.deepEqual(projectDispatchActivity(null),[]);
  assert.equal(projectDispatchActivity(audit,1).length,1);
+});
+
+test('CAD API state projection protects calls and internal sync keys from command-only roles',()=>{
+ const state={
+   calls:[{id:'sensitive-call'}],units:[{userId:'unit'}],players:[{player:'RoleplayPlayer'}],
+   staff:[{username:'Staff'}],playerEvents:[{type:'joined'}],
+   playerSyncAt:123456,serverOnline:true,audit:[{secret:'private'}],
+   erlc911Keys:['dedupe-marker'],joinLogKeys:['sync-internal'],
+ };
+ const commands=projectCadGuildState(state,{commands:true,dispatch:false,manager:false});
+ assert.deepEqual(commands.calls,[]);
+ assert.deepEqual(commands.units,[]);
+ assert.equal(commands.players[0].player,'RoleplayPlayer');
+ assert.deepEqual(commands.audit,[]);
+ assert.equal(Object.hasOwn(commands,'erlc911Keys'),false);
+ assert.equal(Object.hasOwn(commands,'joinLogKeys'),false);
+ const dispatcher=projectCadGuildState(state,{dispatch:true});
+ assert.equal(dispatcher.calls.length,1);
+ assert.equal(dispatcher.audit.length,0);
+ const manager=projectCadGuildState(state,{manager:true});
+ assert.equal(manager.calls.length,1);
+ assert.equal(manager.audit.length,1);
+ assert.equal(Object.hasOwn(manager,'erlc911Keys'),false);
 });
