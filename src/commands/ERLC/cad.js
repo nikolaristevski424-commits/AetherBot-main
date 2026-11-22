@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, EmbedBuilder } from 'discord.js';
-import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, updateCadUnit, updateCadCall } from '../../services/cad/cadService.js';
+import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, updateCadUnit, updateCadCall, createCadCall } from '../../services/cad/cadService.js';
+import { buildCadCallAnnouncement, cadModeLabel, cadWebUrl } from '../../services/cad/cadDiscordPresentation.js';
 import { findCallByReference } from '../../services/cad/dispatchCore.js';
 import { handleCadExtended } from './modules/cadExtended.js';
 
@@ -20,7 +21,15 @@ const createCallRow = c => `**${c.id.slice(0, 8).toUpperCase()}** · ${c.status.
 export default {
   data: new SlashCommandBuilder()
     .setName('cad').setDescription('Aether CAD dispatch, calls, units and ER:LC map.').setDMPermission(false)
-    .addSubcommand(c => c.setName('dashboard').setDescription('Open the authenticated Aether CAD website.'))
+    .addSubcommand(c => c.setName('dashboard').setDescription('Open the shared CAD or use Discord commands, based on your server preference.'))
+    .addSubcommand(c => c.setName('interface').setDescription('View or set the server CAD experience (Manage Server to change).')
+      .addStringOption(o => o.setName('mode').setDescription('Preferred CAD interface; leave blank to view current choice')
+        .addChoices({name:'Discord commands and dispatch cards',value:'discord'},
+          {name:'Web CAD and officer MDT',value:'web'},
+          {name:'Hybrid — both interfaces',value:'hybrid'})))
+    .addSubcommand(c => c.setName('panic').setDescription('On-duty roleplay unit: send a high-priority panic call to dispatch.')
+      .addStringOption(o => o.setName('location').setDescription('In-game road, location or postal').setMinLength(3).setMaxLength(100).setRequired(true))
+      .addStringOption(o => o.setName('details').setDescription('What happened? Roleplay details only').setMaxLength(240)))
     .addSubcommand(c => c.setName('map').setDescription('Open live ER:LC position map (dispatchers only).'))
     .addSubcommand(c => c.setName('calls').setDescription('List active dispatch/911 calls.'))
     .addSubcommand(c => c.setName('unit').setDescription('Set your on-duty callsign and dispatch status.')
@@ -78,6 +87,22 @@ export default {
       if (['mdt', 'bolo', 'base'].includes(group)) {
         return await handleCadExtended(interaction, access, group, sub);
       }
+      if (sub === 'interface') {
+        const selected = interaction.options.getString('mode');
+        if (selected && !access.isManager) return interaction.editReply('Only server managers can change the CAD experience.');
+        const current = selected
+          ? await setCadGuildConfig(interaction.guildId, {experienceMode:selected})
+          : await getCadGuildConfig(interaction.guildId);
+        const url = cadWebUrl();
+        return interaction.editReply({content:
+          `**Aether CAD experience: ${cadModeLabel(current.experienceMode)}**\n`+
+          `• **Discord:** /cad calls, /cad mdt search, /911 and dispatch cards.\n`+
+          `• **Web:** ${url||'Wispbyte CAD needs a verified public HTTPS URL.'}\n`+
+          `• **Hybrid:** Use both, with a single shared CAD database.\n`+
+          (access.isManager?'Set with `/cad interface mode:` or through the CAD settings page.':'Ask a server manager to change the preference.'),
+          allowedMentions:{parse:[]}
+        });
+      }
       if (sub === 'dispatch-channel') {
         if (!access.isManager) return interaction.editReply('Manage Server permission required.');
         const channel = interaction.options.getChannel('channel',true);
@@ -85,6 +110,26 @@ export default {
         return interaction.editReply(`✅ Roleplay 911 reports will be sent to <#${saved.dispatchChannelId}>.`);
       }
       if (!access.canDispatch) return interaction.editReply('You need a CAD dispatch role, or Manage Server, to use these tools.');
+      if (sub === 'panic') {
+        const state = await getCadState(interaction.guildId);
+        const unit = state.units.find(u => u.userId===interaction.user.id && u.status!=='off_duty');
+        if (!unit) return interaction.editReply('Register as an on-duty unit using `/cad unit` before issuing a panic.');
+        const recent = state.calls.some(c => c.source==='cad_panic' && c.createdBy===interaction.user.id
+          && Date.now()-c.createdAt<120000 && c.status!=='closed');
+        if (recent) return interaction.editReply('You already sent a panic alert recently. Update your open call or wait two minutes.');
+        const call = await createCadCall(interaction.guildId,
+          {id:interaction.user.id,username:interaction.user.username},
+          {title:`Panic button — ${unit.callsign||interaction.user.username}`.slice(0,100),
+            location:interaction.options.getString('location',true),
+            details:interaction.options.getString('details')||'Unit requesting immediate roleplay assistance.',
+            priority:'urgent',source:'cad_panic'});
+        const config = await getCadGuildConfig(interaction.guildId);
+        const channel = config.dispatchChannelId ? await interaction.guild.channels.fetch(config.dispatchChannelId).catch(()=>null) : null;
+        if(channel?.isTextBased?.() && channel.send){
+          await channel.send(buildCadCallAnnouncement(call, config)).catch(()=>{});
+        }
+        return interaction.editReply(`🚨 **Panic submitted** • #${call.id.slice(0,8).toUpperCase()} • ${call.location}\nDispatch has a new urgent roleplay call. Real emergency? Call local emergency services.`);
+      }
       if (sub === 'dashboard' || sub === 'map') {
         const url=cadUrl();
         return interaction.editReply(url
