@@ -24,6 +24,7 @@ import {
     createMdtBolo, clearMdtBolo, setMdtCalibration, logBaseBulletin,
 } from '../services/cad/mdtService.js';
 import { fitMapCalibration } from '../services/cad/mdtCore.js';
+import { projectDispatchActivity } from '../services/cad/dispatchCore.js';
 import { getBaseStation, signalBaseStation } from '../services/cad/baseStationService.js';
 
 const router = express.Router();
@@ -164,19 +165,7 @@ router.get('/api/guilds/:guildId', async (req, res) => {
     const access = await requireGuild(req, res);
     if (!access) return;
     const state = await getCadState(req.params.guildId);
-    // A narrow timeline gives dispatchers situational awareness without
-    // revealing internal command logs or the full manager-only audit record.
-    const activityActions = new Set([
-        'call.created', 'call.updated', 'call.closed', 'call.unit_assigned',
-        '911.discord_reported', '911.ingame_imported',
-    ]);
-    const dispatchActivity = access.canDispatch
-        ? state.audit.filter(item => activityActions.has(item.action)).slice(-20).reverse().map(item => ({
-            id: item.id, action: item.action, at: item.at,
-            actorName: String(item.actorName || 'CAD').slice(0, 80),
-            callId: typeof item.details?.callId === 'string' ? item.details.callId.slice(0, 8).toUpperCase() : null,
-        }))
-        : [];
+    const dispatchActivity = access.canDispatch ? projectDispatchActivity(state.audit) : [];
     if (!access.isManager) state.audit = [];
     const mdt = access.canDispatch ? await getMdtState(req.params.guildId) : null;
     return res.json({
