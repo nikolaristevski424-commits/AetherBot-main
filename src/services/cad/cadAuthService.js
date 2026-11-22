@@ -38,12 +38,19 @@ export class CadAuthService {
     }
 
     get configured() {
+        // A malformed or insecure callback will be rejected by Discord, so
+        // validate it before offering a login button. Development may use localhost.
+        let redirect;
+        try { redirect = new URL(this.redirectUri); } catch { return false; }
+        const localDev = !this.secureCookies && redirect.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(redirect.hostname);
         return Boolean(
-            this.clientId
-            && this.clientSecret
-            && this.redirectUri
+            /^[0-9]{17,20}$/.test(this.clientId || '')
+            && typeof this.clientSecret === 'string' && this.clientSecret.length > 10
+            && (redirect.protocol === 'https:' || localDev)
+            && redirect.pathname === '/cad/auth/callback'
+            && !redirect.username && !redirect.password && !redirect.search && !redirect.hash
             && typeof this.sessionSecret === 'string'
-            && this.sessionSecret.length >= 32,
+            && this.sessionSecret.length >= 32
         );
     }
 
@@ -115,7 +122,7 @@ export class CadAuthService {
             }),
             signal: AbortSignal.timeout(10000),
         });
-        if (!tokenResponse.ok) throw new Error('Discord rejected the CAD login.');
+        if (!tokenResponse.ok) throw new Error(`Discord rejected the CAD login (HTTP ${tokenResponse.status}).`);
         const tokenData = await tokenResponse.json();
 
         const headers = { Authorization: `Bearer ${tokenData.access_token}` };
