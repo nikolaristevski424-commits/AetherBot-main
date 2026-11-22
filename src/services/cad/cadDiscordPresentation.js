@@ -22,6 +22,11 @@ export function buildCadCallAnnouncement(call, config = {}) {
   const closed = call.status === 'closed';
   const title = urgent ? 'PANIC / HIGH-PRIORITY DISPATCH' : '9-1-1 / INCOMING ROLEPLAY CALL';
   const status = closed ? 'CLOSED' : call.status === 'assigned' ? 'UNITS ASSIGNED' : 'AWAITING RESPONSE';
+  const assignedCount = Array.isArray(call.assignedUnitIds) ? call.assignedUnitIds.length : 0;
+  const source = {
+    discord_911: 'Discord /911', erlc_911: 'ER:LC private server',
+    cad_panic: 'Officer panic button',
+  }[call.source] || 'CAD dispatch';
   const embed = new EmbedBuilder()
     .setColor(closed ? 0x7d899e : urgent ? 0xf45a65 : 0x4d9fff)
     .setAuthor({ name: 'AETHER • DISPATCH OPERATIONS' })
@@ -32,6 +37,8 @@ export function buildCadCallAnnouncement(call, config = {}) {
       { name: 'LOCATION', value: clean(call.location, 150), inline: true },
       { name: 'PRIORITY', value: urgent ? '🔴 Urgent' : '🔵 Routine', inline: true },
       { name: 'CALLER', value: clean(call.createdByName, 75), inline: true },
+      { name: 'UNITS ASSIGNED', value: String(assignedCount), inline: true },
+      { name: 'SOURCE', value: source, inline: true },
       { name: 'DETAILS', value: clean(call.details, 950), inline: false },
     )
     .setFooter({ text: 'ER:LC roleplay only • Live CAD case • Never for real emergencies' })
