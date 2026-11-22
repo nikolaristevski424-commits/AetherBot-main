@@ -14,6 +14,7 @@ import {
     recordCadCommand,
     setCadGuildConfig,
     updateCadCall,
+    assignCadCallUnit,
     updateCadUnit,
 } from '../services/cad/cadService.js';
 import { syncCadGuild } from '../services/cad/cadTrackingService.js';
@@ -23,6 +24,7 @@ import {
     createMdtBolo, clearMdtBolo, setMdtCalibration, logBaseBulletin,
 } from '../services/cad/mdtService.js';
 import { fitMapCalibration } from '../services/cad/mdtCore.js';
+import { projectDispatchActivity, projectCadGuildState } from '../services/cad/dispatchCore.js';
 import { getBaseStation, signalBaseStation } from '../services/cad/baseStationService.js';
 
 const router = express.Router();
@@ -163,7 +165,10 @@ router.get('/api/guilds/:guildId', async (req, res) => {
     const access = await requireGuild(req, res);
     if (!access) return;
     const state = await getCadState(req.params.guildId);
-    if (!access.isManager) state.audit = [];
+    const dispatchActivity = access.canDispatch ? projectDispatchActivity(state.audit) : [];
+    const publicState = projectCadGuildState(state, {
+        manager: access.isManager, dispatch: access.canDispatch, commands: access.canCommand,
+    });
     const mdt = access.canDispatch ? await getMdtState(req.params.guildId) : null;
     return res.json({
         calibration: mdt?.calibration || [],
@@ -171,7 +176,9 @@ router.get('/api/guilds/:guildId', async (req, res) => {
         guild: { id: access.guild.id, name: access.guild.name, icon: access.guild.iconURL({ size: 64 }) },
         permissions: { manager: access.isManager, dispatch: access.canDispatch, commands: access.canCommand },
         config: access.isManager ? access.config : null,
-        state,
+        cadExperienceMode: access.config.experienceMode || 'hybrid',
+        dispatchActivity,
+        state: publicState,
     });
 });
 
@@ -315,13 +322,16 @@ router.get('/api/guilds/:guildId/roles', async (req, res) => {
 router.put('/api/guilds/:guildId/settings', async (req, res) => {
     const access = await requireGuild(req, res, 'manage');
     if (!access) return;
-    const { dispatchRoleIds, commandRoleIds } = req.body || {};
+    const { dispatchRoleIds, commandRoleIds, experienceMode } = req.body || {};
+    if (experienceMode !== undefined && !['discord','web','hybrid'].includes(experienceMode)) {
+        return res.status(400).json({ error: 'Choose Discord, Web or Hybrid CAD mode.' });
+    }
     const roleLists = [dispatchRoleIds, commandRoleIds];
     if (roleLists.some((list) => !Array.isArray(list) || list.length > 20 || list.some((id) => typeof id !== 'string' || !idPattern.test(id) || !isAssignableCadRole(access.guild, id)))) {
         return res.status(400).json({ error: 'Choose valid roles from this Discord server.' });
     }
     try {
-        const config = await setCadGuildConfig(req.params.guildId, { dispatchRoleIds, commandRoleIds });
+        const config = await setCadGuildConfig(req.params.guildId, { dispatchRoleIds, commandRoleIds, ...(experienceMode ? {experienceMode} : {}) });
         return res.json({ config });
     } catch {
         return res.status(500).json({ error: 'Could not save CAD role settings.' });
@@ -361,7 +371,26 @@ router.post('/api/guilds/:guildId/calls', async (req, res) => {
 router.patch('/api/guilds/:guildId/calls/:callId', async (req, res) => {
     const access = await requireGuild(req, res, 'dispatch');
     if (!access) return;
-    const { status, assignedUnitIds } = req.body || {};
+    const { status, assignedUnitIds, addAssignedUnitId } = req.body || {};
+    if (addAssignedUnitId !== undefined) {
+        // Incremental assignments are serialized server-side; clients must not
+        // send stale arrays that overwrite another officer's response.
+        if (status !== undefined || assignedUnitIds !== undefined
+            || typeof addAssignedUnitId !== 'string' || !idPattern.test(addAssignedUnitId)) {
+            return res.status(400).json({ error: 'Provide only one valid officer ID to assign.' });
+        }
+        try {
+            const result = await assignCadCallUnit(req.params.guildId, req.cadSession.profile,
+                req.params.callId, addAssignedUnitId);
+            if (!result) return res.status(404).json({ error: 'CAD call not found.' });
+            return res.json({ call: result.call, changed: result.changed });
+        } catch (error) {
+            if (/already closed|on-duty CAD unit|maximum number of assigned units/.test(String(error?.message))) {
+                return res.status(409).json({ error: error.message });
+            }
+            return res.status(500).json({ error: 'Could not assign the officer.' });
+        }
+    }
     if (status === undefined && assignedUnitIds === undefined) {
         return res.status(400).json({ error: 'Provide a call status or unit assignment to update.' });
     }

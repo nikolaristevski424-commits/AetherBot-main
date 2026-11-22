@@ -7,8 +7,21 @@
   menu?.addEventListener('click', () => {
     const open = nav?.classList.toggle('open'); menu.setAttribute('aria-expanded', String(!!open));
   });
+  const closeMenu = () => {
+    nav?.classList.remove('open');
+    menu?.setAttribute('aria-expanded', 'false');
+  };
   document.addEventListener('click', e => {
-    if (!nav?.contains(e.target) && !menu?.contains(e.target)) { nav?.classList.remove('open'); menu?.setAttribute('aria-expanded','false'); }
+    if (!nav?.contains(e.target) && !menu?.contains(e.target)) closeMenu();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && nav?.classList.contains('open')) {
+      closeMenu();
+      menu?.focus();
+    }
+  });
+  nav?.addEventListener('click', e => {
+    if (e.target.closest('a')) closeMenu();
   });
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (!reduced && 'IntersectionObserver' in window) {
@@ -19,8 +32,19 @@
   } else document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
   const header = document.querySelector('#siteHeader');
   if (header) {
-    const update = () => header.classList.toggle('sticky', window.scrollY > 20);
-    window.addEventListener('scroll', update, { passive: true }); update();
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      header.classList.toggle('sticky', window.scrollY > 20);
+      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      header.style.setProperty('--page-progress', (Math.max(0,Math.min(1,window.scrollY / maxScroll)) * 100).toFixed(2) + '%');
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    window.addEventListener('scroll', schedule, { passive:true });
+    window.addEventListener('resize', schedule, { passive:true });
+    update();
   }
   // Give existing content reveals a subtle editorial rhythm without timers or
   // repeated animations. The visibility observer respects reduced-motion.

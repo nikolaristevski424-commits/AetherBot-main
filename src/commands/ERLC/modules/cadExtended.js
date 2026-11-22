@@ -4,6 +4,7 @@ import {
   getMdtState,searchMdt,createMdtRecord,archiveMdtRecord,createMdtBolo,clearMdtBolo,logBaseBulletin,
 } from '../../../services/cad/mdtService.js';
 import { isBoloActive } from '../../../services/cad/mdtCore.js';
+import { buildMdtLookupEmbeds, buildBoloAlert, cadModeLabel } from '../../../services/cad/cadDiscordPresentation.js';
 import {
   joinBaseStation,leaveBaseStation,getBaseStation,signalBaseStation,
 } from '../../../services/cad/baseStationService.js';
@@ -23,7 +24,17 @@ export async function handleCadExtended(interaction,access,group,sub){
   if(!access.canDispatch)return interaction.editReply(privateError);
   const guildId=interaction.guildId;
   if(group==='mdt'){
-    if(sub==='open')return interaction.editReply(mdtUrl('mdt')||'Configure a public HTTPS CAD URL before using the web MDT.');
+    if(sub==='open'){
+      const mode=access.config?.experienceMode||'hybrid';
+      const url=mdtUrl('mdt');
+      return interaction.editReply(
+        `**Officer MDT • ${cadModeLabel(mode)}**\n`+
+        (mode==='discord'?
+          'This server prefers Discord commands. Use `/cad mdt search`, `/cad bolo list`, and `/cad calls` to access the same data.\n':
+          'Use the authenticated officer MDT in your browser for full record details and dispatch history.\n')+
+        (url||'Your CAD administrator must configure the public HTTPS CAD domain.')
+      );
+    }
     if(sub==='my-calls'){
       const state=await getCadState(guildId);
       const own=state.calls.filter(c=>c.status!=='closed'&&c.assignedUnitIds?.includes(interaction.user.id));
@@ -37,7 +48,9 @@ export async function handleCadExtended(interaction,access,group,sub){
       const records=mdt.records.slice(0,8).map(r=>`• **${fmt(r.id)}** [${r.kind}] ${brief(r.subject)}${r.plate?' · '+brief(r.plate):''}`);
       const bolos=mdt.bolos.slice(0,5).map(b=>`• 🚨 **${fmt(b.id)}** ${brief(b.subject)} · ${brief(b.location)}`);
       const body=[players.length?'**Current ER:LC players**\n'+players.map(playerSummary).join('\n'):'',records.length?'**Fictional records**\n'+records.join('\n'):'',bolos.length?'**Active BOLOs**\n'+bolos.join('\n'):''].filter(Boolean).join('\n\n');
-      return interaction.editReply({content:(body||'No results found in this guild’s CAD records or fresh ER:LC snapshot.').slice(0,1850),allowedMentions:{parse:[]}});
+      const embeds=buildMdtLookupEmbeds({query:q,records:mdt.records,bolos:mdt.bolos});
+      const plain=(body||'No results found in this guild’s CAD records or fresh ER:LC snapshot.').slice(0,1850);
+      return interaction.editReply({content:plain,embeds,allowedMentions:{parse:[]}});
     }
     if(sub==='add-record'){
       const kind=interaction.options.getString('kind',true);
@@ -69,7 +82,7 @@ export async function handleCadExtended(interaction,access,group,sub){
       const station=await getCadGuildConfig(guildId);
       if(station.dispatchChannelId){
         const channel=await interaction.guild.channels.fetch(station.dispatchChannelId).catch(()=>null);
-        if(channel?.isTextBased())await channel.send({content:`🚨 **ROLEPLAY BOLO** (${bolo.kind}) · **${brief(bolo.subject)}**\n${brief(bolo.details)}${bolo.location?'\nLast seen: '+brief(bolo.location):''}\nRef: ${fmt(bolo.id)}`,allowedMentions:{parse:[]}}).catch(()=>{});
+        if(channel?.isTextBased() && channel.send)await channel.send(buildBoloAlert(bolo,station)).catch(()=>{});
       }
       await signalBaseStation(guildId);
       return interaction.editReply(`✅ Roleplay BOLO **${fmt(bolo.id)}** issued; expires in ${Math.ceil((bolo.expiresAt-Date.now())/3_600_000)} hours.`);

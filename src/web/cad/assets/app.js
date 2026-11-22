@@ -16,6 +16,8 @@ let currentData = null;
 let guilds = [];
 let currentCallFilter = 'active';
 let refreshInFlight = false;
+let settingsDirty = false;
+let unitDirty = false;
 
 function showNotice(message, isError = false) {
   appNotice.textContent = message;
@@ -108,13 +110,14 @@ function renderCalls(calls) {
   const query = document.querySelector('#callSearch').value.trim().toLowerCase();
   const filteredCalls = calls.filter((call) => {
     if (currentCallFilter === 'active' && call.status === 'closed') return false;
-    if (currentCallFilter !== 'active' && call.status !== currentCallFilter) return false;
+    if (currentCallFilter === 'urgent' && (call.status === 'closed' || call.priority !== 'urgent')) return false;
+    if (!['active', 'urgent'].includes(currentCallFilter) && call.status !== currentCallFilter) return false;
     if (!query) return true;
     return [call.title, call.location, call.details, call.createdByName, ...(call.assignedUnitIds || [])]
       .some((value) => String(value || '').toLowerCase().includes(query));
   }).sort((left, right) => {
     if (left.priority !== right.priority) return left.priority === 'urgent' ? -1 : 1;
-    return left.createdAt - right.createdAt;
+    return right.createdAt - left.createdAt;
   });
   document.querySelector('#openCallCount').textContent = activeCalls.length;
   document.querySelector('#callQueueCount').textContent = filteredCalls.length;
@@ -123,35 +126,57 @@ function renderCalls(calls) {
     list.innerHTML = `<p class="empty-state">${query ? 'No calls match this search.' : 'No calls in this view.'}</p>`;
     return;
   }
-  list.innerHTML = filteredCalls.map((call) => `
-    <article class="call-row ${call.priority === 'urgent' ? 'urgent' : ''} ${call.status === 'closed' ? 'closed' : ''}">
+  list.innerHTML = filteredCalls.map((call) => {
+    const assigned = call.assignedUnitIds || [];
+    const isMyCall = Boolean(currentUser && assigned.includes(currentUser.id));
+    const active = call.status !== 'closed';
+    const source = call.source === 'erlc_911' ? 'ER:LC 911' : call.source === 'discord_911'
+      ? 'Discord 911' : call.source === 'cad_panic' ? 'Officer panic' : 'CAD dispatch';
+    return `
+    <article class="call-row ${call.priority === 'urgent' ? 'urgent' : ''} ${!active ? 'closed' : ''}">
       <span class="call-bar" aria-hidden="true"></span>
       <div class="call-main">
+        <div class="call-overline">
+          <span class="call-ref">CASE ${escapeHtml(String(call.id || '').slice(0, 8).toUpperCase())}</span>
+          <span class="call-source">${source}</span>
+          <span class="call-priority ${call.priority === 'urgent' ? 'high' : 'normal'}">${call.priority === 'urgent' ? 'HIGH PRIORITY' : 'ROUTINE'}</span>
+        </div>
         <h3 class="call-title">${escapeHtml(call.title)}</h3>
-        <div class="call-meta"><span>${escapeHtml(call.location)}</span><span>${formatTime(call.createdAt)}</span><span>${call.status === 'assigned' ? 'Assigned' : escapeHtml(call.status)}</span></div>
+        <div class="call-meta">
+          <span>${escapeHtml(call.location)}</span>
+          <span>${formatTime(call.createdAt)}</span>
+          <span class="call-status">${escapeHtml(call.status === 'assigned' ? 'Assigned' : call.status)}</span>
+          <span>${assigned.length} unit${assigned.length === 1 ? '' : 's'}</span>
+        </div>
         ${call.details ? `<p class="call-details">${escapeHtml(call.details)}</p>` : ''}
       </div>
       <div class="call-actions">
-        ${call.status === 'open' ? `<button class="mini-button" data-action="assign-me" data-id="${escapeHtml(call.id)}">Assign me</button>` : ''}
-        ${call.status === 'closed' ? `<button class="mini-button" data-action="reopen-call" data-id="${escapeHtml(call.id)}">Reopen</button>` : `<button class="mini-button close-call" data-action="close-call" data-id="${escapeHtml(call.id)}">Close</button>`}
+        ${active && !isMyCall ? `<button class="mini-button" type="button" data-action="assign-me" data-id="${escapeHtml(call.id)}">${call.status === 'assigned' ? 'Join response' : 'Respond'}</button>` : ''}
+        ${active && isMyCall ? '<span class="assigned-me">✓ Your unit assigned</span>' : ''}
+        ${!active ? `<button class="mini-button" type="button" data-action="reopen-call" data-id="${escapeHtml(call.id)}">Reopen</button>` : `<button class="mini-button close-call" type="button" data-action="close-call" data-id="${escapeHtml(call.id)}">Close</button>`}
       </div>
-    </article>`).join('');
+    </article>`;
+  }).join('');
 }
 
 function renderUnits(units) {
-  const active = units.filter((unit) => unit.status !== 'off_duty');
+  const active = units.filter(unit => ['available', 'busy', 'on_scene'].includes(unit.status));
   document.querySelector('#unitCount').textContent = active.length;
   const list = document.querySelector('#unitsList');
   if (!units.length) {
     list.innerHTML = '<p class="empty-state">No units signed in.</p>';
+    if (!unitDirty) {
+      document.querySelector('#callsignInput').value = '';
+      document.querySelector('#unitStatusSelect').value = 'available';
+    }
     return;
   }
   list.innerHTML = units.slice().sort((left, right) => (left.callsign || left.username).localeCompare(right.callsign || right.username)).map((unit) => `
     <div class="unit-row"><div><span class="unit-name">${escapeHtml(unit.username)}</span><span class="unit-callsign">${escapeHtml(unit.callsign || 'No callsign')}</span></div><span class="unit-status ${escapeHtml(unit.status || 'off_duty')}">${escapeHtml((unit.status || 'off_duty').replace('_', ' '))}</span></div>`).join('');
   const ownUnit = units.find((unit) => unit.userId === currentUser.id);
-  if (ownUnit) {
-    document.querySelector('#callsignInput').value = ownUnit.callsign || '';
-    document.querySelector('#unitStatusSelect').value = ownUnit.status || 'available';
+  if (!unitDirty) {
+    document.querySelector('#callsignInput').value = ownUnit?.callsign || '';
+    document.querySelector('#unitStatusSelect').value = ownUnit?.status || 'available';
   }
 }
 
@@ -221,14 +246,48 @@ function renderPlayers(players, syncedAt, serverOnline, staff, events) {
   }
 }
 
+function renderDispatchActivity(entries) {
+  const list = document.querySelector('#dispatchActivityList');
+  if (!list) return;
+  const actions = {
+    'call.created': 'Call created',
+    'call.updated': 'Incident updated',
+    'call.closed': 'Call closed',
+    'call.unit_assigned': 'Officer assigned',
+    '911.discord_reported': 'Discord 911 received',
+    '911.ingame_imported': 'ER:LC 911 imported',
+  };
+  const items = (Array.isArray(entries) ? entries : []).filter(item => actions[item.action]).slice(0, 20);
+  if (!items.length) {
+    list.innerHTML = '<p class="empty-state">No dispatch events have been recorded for this server yet.</p>';
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <div class="dispatch-history-event">
+      <span class="dispatch-history-mark" aria-hidden="true"></span>
+      <div class="dispatch-history-info">
+        <strong>${actions[item.action]}</strong>
+        <small>${escapeHtml(item.actorName || 'CAD')}
+          ${item.callId ? ' · Case ' + escapeHtml(item.callId) : ''}
+        </small>
+      </div>
+      <time>${formatTime(item.at)}</time>
+    </div>`).join('');
+}
+
 function renderSettings(data) {
   const settingsForm = document.querySelector('#settingsFormSection');
   const readOnly = document.querySelector('#settingsReadOnly');
   settingsForm.hidden = !data.permissions.manager;
   readOnly.hidden = data.permissions.manager;
   document.querySelector('#commandSection').hidden = !data.permissions.commands;
-  if (!data.permissions.manager) return;
+  if (!data.permissions.manager || settingsDirty) return;
 
+  const selectedMode = ['discord','web','hybrid'].includes(data.config?.experienceMode)
+    ? data.config.experienceMode : 'hybrid';
+  for (const radio of document.querySelectorAll('input[name="cadExperience"]')) {
+    radio.checked = radio.value === selectedMode;
+  }
   const selectedDispatch = new Set(data.config?.dispatchRoleIds || []);
   const selectedCommand = new Set(data.config?.commandRoleIds || []);
   for (const [selectId, selected] of [['dispatchRoles', selectedDispatch], ['commandRoles', selectedCommand]]) {
@@ -239,6 +298,8 @@ function renderSettings(data) {
 
 function renderData(data) {
   currentData = data;
+  const mode = ['discord','web','hybrid'].includes(data.cadExperienceMode) ? data.cadExperienceMode : 'hybrid';
+  document.querySelector('#cadModeIndicator').textContent = {discord:'Discord first',web:'Web CAD',hybrid:'Hybrid'}[mode];
   document.querySelector('#footerServer').textContent = data.guild.name;
   const dispatchNav = document.querySelector('[data-view="dispatch"]');
   dispatchNav.hidden = !data.permissions.dispatch;
@@ -250,11 +311,21 @@ function renderData(data) {
   document.querySelector('#unitForm').hidden = !data.permissions.dispatch;
   document.querySelector('#syncPlayersButton').hidden = !data.permissions.dispatch;
   renderCalls(data.state.calls || []);
+  renderDispatchActivity(data.dispatchActivity || []);
   renderUnits(data.state.units || []);
   renderPlayers(data.state.players || [], data.state.playerSyncAt, data.state.serverOnline, data.state.staff || [], data.state.playerEvents || []);
   renderSettings(data);
-  renderCadMap(data);
-  renderMdt({ ...data, currentUserId: currentUser?.id });
+  if (data.permissions.dispatch) {
+    renderCadMap(data);
+    renderMdt({ ...data, currentUserId: currentUser?.id });
+  } else {
+    // A user who loses CAD dispatch access must not keep stale MDT or map
+    // contents on screen, or continue making unauthorized refresh requests.
+    for (const id of ['mdtRecordList','mdtBoloList','mdtPlayerList','mdtAssignedList','mdtBaseHistory',
+      'mdtActiveAlerts','cadMapPins','cadMapList','cadMapDetails']) {
+      document.getElementById(id)?.replaceChildren();
+    }
+  }
   document.querySelector('#syncIndicator').classList.add('ready');
   document.querySelector('#syncIndicator').classList.remove('error');
   document.querySelector('#lastUpdateLabel').textContent = `Updated ${formatTime(Date.now())}`;
@@ -265,6 +336,8 @@ function renderData(data) {
 async function loadGuildData() {
   if (!guildSelect.value) return;
   currentGuild = guildSelect.value;
+  settingsDirty = false;
+  unitDirty = false;
   const guild = guilds.find((item) => item.id === currentGuild);
   document.querySelector('#footerServer').textContent = guild?.name || 'CAD';
   showNotice('');
@@ -306,11 +379,12 @@ async function handleAction(action) {
       await api(`/cad/api/guilds/${currentGuild}/calls/${callId}`, { method: 'PATCH', body: JSON.stringify({ status: 'closed' }) });
     } else if (target.dataset.action === 'assign-me') {
       const units = currentData.state.units || [];
-      if (!units.some((unit) => unit.userId === currentUser.id)) throw new Error('Set your unit status before assigning calls.');
-      const call = currentData.state.calls.find((entry) => entry.id === callId);
+      if (!units.some(unit => unit.userId === currentUser.id && unit.status && unit.status !== 'off_duty')) {
+        throw new Error('Set an on-duty status before assigning yourself to a call.');
+      }
       await api(`/cad/api/guilds/${currentGuild}/calls/${callId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'assigned', assignedUnitIds: [...new Set([...(call?.assignedUnitIds || []), currentUser.id])] }),
+        body: JSON.stringify({ addAssignedUnitId: currentUser.id }),
       });
     } else if (target.dataset.action === 'reopen-call') {
       await api(`/cad/api/guilds/${currentGuild}/calls/${callId}`, { method: 'PATCH', body: JSON.stringify({ status: 'open' }) });
@@ -392,10 +466,13 @@ document.querySelector('#callFilters').addEventListener('click', (event) => {
   currentCallFilter = button.dataset.filter;
   for (const filterButton of document.querySelectorAll('.filter-button')) {
     filterButton.classList.toggle('active', filterButton === button);
+    filterButton.setAttribute('aria-pressed', String(filterButton === button));
   }
   renderCalls(currentData?.state.calls || []);
 });
 document.querySelector('#refreshButton').addEventListener('click', refreshData);
+document.querySelector('#unitForm').addEventListener('input', () => { unitDirty = true; });
+document.querySelector('#unitForm').addEventListener('change', () => { unitDirty = true; });
 document.querySelector('#unitForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
@@ -403,6 +480,7 @@ document.querySelector('#unitForm').addEventListener('submit', async (event) => 
       method: 'PUT',
       body: JSON.stringify({ callsign: document.querySelector('#callsignInput').value, status: document.querySelector('#unitStatusSelect').value }),
     });
+    unitDirty = false;
     await refreshData();
   } catch (error) { showNotice(error.message, true); }
 });
@@ -425,16 +503,22 @@ document.querySelector('#commandForm').addEventListener('submit', async (event) 
     showNotice('ER:LC command sent.');
   } catch (error) { showNotice(error.message, true); }
 });
+document.querySelector('#settingsForm').addEventListener('change', () => { settingsDirty = true; });
 document.querySelector('#settingsForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const selectedValues = (selector) => [...document.querySelector(selector).selectedOptions].map((option) => option.value);
   try {
     const result = await api(`/cad/api/guilds/${currentGuild}/settings`, {
       method: 'PUT',
-      body: JSON.stringify({ dispatchRoleIds: selectedValues('#dispatchRoles'), commandRoleIds: selectedValues('#commandRoles') }),
+      body: JSON.stringify({
+        dispatchRoleIds: selectedValues('#dispatchRoles'),
+        commandRoleIds: selectedValues('#commandRoles'),
+        experienceMode: document.querySelector('input[name="cadExperience"]:checked')?.value || 'hybrid',
+      }),
     });
     currentData.config = result.config;
-    showNotice('CAD role access saved.');
+    settingsDirty = false;
+    showNotice('CAD experience and role access saved. Your Discord commands and web CAD continue sharing one database.');
     await refreshData();
   } catch (error) { showNotice(error.message, true); }
 });

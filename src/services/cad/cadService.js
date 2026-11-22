@@ -14,6 +14,7 @@ const DISCORD_911_COOLDOWN_MS = 5 * 60 * 1000;
 const TRACKING_CONTINUITY_MS = 90 * 1000;
 const UNIT_STATUSES = new Set(['available', 'busy', 'on_scene', 'off_duty']);
 const writeQueues = new Map();
+const configWriteQueues = new Map();
 
 const stateKey = (guildId) => `guild:${guildId}:cad:state`;
 const configKey = (guildId) => `guild:${guildId}:cad:config`;
@@ -25,19 +26,41 @@ function getPlayerId(player) {
     return separator >= 0 ? name.slice(separator + 1) : name;
 }
 
-export function getCadGuildConfig(guildId) {
-    return getFromDb(configKey(guildId), { dispatchRoleIds: [], commandRoleIds: [], dispatchChannelId: null });
+export const CAD_EXPERIENCE_MODES = Object.freeze(['hybrid', 'discord', 'web']);
+export function normalizeCadExperienceMode(value) {
+    return CAD_EXPERIENCE_MODES.includes(value) ? value : 'hybrid';
+}
+
+export async function getCadGuildConfig(guildId) {
+    const config = await getFromDb(configKey(guildId), { dispatchRoleIds: [], commandRoleIds: [], dispatchChannelId: null });
+    return { ...config, experienceMode: normalizeCadExperienceMode(config?.experienceMode) };
 }
 
 export async function setCadGuildConfig(guildId, updates) {
-    const current = await getCadGuildConfig(guildId);
-    const config = {
-        dispatchRoleIds: updates.dispatchRoleIds ?? current.dispatchRoleIds ?? [],
-        commandRoleIds: updates.commandRoleIds ?? current.commandRoleIds ?? [],
-        dispatchChannelId: updates.dispatchChannelId ?? current.dispatchChannelId ?? null,
-    };
-    if (!await setInDb(configKey(guildId), config)) throw new Error('Could not save CAD settings.');
-    return config;
+    // Serialize configuration writes too: two administrators may change the
+    // dispatch channel and interface mode at the same time.
+    if (updates.experienceMode !== undefined && !CAD_EXPERIENCE_MODES.includes(updates.experienceMode)) {
+        throw new Error('CAD experience must be Discord, Web, or Hybrid.');
+    }
+    const previous = configWriteQueues.get(guildId) || Promise.resolve();
+    let release;
+    const current = new Promise(resolve => { release = resolve; });
+    configWriteQueues.set(guildId, current);
+    await previous;
+    try {
+        const existing = await getCadGuildConfig(guildId);
+        const config = {
+            dispatchRoleIds: updates.dispatchRoleIds ?? existing.dispatchRoleIds ?? [],
+            commandRoleIds: updates.commandRoleIds ?? existing.commandRoleIds ?? [],
+            dispatchChannelId: updates.dispatchChannelId ?? existing.dispatchChannelId ?? null,
+            experienceMode: updates.experienceMode ?? existing.experienceMode ?? 'hybrid',
+        };
+        if (!await setInDb(configKey(guildId), config)) throw new Error('Could not save CAD settings.');
+        return config;
+    } finally {
+        release();
+        if (configWriteQueues.get(guildId) === current) configWriteQueues.delete(guildId);
+    }
 }
 
 function normalizeState(value) {
@@ -94,8 +117,14 @@ export function isAssignableCadRole(guild, roleId) {
 
 export async function createCadCall(guildId, actor, input) {
     return mutateState(guildId, (state) => {
+        const isPanic = input.source === 'cad_panic';
+        if (isPanic && state.calls.some(c => c.source === 'cad_panic' && c.createdBy === actor.id
+            && Date.now() - c.createdAt < 120_000 && c.status !== 'closed')) {
+            throw new Error('An on-duty unit may only submit one open panic call every two minutes.');
+        }
         const call = {
             id: randomUUID(),
+            ...(isPanic ? {source:'cad_panic'} : {}),
             title: input.title.trim(),
             location: input.location.trim(),
             details: input.details?.trim() || '',
@@ -173,6 +202,46 @@ export async function ingestErlc911Calls(guildId, rawEvents) {
         }
         if (added) addAudit(state, { id: 'erlc-api', username: 'ER:LC' }, '911.ingame_imported', { count: added });
         return { added };
+    });
+}
+
+/**
+ * Assign an on-duty unit atomically alongside the call in the same guild write
+ * queue. Avoid stale snapshots overwriting other officers' assignments, or
+ * reopening a call that has already been closed on another device.
+ */
+export async function assignCadCallUnit(guildId, actor, callId, userId) {
+    return mutateState(guildId, (state) => {
+        const call = state.calls.find(entry => entry.id === callId);
+        if (!call) return null;
+        if (call.status === 'closed') throw new Error('This call was already closed.');
+        const unit = state.units.find(entry => entry.userId === userId && entry.status && entry.status !== 'off_duty');
+        if (!unit) throw new Error('The officer must be an on-duty CAD unit.');
+        const assignments = new Set(call.assignedUnitIds || []);
+        if (assignments.size >= 20 && !assignments.has(userId)) throw new Error('This call already has the maximum number of assigned units.');
+        const changed = !assignments.has(userId);
+        if (changed) {
+            assignments.add(userId);
+            call.assignedUnitIds = [...assignments];
+            call.status = 'assigned';
+            call.updatedAt = Date.now();
+            addAudit(state, actor, 'call.unit_assigned', { callId, userId });
+        }
+        return { call, changed };
+    });
+}
+
+/** Close once; preserves the final state if two dispatch interfaces act at once. */
+export async function closeCadCall(guildId, actor, callId) {
+    return mutateState(guildId, (state) => {
+        const call = state.calls.find(entry => entry.id === callId);
+        if (!call) return null;
+        if (call.status === 'closed') return { call, changed: false };
+        call.status = 'closed';
+        call.closedAt = Date.now();
+        call.updatedAt = call.closedAt;
+        addAudit(state, actor, 'call.closed', { callId });
+        return { call, changed: true };
     });
 }
 

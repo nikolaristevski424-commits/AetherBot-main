@@ -57,3 +57,42 @@ export function findCallByReference(calls, reference) {
   const matches = calls.filter(call => typeof call.id === 'string' && call.id.toLowerCase().startsWith(id));
   return matches.length === 1 ? matches[0] : null;
 }
+
+/**
+ * A non-sensitive, bounded dispatcher timeline. Never return arbitrary audit
+ * details: they can include staff-only commands, targets or other metadata.
+ */
+export function projectDispatchActivity(audit, limit = 20) {
+  if (!Array.isArray(audit)) return [];
+  const visible = new Set([
+    'call.created', 'call.updated', 'call.closed', 'call.unit_assigned',
+    '911.discord_reported', '911.ingame_imported',
+  ]);
+  const safeLimit = Number.isInteger(limit) ? Math.max(1, Math.min(limit, 30)) : 20;
+  return audit.filter(item => item && visible.has(item.action))
+    .slice(-safeLimit).reverse().map(item => ({
+      id: typeof item.id === 'string' ? item.id : null,
+      action: item.action,
+      at: Number.isFinite(item.at) ? item.at : null,
+      actorName: String(item.actorName || 'CAD').slice(0, 80),
+      callId: typeof item.details?.callId === 'string' ? item.details.callId.slice(0, 8).toUpperCase() : null,
+    }));
+}
+
+/** Public CAD state for a specific authorized guild role scope.
+ * Internal de-duplication keys and sync cursors must never go to the browser.
+ */
+export function projectCadGuildState(state, permissions = {}) {
+  const canDispatch = Boolean(permissions.dispatch || permissions.manager);
+  const canInspectPlayers = canDispatch || Boolean(permissions.commands);
+  return {
+    calls: canDispatch ? (state?.calls || []) : [],
+    units: canDispatch ? (state?.units || []) : [],
+    players: canInspectPlayers ? (state?.players || []) : [],
+    staff: canInspectPlayers ? (state?.staff || []) : [],
+    playerEvents: canInspectPlayers ? (state?.playerEvents || []) : [],
+    playerSyncAt: canInspectPlayers ? (state?.playerSyncAt ?? null) : null,
+    serverOnline: canInspectPlayers ? (state?.serverOnline ?? null) : null,
+    audit: permissions.manager ? (state?.audit || []) : [],
+  };
+}

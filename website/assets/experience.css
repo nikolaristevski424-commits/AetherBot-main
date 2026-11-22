@@ -1,0 +1,224 @@
+/* Aether Experience / refined motion system / 2026
+   Clear hierarchy, subtle intentional movement, no invented real-time data. */
+:root{--motion-soft:cubic-bezier(.16,1,.3,1);--motion-quick:cubic-bezier(.2,.8,.2,1)}
+body{letter-spacing:-.007em}
+.site-header{transition:background .24s var(--motion-quick),box-shadow .24s var(--motion-quick),border-color .24s var(--motion-quick)}
+.nav-links a{transition:color .2s ease}
+.btn{transition:transform .22s var(--motion-soft),background .2s,border-color .2s,box-shadow .22s}
+.btn:hover{transform:translate3d(0,-2px,0)}
+.btn:active{transform:translate3d(0,0,0)}
+.hero-wrap{position:relative;background:linear-gradient(118deg,#0b1323 6%,#111b30 72%,#192144);overflow:hidden}
+.hero-wrap:before{animation:none!important;background:radial-gradient(circle at 89% 30%,#465bd82b,transparent 46%);inset:0;opacity:1;z-index:0}
+.hero-wrap:after{content:'';position:absolute;pointer-events:none;inset:0;z-index:0;opacity:.14;background-image:linear-gradient(#97afff17 1px,transparent 1px),linear-gradient(90deg,#97afff17 1px,transparent 1px);background-size:78px 78px;mask-image:linear-gradient(to left,#000,transparent 75%)}
+.hero-wrap .hero{position:relative;z-index:1}
+.hero h1{letter-spacing:-.088em}
+.hero-showcase{animation:aether-ease-in .9s .07s both;transform-origin:center}
+.hero-copy{animation:aether-ease-in .82s both}
+.hero .eyebrow{color:#b2bfff}
+.hero .gradient-text{color:#9bafff}
+.preview-shell{border-radius:16px;transform:none!important;transition:border-color .28s ease,box-shadow .35s ease!important}
+.preview-shell:hover{border-color:#7488bc;box-shadow:0 34px 84px #050b1bb3!important}
+.preview-layout{border-radius:10px}
+.trust-row strong{font-size:12px}
+.section-heading p{max-width:680px}
+.feature-card{transition:border-color .25s,background .25s,box-shadow .3s,transform .4s var(--motion-soft);will-change:auto}
+.feature-card:hover{transform:translateY(-4px);box-shadow:0 20px 55px #111c3b12}
+.feature-card .card-foot{transition:color .2s}
+.feature-card .card-foot span{display:inline-block;transition:transform .22s}
+.feature-card:hover .card-foot span{transform:translate(3px,-2px)}
+.reveal{transition:opacity .64s var(--motion-soft),transform .8s var(--motion-soft);transition-delay:var(--aether-enter-delay,0ms)}
+.section-heading h2{letter-spacing:-.06em}
+.showcase-stage{overflow:hidden;transition:box-shadow .3s}
+.showcase-stage:hover{box-shadow:0 28px 72px #13234a0c}
+.dark-feature{background:linear-gradient(125deg,#0c1424,#15223b)}
+.dark-console{border-radius:13px;overflow:hidden}
+.dark-console-row{transition:background .2s}
+.dark-console-row:hover{background:#23345065}
+.faq-item{transition:border-color .2s,background .2s;padding-inline:16px}
+.faq-item[open]{background:var(--ux-panel-2);border-radius:7px}
+.faq-item summary{cursor:pointer}
+.faq-item summary::marker{color:var(--ux-brand)}
+.cta-band{position:relative;overflow:hidden;background:linear-gradient(110deg,#162542,#202c5b)}
+.cta-band:before{content:'';position:absolute;pointer-events:none;inset:auto -10% -160px 45%;height:300px;transform:rotate(-14deg);border:1px solid #a6b7ff2e;border-radius:50%;box-shadow:0 0 0 48px #9db0ff08,0 0 0 96px #9db0ff06}
+.cta-band>*{position:relative;z-index:1}
+/* CAD workflow section: real mode options, simulated examples clearly labeled */
+.cad-choice-section{padding:100px 0 105px;background:#0e1627;color:#eef3ff;border-top:1px solid #263650;border-bottom:1px solid #263650}
+.cad-choice-heading{display:flex;justify-content:space-between;align-items:end;gap:30px;margin-bottom:35px}
+.cad-choice-heading>div{max-width:670px}
+.cad-choice-heading .eyebrow{color:#9ab0ff}
+.cad-choice-heading h2{font-size:clamp(2.3rem,4.2vw,4rem);margin:15px 0;letter-spacing:-.063em;line-height:1.13;color:#f1f5ff}
+.cad-choice-heading p{font-size:14px;color:#a8b9d6;margin:0;line-height:1.8}
+.cad-choice-heading .btn{background:#182640;color:#cfdbff;border-color:#40516d}
+.cad-choice-wrap{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.16fr);gap:32px;align-items:stretch}
+.cad-choice-left{border:1px solid #33445f;border-radius:16px;padding:24px;background:#141f34;display:flex;flex-direction:column;gap:30px}
+.cad-choice-tabs{display:grid;grid-template-columns:1fr;gap:9px}
+.cad-choice-tab{display:grid;grid-template-columns:26px 1fr;column-gap:12px;row-gap:4px;width:100%;padding:15px 16px;text-align:left;background:#19273e;color:#f0f4fc;border:1px solid #2c3b55;border-radius:10px;transition:background .22s,border .22s,transform .24s var(--motion-soft)}
+.cad-choice-tab:hover{background:#223553;border-color:#566c91}
+.cad-choice-tab.active{background:linear-gradient(100deg,#293e74,#223352);border-color:#718cf2;box-shadow:inset 3px 0 0 #a0b5ff}
+.cad-choice-tab>span{grid-row:1/span 2;color:#90a9e5;font-size:10px;font-weight:900;letter-spacing:.08em;padding-top:4px}
+.cad-choice-tab strong{grid-column:2;font:800 14px Manrope,'DM Sans',sans-serif;letter-spacing:-.025em}
+.cad-choice-tab small{grid-column:2;color:#a9bdd9;font-size:11px;line-height:1.5}
+.cad-choice-copy{padding:5px 4px 0}
+.cad-overline{color:#95a8cf;font-size:10px;font-weight:800;letter-spacing:.13em;margin:0 0 10px}
+.cad-choice-copy h3{font:800 clamp(1.65rem,3vw,2.5rem)/1.2 Manrope,'DM Sans',sans-serif;letter-spacing:-.05em;margin:0 0 12px;color:#f5f7ff}
+.cad-choice-copy>p:not(.cad-overline):not(.cad-choice-note){color:#aec0db;font-size:13px;line-height:1.8;min-height:65px}
+.cad-choice-actions{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}
+.cad-choice-actions .btn-primary{background:#d6e1ff;color:#1d2e5d;border-color:#c8d4fd}
+.cad-choice-actions .btn-primary:hover{background:#f7faff}
+.cad-choice-actions .btn-ghost{background:#1b2a43;border-color:#3a4c70;color:#e5eefe}
+.cad-choice-note{font-size:10px;color:#8799b9;line-height:1.65;border-top:1px solid #33415a;padding-top:15px;margin:0}
+.cad-choice-note code{color:#e3ebff}
+.cad-samples{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:13px;align-content:center;padding:30px 20px 44px;border:1px solid #354666;border-radius:16px;background:radial-gradient(circle at 72% 13%,#4d64a82d,transparent 55%),#101a2c;min-width:0}
+.cad-example{min-width:0;border-radius:11px;overflow:hidden;transition:transform .28s var(--motion-soft),opacity .25s}
+.cad-example:hover{transform:translateY(-3px)}
+.cad-example-discord{align-self:center;padding:14px;background:#24252d;border:1px solid #454753;box-shadow:0 18px 42px #04081655}
+.cad-example-head{display:flex;align-items:center;gap:9px;color:#f0f3ff;margin-bottom:12px}
+.cad-example-discord-mark{display:grid;place-items:center;width:33px;height:33px;border-radius:50%;background:#5668d2;color:#fff;font-weight:900}
+.cad-example-head>div{flex:1;min-width:0}
+.cad-example-head strong{display:block;font-size:12px}
+.cad-example-head strong small{background:#5865f2;color:#fff;border-radius:3px;padding:2px 4px;font-size:8px}
+.cad-example-head>div span{display:block;color:#a8a8b6;font-size:10px}
+.cad-example-tag{color:#a2a6b7;font-size:8px;font-weight:800;letter-spacing:.08em}
+.cad-example-message{padding:11px 12px;border-left:3px solid #429cf5;background:#2e3039;border-radius:4px}
+.cad-example-severity{color:#8ac1ff;font-size:10px;font-weight:900;letter-spacing:.05em}
+.cad-example-message h4{color:#f7f8ff;font-size:13px;margin:7px 0}
+.cad-example-message p{font-size:11px;color:#bdc2cc;line-height:1.65;margin:0}
+.cad-example-loc{border-left:2px solid #707583;margin-top:14px;padding:2px 0 2px 9px}
+.cad-example-loc span{font-size:8px;color:#b6bdca;display:block}
+.cad-example-loc strong{font-size:10px;color:#e9eef8}
+.cad-example-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:15px}
+.cad-example-actions span{padding:6px 8px;background:#43529f;border-radius:4px;color:#f5f7ff;font-size:9px;font-weight:800}
+.cad-example-actions span:nth-child(2){background:#86404e}
+.cad-example-actions span:nth-child(3){background:#455067}
+.cad-example-web{align-self:center;background:#dde6f7;padding:11px;border:1px solid #a9bedf;box-shadow:0 18px 45px #030a1b66}
+.cad-example-window{display:grid;grid-template-columns:32px 1fr;border:1px solid #c1cde1;border-radius:7px;background:#f9fbff;overflow:hidden;min-height:238px}
+.cad-window-rail{display:flex;flex-direction:column;align-items:center;gap:22px;padding:12px 0;background:#15243b;color:#a7bbdb;font-size:13px}
+.cad-window-rail b{font-size:19px;color:#a5b6ff}
+.cad-window-main{min-width:0;padding:14px 11px}
+.cad-window-top{display:flex;gap:6px;justify-content:space-between;align-items:center}
+.cad-window-top small{font-size:8px;color:#788ca9;font-weight:900}
+.cad-window-top span{color:#506ac6;font-size:7px;font-weight:900;background:#e9eefe;border-radius:4px;padding:3px 5px}
+.cad-window-main h4{font-size:17px;color:#1f314b;margin:8px 0 12px}
+.cad-window-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:11px}
+.cad-window-stats>div{border:1px solid #e3e8f2;background:white;padding:8px 5px;border-radius:5px}
+.cad-window-stats small{display:block;font-size:8px;color:#71829c}
+.cad-window-stats b{font-size:15px;color:#273851}
+.cad-window-line{display:flex;align-items:center;gap:5px;margin:5px 0;padding:7px;background:white;border:1px solid #e2e8f1;border-radius:5px;color:#51617c;font-size:8px}
+.cad-window-line i{width:5px;height:5px;background:#ee8c69;border-radius:50%}
+.cad-window-line span{flex:1}
+.cad-window-line strong{color:#5373a7;font-size:7px}
+.cad-examples-caption{position:absolute;bottom:13px;left:20px;right:20px;text-align:center;color:#8697b5;font-size:9px;font-weight:800;letter-spacing:.1em;margin:0}
+.cad-samples.mode-discord,.cad-samples.mode-web{grid-template-columns:1fr;justify-items:center}
+.cad-samples.mode-discord .cad-example-web,.cad-samples.mode-web .cad-example-discord{display:none}
+.cad-samples.mode-discord .cad-example-discord,.cad-samples.mode-web .cad-example-web{width:min(100%,420px)}
+/* User-facing documentation: no developer tokens or host configuration walkthrough */
+.guide-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.guide-step{background:var(--ux-panel);border:1px solid var(--ux-border);border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.guide-step>span,.guide-choice-number{color:var(--ux-brand);font-size:10px;font-weight:900;letter-spacing:.12em}
+.guide-step h3,.guide-choice h3{color:var(--ux-ink);font-size:18px;letter-spacing:-.04em;margin:0}
+.guide-step p,.guide-choice p{color:var(--ux-muted);line-height:1.8;font-size:12px;margin:0;flex:1}
+.guide-step code,.guide-choice code,.guide-shortcuts code{display:inline-block;border:1px solid var(--ux-border);background:var(--ux-tint);border-radius:6px;padding:5px 7px;color:var(--ux-brand);font-size:11px;overflow-wrap:anywhere}
+.guide-comparison{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.guide-choice{display:flex;flex-direction:column;align-items:flex-start;gap:15px;border:1px solid var(--ux-border);border-radius:12px;background:var(--ux-panel);padding:28px;transition:transform .2s,border-color .2s}
+.guide-choice:hover{transform:translateY(-3px);border-color:var(--ux-brand)}
+.guide-choice>span:last-child{font-size:11px;color:var(--ux-muted);border-top:1px solid var(--ux-border);padding-top:12px;margin-top:auto}
+.guide-choice.choice-featured{border-color:#7895f8;box-shadow:inset 0 3px 0 #7594ff}
+.guide-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.guide-shortcuts>div{display:flex;align-items:center;gap:15px;background:var(--ux-panel);border:1px solid var(--ux-border);padding:12px 16px;border-radius:9px}
+.guide-shortcuts>div span{color:var(--ux-muted);font-size:12px}
+.guide-disclaimer{border-left:3px solid #8197ff;color:var(--ux-muted);font-size:12px;padding:12px 15px;margin-top:30px;background:var(--ux-panel-2)}
+/* Operational surfaces */
+.console-work .panel,.console-work .metric{transition:border-color .25s,box-shadow .25s}
+.console-work .panel:hover{border-color:color-mix(in srgb,var(--ux-brand) 25%,var(--ux-border))}
+.console-work .item-row{transition:background .18s,border-color .18s}
+.console-work .item-row:hover{background:var(--ux-tint)}
+.console-sidebar .console-side-link{transition:background .18s,color .18s,border-color .18s}
+.console-work .console-topline h1{font-weight:800}
+@keyframes aether-ease-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:1120px){.cad-choice-wrap{grid-template-columns:1fr;gap:16px}.cad-choice-left{display:grid;grid-template-columns:.85fr 1.15fr;align-items:center}.cad-samples{min-height:350px}.guide-flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){
+ .cad-choice-section{padding:70px 0}
+ .cad-choice-heading{align-items:flex-start;flex-direction:column}
+ .cad-choice-left{display:block;padding:18px}
+ .cad-choice-copy{margin-top:24px}
+ .cad-choice-wrap{grid-template-columns:1fr}
+ .cad-samples{grid-template-columns:1fr;gap:14px;padding:20px 17px 42px}
+ .cad-example{width:min(100%,430px);justify-self:center}
+ .guide-comparison{grid-template-columns:1fr}
+ .guide-shortcuts{grid-template-columns:1fr}
+ .cad-samples.mode-hybrid .cad-example{width:100%}
+}
+@media(max-width:520px){
+ .cad-choice-heading h2{font-size:clamp(2.15rem,9vw,3rem)}
+ .cad-choice-tabs{gap:7px}
+ .cad-choice-tab{padding:12px}
+ .cad-samples{grid-template-columns:1fr}
+ .guide-flow{grid-template-columns:1fr}
+ .cad-choice-actions .btn{flex:1;text-align:center}
+ .cad-choice-left{padding:15px}
+}
+@media(prefers-reduced-motion:reduce){
+ .hero-showcase,.hero-copy{animation:none!important}
+ .btn,.feature-card,.cad-example,.cad-choice-tab,.guide-choice,.reveal{transition:none!important;animation:none!important;transform:none!important}
+ .reveal{opacity:1!important;visibility:visible!important}
+}
+
+/* Motion polish: tactile surfaces, no perpetual bouncing or counterfeit telemetry. */
+.feature-card:hover,
+.guide-choice:hover{
+ background-image:radial-gradient(340px circle at var(--pointer-x,50%) var(--pointer-y,50%),
+   color-mix(in srgb,var(--ux-brand) 8%,transparent),transparent 70%);
+}
+.cad-choice-wrap:hover .cad-choice-left{
+ box-shadow:inset 0 0 0 1px #8399f02b,0 18px 50px #030c1d1f;
+ transition:box-shadow .35s var(--motion-soft);
+}
+.cad-choice-tab.active{
+ box-shadow:inset 3px 0 0 #a0b5ff,0 5px 18px #09172d2b;
+}
+.cad-choice-tab:focus-visible{
+ outline:3px solid #bed0ff;
+ outline-offset:3px;
+}
+.cad-samples .cad-example{
+ animation:aether-preview-arrive .52s var(--motion-soft) both;
+}
+.cad-samples .cad-example:nth-child(2){animation-delay:.085s}
+.cad-choice-copy h3,
+.cad-choice-copy>p:not(.cad-overline):not(.cad-choice-note){
+ transition:color .22s ease;
+}
+.guide-step,.guide-choice{
+ transition:transform .35s var(--motion-soft),box-shadow .35s var(--motion-soft),border-color .2s;
+}
+.guide-step:hover,.guide-choice:hover{
+ transform:translateY(-4px);
+ box-shadow:0 16px 38px #101d3d12;
+}
+.hero-ctas .btn:focus-visible,.cad-choice-actions .btn:focus-visible{
+ outline:3px solid #a6bcff;outline-offset:3px;
+}
+@keyframes aether-preview-arrive{
+ from{opacity:.5;transform:translateY(10px) scale(.985)}
+ to{opacity:1;transform:translateY(0) scale(1)}
+}
+@media(prefers-reduced-motion:reduce){
+ .cad-samples .cad-example{animation:none!important}
+ .guide-step,.guide-choice,.cad-choice-wrap .cad-choice-left{transition:none!important}
+ .guide-step:hover,.guide-choice:hover{transform:none!important}
+}
+@media(pointer:coarse){
+ .feature-card:hover,.guide-choice:hover{background-image:none}
+ .cad-samples .cad-example{animation:none}
+}
+
+/* Scroll position is informational; a thin line replaces distracting animation. */
+.site-header{--page-progress:0%}
+.site-header::after{
+ content:'';position:absolute;left:0;bottom:-1px;
+ height:2px;width:var(--page-progress);max-width:100%;
+ background:linear-gradient(90deg,#6f8fff,#adc0ff);
+ pointer-events:none;z-index:2;
+ transition:width .1s linear;
+}
+@media(prefers-reduced-motion:reduce){.site-header::after{transition:none}}

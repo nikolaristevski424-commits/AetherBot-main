@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/cad/assets/styles.css">
   <link rel="stylesheet" href="/cad/assets/map.css">
   <link rel="stylesheet" href="/cad/assets/mdt.css">
+  <link rel="stylesheet" href="/cad/assets/experience.css">
   <script src="/cad/assets/app.js" type="module"></script>
 </head>
 <body>
@@ -43,7 +44,7 @@
         <div class="breadcrumb"><span>AETHER</span><span class="crumb-divider">/</span><strong>CAD</strong></div>
         <div class="topbar-actions">
           <label class="server-select-wrap" for="serverSelect"><span>SERVER</span><select id="serverSelect" aria-label="Select Discord server"></select></label>
-          <div class="sync-state"><i id="syncIndicator" class="status-dot"></i><span id="lastUpdateLabel">Connecting</span></div>
+          <div class="sync-state"><i id="syncIndicator" class="status-dot"></i><span id="lastUpdateLabel">Connecting</span><span id="cadModeIndicator" class="cad-mode-indicator">Hybrid</span></div>
           <button id="refreshButton" class="icon-button refresh-button" type="button" title="Refresh CAD data" aria-label="Refresh CAD data">↻</button>
           <div class="user-chip"><img id="userAvatar" alt="" hidden><span id="userInitials" class="avatar-fallback">A</span><span id="userName"></span></div>
           <button id="logoutButton" class="icon-button" type="button" title="Sign out" aria-label="Sign out">↗</button>
@@ -73,6 +74,7 @@
                   <button class="filter-button active" type="button" data-filter="active">Active</button>
                   <button class="filter-button" type="button" data-filter="open">Open</button>
                   <button class="filter-button" type="button" data-filter="assigned">Assigned</button>
+                  <button class="filter-button" type="button" data-filter="urgent">Urgent</button>
                   <button class="filter-button" type="button" data-filter="closed">Closed</button>
                 </div>
               </div>
@@ -88,6 +90,15 @@
               <div id="unitsList" class="unit-list"><p class="empty-state">No units signed in.</p></div>
             </section>
           </div>
+          <section class="section-block activity-section" aria-labelledby="dispatchHistoryTitle">
+            <div class="section-heading">
+              <div><p class="eyebrow">OPERATIONAL HISTORY</p><h2 id="dispatchHistoryTitle">Recent dispatch activity</h2></div>
+              <span class="muted small">Most recent 20 events</span>
+            </div>
+            <div id="dispatchActivityList" class="dispatch-activity-list">
+              <p class="empty-state">No dispatch activity recorded yet.</p>
+            </div>
+          </section>
         </section>
 
 
@@ -118,6 +129,7 @@
               </section>
               <section class="mdt-panel">
                 <div class="mdt-panel-head"><h2>Person &amp; vehicle records</h2></div>
+                <div id="mdtActiveAlerts" class="mdt-active-alerts" role="status" aria-live="polite" hidden></div>
                 <div id="mdtRecordList" class="mdt-stack" aria-live="polite"><p class="mdt-empty">Select a Discord server to search.</p></div>
               </section>
               <section class="mdt-panel">
@@ -285,6 +297,15 @@
           <section id="settingsFormSection" class="section-block settings-section" hidden>
             <div class="section-heading"><div><p class="eyebrow">DISCORD ROLE MAPPING</p><h2>Operator access</h2></div></div>
             <form id="settingsForm" class="settings-form">
+              <fieldset class="cad-interface-fieldset">
+                <legend>HOW WILL YOUR TEAM USE CAD?</legend>
+                <p class="cad-interface-help">Choose a preferred workspace for this server. All three options share the same incidents, units and fictional records.</p>
+                <div class="cad-mode-grid">
+                  <label class="cad-mode-card"><input type="radio" name="cadExperience" value="discord"><span><strong>⌘ Discord first</strong><small>Run dispatch, record lookups and call actions through slash commands and alert cards.</small></span></label>
+                  <label class="cad-mode-card"><input type="radio" name="cadExperience" value="web"><span><strong>▦ Web CAD</strong><small>Open the authenticated map, dispatch board and officer MDT in your browser.</small></span></label>
+                  <label class="cad-mode-card"><input type="radio" name="cadExperience" value="hybrid" checked><span><strong>◇ Hybrid</strong><small>Use Discord and Web together. This keeps the full cross-platform workflow.</small></span></label>
+                </div>
+              </fieldset>
               <label>Dispatch roles<select id="dispatchRoles" multiple size="7" aria-describedby="dispatchRoleHint"></select><span id="dispatchRoleHint" class="muted small">Members can access dispatch, calls, units, and player sync.</span></label>
               <label>ER:LC command roles<select id="commandRoles" multiple size="7" aria-describedby="commandRoleHint"></select><span id="commandRoleHint" class="muted small">Members can send commands to the linked private server.</span></label>
               <div class="settings-actions"><p class="muted small">Server managers always retain access.</p><button class="button button-primary" type="submit">Save access</button></div>
