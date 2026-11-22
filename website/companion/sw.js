@@ -1,4 +1,4 @@
-const VERSION='aether-companion-v4';const PUBLIC=['/companion/','/companion/companion.js','/companion/manifest.webmanifest','/companion/icon.svg','/assets/site.css','/assets/theme.css','/assets/theme.js','/assets/quicknav.css','/assets/quicknav.js','/assets/aether-mark.webp'];
+const VERSION='aether-companion-v5';const PUBLIC=['/companion/','/companion/companion.js','/companion/manifest.webmanifest','/companion/icon.svg','/assets/site.css','/assets/theme.css','/assets/theme.js','/assets/refined.css','/assets/quicknav.css','/assets/quicknav.js','/assets/aether-mark.webp'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(VERSION).then(cache=>cache.addAll(PUBLIC)));self.skipWaiting();});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==VERSION).map(k=>caches.delete(k)))));self.clients.claim();});
 self.addEventListener('fetch',event=>{
