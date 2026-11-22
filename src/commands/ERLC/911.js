@@ -1,4 +1,5 @@
-import { SlashCommandBuilder, MessageFlags, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { buildCadCallAnnouncement } from '../../services/cad/cadDiscordPresentation.js';
 import { createDiscord911Call, getCadGuildConfig } from '../../services/cad/cadService.js';
 import { signalBaseStation } from '../../services/cad/baseStationService.js';
 
@@ -32,14 +33,7 @@ export default {
         const config = await getCadGuildConfig(interaction.guildId);
         const channel = config.dispatchChannelId ? await interaction.guild.channels.fetch(config.dispatchChannelId).catch(() => null) : null;
         if (channel?.isTextBased?.() && channel.send) {
-          const embed = new EmbedBuilder().setColor(0xe35a54)
-            .setTitle(`ROLEPLAY 911 · ${call.id.slice(0, 8).toUpperCase()}`)
-            .addFields(
-              { name: 'Incident', value: call.title },
-              { name: 'Location', value: call.location },
-              { name: 'Details', value: call.details.slice(0, 1000) },
-            ).setFooter({ text: 'ER:LC roleplay dispatch only • Aether CAD' }).setTimestamp();
-          await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
+          await channel.send(buildCadCallAnnouncement(call, config));
           dispatchedToChannel = true;
         }
       } catch { /* CAD stores the report even when dispatch channel delivery fails. */ }
