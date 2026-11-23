@@ -1,24 +1,57 @@
-(async function(){
-  const notice=document.querySelector('#loginNotice');const signin=document.querySelector('#discordSignIn');
+(async () => {
+  const notice = document.querySelector('#loginNotice');
+  const signIn = document.querySelector('#discordSignIn');
   const query = new URLSearchParams(location.search);
-  const err = query.get('error');
-  const destinations = ['/dashboard/', '/cad/', '/staff/', '/owner/', '/team/panel/', '/api/auth/cad/'];
-  const next = destinations.includes(query.get('next')) ? query.get('next') : '/dashboard/';
-  signin.href = '/api/auth/login?' + new URLSearchParams({ next });
-  const errors={
-    'not-configured':'Website OAuth configuration is incomplete on Vercel. Check the application ID, OAuth client secret, session secret, and canonical origin.',
-    'state':'Your sign-in state cookie was missing, expired or did not match. Start again on aetherbot-hq.vercel.app in the same browser tab, with cookies enabled.',
-    'denied':'Discord authorization was cancelled or denied. Choose Continue with Discord to restart.',
-    'credentials':'Discord rejected the website OAuth credentials. Check that AETHER_DISCORD_CLIENT_SECRET is the OAuth2 Client Secret (not the bot token) for the same application ID.',
-    'code':'Discord rejected the authorization code. Confirm that the registered callback exactly matches https://aetherbot-hq.vercel.app/api/auth/callback, then restart the sign-in.',
-    'network':'Aether could not reach or read Discord authorization services. Try again after checking the connection.',
-    'discord':'Discord could not verify your account during authorization. Please restart sign-in and check the configured application.'
+  const destinations = new Map([
+    ['/dashboard/', 'Open dashboard'],
+    ['/cad/', 'Open CAD'],
+    ['/staff/', 'Open staff desk'],
+    ['/owner/', 'Open owner panel'],
+    ['/team/panel/', 'Open team panel'],
+    ['/api/auth/cad/', 'Continue to CAD'],
+  ]);
+  const requested = query.get('next');
+  const next = destinations.has(requested) ? requested : '/dashboard/';
+  const configurationError = 'Discord sign-in is temporarily unavailable. Check Aether status or try again later.';
+  const errors = {
+    'not-configured': configurationError,
+    state: 'This sign-in attempt expired or could not be verified. Start again in this tab with cookies enabled.',
+    denied: 'Discord sign-in was cancelled. Choose Continue with Discord to try again.',
+    credentials: configurationError,
+    code: 'The Discord sign-in link expired. Choose Continue with Discord to start again.',
+    network: 'Aether could not reach Discord. Try again in a moment.',
+    discord: 'Discord could not verify your account. Try signing in again.',
   };
-  if(err){notice.textContent=errors[err]||'Authentication could not be completed.';document.querySelector('#authTroubleshoot')?.setAttribute('open','');}
-  try{
-    const [config,me]=await Promise.all([fetch('/api/config',{cache:'no-store'}).then(x=>x.json()),fetch('/api/auth/me',{cache:'no-store'}).then(x=>x.json())]);
-    if(me.authenticated){notice.textContent='You are already signed in. Open your command center.';signin.href=next;signin.textContent='Open dashboard ↗';}
-    else if(!config.oauthConfigured){notice.textContent=errors['not-configured'];signin.setAttribute('aria-disabled','true');signin.href='/docs/';signin.textContent='View login setup guide ↗';}
-    else if(!err)notice.textContent='Discord sign-in is ready. Your authorized servers will appear after login.';
-  }catch{notice.textContent='Could not check login status. Try refreshing the page.';}
+
+  function showNotice(message) {
+    notice.textContent = message;
+    notice.hidden = false;
+  }
+
+  signIn.href = '/api/auth/login?' + new URLSearchParams({ next });
+  const error = query.get('error');
+  if (error) {
+    showNotice(Object.hasOwn(errors, error) ? errors[error] : 'Sign-in could not be completed. Try again.');
+    document.querySelector('#authTroubleshoot')?.setAttribute('open', '');
+  }
+
+  try {
+    const [configResponse, accountResponse] = await Promise.all([
+      fetch('/api/config', { cache: 'no-store' }),
+      fetch('/api/auth/me', { cache: 'no-store' }),
+    ]);
+    if (!configResponse.ok || !accountResponse.ok) throw new Error('Login status unavailable');
+    const [config, account] = await Promise.all([configResponse.json(), accountResponse.json()]);
+    if (account.authenticated) {
+      signIn.href = next;
+      signIn.textContent = destinations.get(next);
+      showNotice('You’re already signed in.');
+    } else if (!config.oauthConfigured) {
+      showNotice(configurationError);
+      signIn.href = '/status/';
+      signIn.textContent = 'Check Aether status';
+    }
+  } catch {
+    if (!error) showNotice('Aether could not check sign-in availability. You can still try signing in with Discord.');
+  }
 })();

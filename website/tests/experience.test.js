@@ -8,12 +8,11 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const read=path=>readFileSync(resolve(root,path),'utf8');
 const pages=['404.html','index.html','cad/index.html','commands/index.html','dashboard/index.html','docs/index.html','faq/index.html','features/index.html','login/index.html','privacy/index.html','staff/index.html','status/index.html','terms/index.html','companion/index.html'];
 
-test('experience system is loaded last on all 14 pages',()=>{
+test('the shared redesign loads after the original website styles',()=>{
  for(const page of pages){
    const s=read(page);
-   assert.match(s,/<link rel="stylesheet" href="\/assets\/experience\.css">/,page);
-   assert.match(s,/<script defer src="\/assets\/experience\.js">/,page);
-   assert.ok(s.indexOf('/assets/refined.css')<s.indexOf('/assets/experience.css'),page);
+   assert.match(s,/<link rel="stylesheet" href="\/assets\/aether-ui\.css">/,page);
+   assert.ok(s.indexOf('/assets/refined.css')<s.indexOf('/assets/aether-ui.css'),page);
  }
 });
 test('public documentation focuses on product use, not developer tokens',()=>{
@@ -25,16 +24,16 @@ test('public documentation focuses on product use, not developer tokens',()=>{
  assert.doesNotMatch(docs,/AETHER_DISCORD_CLIENT_SECRET|AETHER_BRIDGE_SECRET|Vercel Environment Variables|private signed API bridge/);
  assert.doesNotMatch(faq,/Do I need to put my bot token|AETHER_SESSION_SECRET|Vercel/);
 });
-test('CAD user-facing preview is clearly illustrative and all modes are wired',()=>{
+test('the homepage shows the public postal map and links to the authenticated CAD',()=>{
  const html=read('index.html');
- const script=read('assets/experience.js');
- assert.match(html,/data-cad-sample="discord"/);
- assert.match(html,/data-cad-sample="web"/);
- assert.match(html,/data-cad-sample="hybrid"/);
- assert.match(html,/NOT LIVE SERVER DATA/);
- assert.match(html,/id="cadChoiceAction"/);
- assert.match(script,/role="tab"|setAttribute\('aria-selected'/);
- assert.match(script,/ArrowRight/);
+ const config=JSON.parse(read('vercel.json'));
+ assert.ok(html.includes('src="/media/erlc-postal-map.webp"'));
+ assert.ok(html.includes('href="https://aether.wispbyte.app/cad/"'));
+ assert.ok(html.includes('Official ER:LC map imagery'));
+ assert.deepEqual(config.rewrites.find(rule=>rule.source==='/media/erlc-postal-map.webp'), {
+   source:'/media/erlc-postal-map.webp',
+   destination:'https://aether.wispbyte.app/cad/map-image/fall-postals',
+ });
 });
 test('the Wispbyte CAD setting has three choices and privacy-safe backend controls',()=>{
  const css=read('assets/experience.css');
@@ -42,7 +41,7 @@ test('the Wispbyte CAD setting has three choices and privacy-safe backend contro
  const html=read('cad/index.html');
  assert.match(html,/id="consoleRoot"/);
  const worker=read('companion/sw.js');
- assert.match(worker,/aether-companion-v6/);
+ assert.match(worker,/aether-companion-v7/);
  assert.match(worker,/\/assets\/experience\.css/);
 });
 

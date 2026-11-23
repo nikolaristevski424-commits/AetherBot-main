@@ -38,6 +38,10 @@
   },
   "rewrites": [
     {
+      "source": "/media/erlc-postal-map.webp",
+      "destination": "https://aether.wispbyte.app/cad/map-image/fall-postals"
+    },
+    {
       "source": "/",
       "destination": "/api/page?page=home"
     },
