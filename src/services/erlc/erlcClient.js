@@ -57,6 +57,7 @@ class KeyState {
 
 class ErlcClient {
     constructor() {
+        this.globalBlockedUntil = 0;
         this.keyStates = new Map(); // serverKey -> KeyState
     }
 
@@ -95,10 +96,11 @@ class ErlcClient {
             );
         }
 
-        if (state.blockedUntil && Date.now() < state.blockedUntil) {
+        const blockedUntil = Math.max(state.blockedUntil, this.globalBlockedUntil);
+        if (Date.now() < blockedUntil) {
             throw new ErlcApiError(
-                `Rate limited — try again in ${Math.ceil((state.blockedUntil - Date.now()) / 1000)}s.`,
-                { kind: 'rate_limited', retryAfterMs: state.blockedUntil - Date.now() },
+                `Rate limited — try again in ${Math.ceil((blockedUntil - Date.now()) / 1000)}s.`,
+                { kind: 'rate_limited', retryAfterMs: blockedUntil - Date.now() },
             );
         }
 
@@ -122,6 +124,8 @@ class ErlcClient {
         }
 
         const headers = { 'server-key': serverKey, Accept: 'application/json' };
+        const applicationKey = process.env.ERLC_APPLICATION_KEY?.trim();
+        if (applicationKey) headers.Authorization = applicationKey;
         if (body) headers['Content-Type'] = 'application/json';
 
         let response;
@@ -129,6 +133,8 @@ class ErlcClient {
             response = await fetch(url, {
                 method,
                 headers,
+                redirect: 'error',
+                signal: AbortSignal.timeout(6500),
                 body: body ? JSON.stringify(body) : undefined,
             });
         } catch (networkError) {
@@ -143,10 +149,11 @@ class ErlcClient {
         if (response.status === 429) {
             let retryAfterMs = 10_000;
             const header = response.headers.get('Retry-After');
-            if (header && !Number.isNaN(Number(header))) {
-                retryAfterMs = Number(header) * 1000;
-            }
+            const seconds = Number(header);
+            if (header && Number.isFinite(seconds) && seconds >= 0) retryAfterMs = Math.max(1000, seconds * 1000);
+            else if (header && Number.isFinite(Date.parse(header))) retryAfterMs = Math.max(1000, Date.parse(header) - Date.now());
             state.blockedUntil = Date.now() + retryAfterMs;
+            this.globalBlockedUntil = Math.max(this.globalBlockedUntil, state.blockedUntil);
             logger.warn(`[ERLC] Rate limited on ${path} — backing off ${retryAfterMs}ms per Retry-After.`);
             throw new ErlcApiError('Rate limited by the ER:LC API.', { kind: 'rate_limited', httpStatus: 429, retryAfterMs });
         }
@@ -159,7 +166,11 @@ class ErlcClient {
             // Non-JSON body — fall through with payload = null; handled below per status.
         }
 
-        if (response.status === 403) {
+        if (response.status === 403 && Number(payload?.code) === 2005) {
+            state.blockedUntil = Date.now() + 15 * 60_000;
+            throw new ErlcApiError('PRC requires an application key for this deployment.', { kind: 'application_required', code: 2005, httpStatus: 403, retryAfterMs: 15 * 60_000 });
+        }
+        if (response.status === 401 || response.status === 403) {
             state.consecutiveAuthFailures += 1;
             const code = payload?.code ?? null;
             throw new ErlcApiError(
@@ -171,6 +182,7 @@ class ErlcClient {
         }
 
         if (response.ok) {
+            if (method === 'GET' && !payload) throw new ErlcApiError('PRC returned no usable snapshot.', { kind: 'invalid_snapshot' });
             state.consecutiveAuthFailures = 0;
             return payload;
         }

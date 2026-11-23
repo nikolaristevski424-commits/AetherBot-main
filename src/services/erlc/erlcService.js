@@ -17,6 +17,8 @@ function userMessageForErlcError(error) {
     switch (error.kind) {
         case 'auth':
             return 'That ER:LC server key looks invalid, expired, or banned. Re-run `/erlc setup` with a fresh key from your private server settings.';
+        case 'application_required':
+            return 'PRC requires Aether’s global application key on the bot host to read this server.';
         case 'offline':
             return 'The private server is currently offline (no players in-game). Live status/commands need at least one player in the server.';
         case 'outdated_module':

@@ -238,3 +238,62 @@ test('ER:LC v2 emergency calls import into CAD exactly once', async () => {
     assert.deepEqual(await cad.ingestErlc911Calls(guildId, [sample]), { added: 0 });
     assert.equal((await cad.getCadState(guildId)).calls[0].status, 'closed');
 });
+
+test('tracking coalesces concurrent refreshes and maintains a private shared snapshot', async () => {
+    const guildId = '55555555555555552';
+    await setInDb(getErlcConfigKey(guildId), { serverKey: 'cad-concurrent-tracking-test' });
+    const native = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+        calls++;
+        return Response.json({ Players: [{ Player: 'Scout:88', Location: { LocationX: '0', LocationZ: '150', PostalCode: '315' } }] });
+    };
+    try {
+        const results = await Promise.all([syncCadGuild(guildId), syncCadGuild(guildId), syncCadGuild(guildId)]);
+        assert.equal(calls, 1);
+        assert.equal(results[0].players[0].locationX, 0);
+        assert.equal(results[0].players[0].locationZ, 150);
+        assert.equal(results[0].players[0].postalCode, '315');
+        assert.equal((await syncCadGuild(guildId)).skipped, true);
+        assert.equal(calls, 1);
+    } finally { globalThis.fetch = native; }
+});
+
+test('PRC application authorization is optional for one server and application errors do not erase snapshots', async () => {
+    const { ErlcClient } = await import('../src/services/erlc/erlcClient.js');
+    const { getCadTracking } = await import('../src/services/cad/cadTrackingService.js');
+    const guildId = '55555555555555553';
+    const native = globalThis.fetch;
+    const original = process.env.ERLC_APPLICATION_KEY;
+    await setInDb(getErlcConfigKey(guildId), { serverKey: 'cad-app-authorization-test' });
+    await cad.saveCadPlayers(guildId, null, [{ player: 'Existing', robloxId: '3', locationX: 3, locationZ: 9 }]);
+    process.env.ERLC_APPLICATION_KEY = 'example-test-app-key';
+    globalThis.fetch = async (url, opts) => {
+        assert.equal(opts.headers.Authorization, 'example-test-app-key');
+        return Response.json({ code: 2005 }, { status: 403 });
+    };
+    try {
+        await assert.rejects(new ErlcClient().getServer('prc-auth-mock'), error => error.kind === 'application_required');
+        await syncCadGuild(guildId);
+        assert.equal(getCadTracking(guildId).status, 'application_required');
+        assert.equal((await cad.getCadState(guildId)).players[0].player, 'Existing');
+    } finally {
+        globalThis.fetch = native;
+        if (original === undefined) delete process.env.ERLC_APPLICATION_KEY;
+        else process.env.ERLC_APPLICATION_KEY = original;
+    }
+});
+
+test('CAD map keeps offline or stale players off pins and retains usable call locations', async () => {
+    const { buildMapMarkers, getPlayerSnapshot, projectCadPosition } = await import('../src/web/cad/assets/mapModel.js');
+    const now = 100_000;
+    const player = { player: 'Example', robloxId: '44', locationX: 0, locationZ: 535.5, postalCode: '403', team: 'Police' };
+    const call = { id: 'incident', status: 'open', title: '911', positionX: -535.5, positionZ: 0 };
+    const state = { players: [player], calls: [call], playerSyncAt: now - 5000 };
+    const markers = buildMapMarkers(state, null, '', 'all', now);
+    assert.deepEqual(markers.map(marker => marker.point), [{ x: 50, y: 60 }, { x: 40, y: 50 }]);
+    assert.equal(buildMapMarkers(state, null, '403', 'police', now)[0].title, 'Example');
+    assert.deepEqual(buildMapMarkers({ ...state, serverOnline: false }, null, '', 'all', now).map(x => x.type), ['call']);
+    assert.equal(getPlayerSnapshot({ ...state, playerSyncAt: 1 }, now).status, 'expired');
+    assert.equal(projectCadPosition(null, 0), null);
+});

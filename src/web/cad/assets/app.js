@@ -1,4 +1,4 @@
-import { renderCadMap } from './map.js';
+import { focusCadMapPlayer, renderCadMap } from './map.js?v=3.2.0';
 import { renderMdt, refreshMdt } from './mdt.js';
 
 const loginView = document.querySelector('#loginView');
@@ -13,6 +13,19 @@ const views = ['dispatch', 'mdt', 'map', 'erlc', 'settings'];
 let currentUser = null;
 let currentGuild = null;
 let currentData = null;
+let currentView = 'dispatch';
+let lastRefreshAttempt = 0;
+const entryParams = new URLSearchParams(location.search);
+const navigationKey = 'aether-cad-navigation';
+let navigation = {};
+try {
+  if (['map', 'mdt'].includes(entryParams.get('view'))) {
+    sessionStorage.setItem(navigationKey, JSON.stringify({
+      view: entryParams.get('view'), guild: entryParams.get('guild'), focus: entryParams.get('focus'),
+    }));
+  }
+  navigation = JSON.parse(sessionStorage.getItem(navigationKey) || '{}');
+} catch { /* Storage is optional. */ }
 let guilds = [];
 let currentCallFilter = 'active';
 let refreshInFlight = false;
@@ -39,7 +52,7 @@ async function api(path, options = {}) {
     headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
   });
   const data = response.status === 204 ? null : await response.json().catch(() => null);
-  if (!response.ok) throw new Error(data?.error || `Request failed (${response.status}).`);
+  if (!response.ok) throw Object.assign(new Error(data?.error || `Request failed (${response.status}).`), { status: response.status });
   return data;
 }
 
@@ -66,6 +79,7 @@ function formatDuration(durationMs) {
 }
 
 function setView(name) {
+  currentView = name;
   for (const view of views) {
     document.querySelector(`#view-${view}`).hidden = view !== name;
     document.querySelector(`[data-view="${view}"]`).classList.toggle('active', view === name);
@@ -317,8 +331,10 @@ function renderData(data) {
   renderSettings(data);
   if (data.permissions.dispatch) {
     renderCadMap(data);
+    if (currentView === 'map' && navigation.guild === data.guild.id && /^\d{1,20}$/.test(navigation.focus || '') && focusCadMapPlayer(navigation.focus)) navigation.focus = null;
     renderMdt({ ...data, currentUserId: currentUser?.id });
   } else {
+    renderCadMap(null);
     // A user who loses CAD dispatch access must not keep stale MDT or map
     // contents on screen, or continue making unauthorized refresh requests.
     for (const id of ['mdtRecordList','mdtBoloList','mdtPlayerList','mdtAssignedList','mdtBaseHistory',
@@ -335,14 +351,17 @@ function renderData(data) {
 
 async function loadGuildData() {
   if (!guildSelect.value) return;
-  currentGuild = guildSelect.value;
+  const requestGuild = guildSelect.value;
+  if (requestGuild !== currentData?.guild?.id) { currentData = null; renderCadMap(null); }
+  currentGuild = requestGuild;
   settingsDirty = false;
   unitDirty = false;
   const guild = guilds.find((item) => item.id === currentGuild);
   document.querySelector('#footerServer').textContent = guild?.name || 'CAD';
   showNotice('');
   try {
-    const data = await api(`/cad/api/guilds/${encodeURIComponent(currentGuild)}`);
+    const data = await api(guildDataPath(requestGuild));
+    if (requestGuild !== currentGuild) return;
     renderData(data);
     renderGuildOptions();
   } catch (error) {
@@ -350,14 +369,24 @@ async function loadGuildData() {
   }
 }
 
+function guildDataPath(id) {
+  const live = ['map', 'erlc'].includes(currentView) || (navigation.view === 'map' && navigation.guild === id);
+  return `/cad/api/guilds/${encodeURIComponent(id)}${live ? '?tracking=1' : ''}`;
+}
+
 async function refreshData() {
   if (refreshInFlight || !currentGuild) return;
   refreshInFlight = true;
+  lastRefreshAttempt = Date.now();
+  const requestGuild = currentGuild;
   const refreshButton = document.querySelector('#refreshButton');
   try {
-    const data = await api(`/cad/api/guilds/${encodeURIComponent(currentGuild)}`);
-    renderData(data);
+    const data = await api(guildDataPath(requestGuild));
+    if (requestGuild === currentGuild) renderData(data);
   } catch (error) {
+    if (requestGuild !== currentGuild) return;
+    if ([401, 403].includes(error.status)) { currentData = null; renderCadMap(null); showLogin(); }
+    else if (currentData?.permissions.dispatch) renderCadMap(currentData);
     document.querySelector('#syncIndicator').classList.add('error');
     document.querySelector('#syncIndicator').classList.remove('ready');
     document.querySelector('#lastUpdateLabel').textContent = 'Refresh failed';
@@ -417,11 +446,16 @@ async function initialize() {
       guildSelect.disabled = true;
       return;
     }
-    guildSelect.value = guilds[0].id;
-    currentGuild = guildSelect.value;
+    guildSelect.value = guilds.some(guild => guild.id === navigation.guild) ? navigation.guild : guilds[0].id;
+    try { sessionStorage.removeItem(navigationKey); } catch { /* Storage is optional. */ }
     await loadGuildData();
-    const desiredView = new URLSearchParams(location.search).get('view');
-    if (['map', 'mdt'].includes(desiredView) && currentData?.permissions.dispatch) setView(desiredView);
+    if (['map', 'mdt'].includes(navigation.view) && currentData?.permissions.dispatch) {
+      setView(navigation.view);
+      if (navigation.view === 'map') {
+        if (currentGuild === navigation.guild && /^\d{1,20}$/.test(navigation.focus || '') && focusCadMapPlayer(navigation.focus)) navigation.focus = null;
+        void refreshData();
+      }
+    }
   } catch (error) {
     if (/sign in with discord/i.test(error.message)) {
       showLogin(new URLSearchParams(location.search).get('authError'));
@@ -433,7 +467,7 @@ async function initialize() {
   }
 }
 
-document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { setView(button.dataset.view); if (button.dataset.view === 'mdt') void refreshMdt(); }));
+document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { setView(button.dataset.view); if (button.dataset.view === 'mdt') void refreshMdt(); if (['map','erlc'].includes(button.dataset.view)) void refreshData(); }));
 guildSelect.addEventListener('change', loadGuildData);
 document.querySelector('#logoutButton').addEventListener('click', async () => {
   try { await api('/cad/api/logout', { method: 'POST' }); } finally { location.assign('/cad/'); }
@@ -542,8 +576,9 @@ async function loadRoles() {
 
 document.querySelector('[data-view="settings"]').addEventListener('click', loadRoles);
 setInterval(() => {
-  if (!appView.hidden && document.visibilityState === 'visible') refreshData();
-}, 15000);
+  const interval = ['map', 'erlc'].includes(currentView) ? 10_000 : 15_000;
+  if (!appView.hidden && document.visibilityState === 'visible' && Date.now() - lastRefreshAttempt >= interval - 200) refreshData();
+}, 5_000);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && !appView.hidden) refreshData();
 });

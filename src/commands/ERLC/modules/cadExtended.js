@@ -4,19 +4,15 @@ import {
   getMdtState,searchMdt,createMdtRecord,archiveMdtRecord,createMdtBolo,clearMdtBolo,logBaseBulletin,
 } from '../../../services/cad/mdtService.js';
 import { isBoloActive } from '../../../services/cad/mdtCore.js';
-import { buildMdtLookupEmbeds, buildBoloAlert, cadModeLabel } from '../../../services/cad/cadDiscordPresentation.js';
+import { buildMdtLookupEmbeds, buildBoloAlert, cadModeLabel, cadWebUrl } from '../../../services/cad/cadDiscordPresentation.js';
 import {
   joinBaseStation,leaveBaseStation,getBaseStation,signalBaseStation,
 } from '../../../services/cad/baseStationService.js';
+import { getPlayerSnapshot, matchesPlayer } from '../../../web/cad/assets/mapModel.js';
 const actor=i=>({id:i.user.id,username:i.user.username});
 const brief=value=>String(value||'').replace(/[\r\n]+/g,' ').slice(0,160);
 const fmt=id=>id?.slice(0,8).toUpperCase();
 const privateError='You must have an Aether CAD dispatch role or Manage Server permission.';
-function mdtUrl(query='mdt'){
-  const input=process.env.CAD_PUBLIC_URL||process.env.CAD_REDIRECT_URI||'';
-  try{const u=new URL(input);if(u.protocol==='https:')return `${u.origin}/cad/?view=${query}`;}catch{}
-  return null;
-}
 function playerSummary(p){
   return `• **${brief(p.player)}** · ${brief(p.team||'Team unknown')} · ${brief(p.location||'No current position')}`;
 }
@@ -26,7 +22,7 @@ export async function handleCadExtended(interaction,access,group,sub){
   if(group==='mdt'){
     if(sub==='open'){
       const mode=access.config?.experienceMode||'hybrid';
-      const url=mdtUrl('mdt');
+      const url=cadWebUrl('mdt');
       return interaction.editReply(
         `**Officer MDT • ${cadModeLabel(mode)}**\n`+
         (mode==='discord'?
@@ -44,7 +40,7 @@ export async function handleCadExtended(interaction,access,group,sub){
       const q=interaction.options.getString('query',true).trim();
       if(q.length<2)return interaction.editReply('Search term must contain at least two characters.');
       const [mdt,cad]=await Promise.all([searchMdt(guildId,q,12),getCadState(guildId)]);
-      const players=cad.playerSyncAt&&Date.now()-cad.playerSyncAt<=90_000?cad.players.filter(p=>[p.player,p.robloxId,p.callsign,p.location].some(v=>String(v||'').toLowerCase().includes(q.toLowerCase()))).slice(0,8):[];
+      const players=getPlayerSnapshot(cad).players.filter(p=>matchesPlayer(p,q)).slice(0,8);
       const records=mdt.records.slice(0,8).map(r=>`• **${fmt(r.id)}** [${r.kind}] ${brief(r.subject)}${r.plate?' · '+brief(r.plate):''}`);
       const bolos=mdt.bolos.slice(0,5).map(b=>`• 🚨 **${fmt(b.id)}** ${brief(b.subject)} · ${brief(b.location)}`);
       const body=[players.length?'**Current ER:LC players**\n'+players.map(playerSummary).join('\n'):'',records.length?'**Fictional records**\n'+records.join('\n'):'',bolos.length?'**Active BOLOs**\n'+bolos.join('\n'):''].filter(Boolean).join('\n\n');

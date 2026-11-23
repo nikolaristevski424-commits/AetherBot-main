@@ -1,5 +1,5 @@
-/* ER:LC v2 position snapshots on the published PRC map. No browser API keys. */
-const MAP_SIZE = 5355;
+import { buildMapMarkers, DEFAULT_MAP_LAYER, getPlayerSnapshot, MAP_LAYERS } from './mapModel.js';
+
 let snapshot = null;
 let currentFilter = 'all';
 let zoom = 1;
@@ -8,116 +8,181 @@ let panY = 0;
 let selected = null;
 let pendingLandmark = null;
 let savingCalibration = false;
+let follow = false;
+let markers = [];
+let layer = DEFAULT_MAP_LAYER;
 
 const el = id => document.getElementById(id);
-function asPosition(x, z) {
-  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
-  const transform = snapshot?.mapTransform;
-  const mx = transform?.coeffX?.length === 3
-    ? transform.coeffX[0] * x + transform.coeffX[1] * z + transform.coeffX[2]
-    : (x + MAP_SIZE / 2) / MAP_SIZE * 100;
-  const my = transform?.coeffY?.length === 3
-    ? transform.coeffY[0] * x + transform.coeffY[1] * z + transform.coeffY[2]
-    : (z + MAP_SIZE / 2) / MAP_SIZE * 100;
-  return mx >= 0 && mx <= 100 && my >= 0 && my <= 100 ? { x: mx, y: my } : null;
-}
-function teamGroup(team) {
-  const t = String(team || '').toLowerCase();
-  if (/sheriff/.test(t)) return 'sheriff';
-  if (/police/.test(t)) return 'police';
-  if (/fire|rescue|ems|medical/.test(t)) return 'fire';
-  if (/dot|transport/.test(t)) return 'dot';
-  if (/civilian|criminal/.test(t)) return 'civilian';
-  return 'other';
-}
+
 function applyTransform() {
+  const stage = el('cadMapStage');
   const canvas = el('cadMapCanvas');
-  if (canvas) canvas.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
-  if (el('cadMapZoomValue')) el('cadMapZoomValue').textContent = `${Math.round(zoom * 100)}%`;
+  if (stage && canvas) {
+    const maxX = stage.clientWidth * (zoom - 1) / 2;
+    const maxY = stage.clientHeight * (zoom - 1) / 2;
+    panX = Math.max(-maxX, Math.min(maxX, panX));
+    panY = Math.max(-maxY, Math.min(maxY, panY));
+    canvas.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+  }
+  el('cadMapZoomValue').textContent = `${Math.round(zoom * 100)}%`;
 }
+
+function centerMarker(item) {
+  const stage = el('cadMapStage');
+  if (!item?.point || !stage?.clientWidth) return;
+  zoom = Math.max(2, zoom);
+  panX = (0.5 - item.point.x / 100) * stage.clientWidth * zoom;
+  panY = (0.5 - item.point.y / 100) * stage.clientHeight * zoom;
+  applyTransform();
+}
+
 function clearDetails() {
-  const node = el('cadMapDetails');
-  if (node) node.textContent = 'Select a player or incident marker to inspect it.';
+  selected = null;
+  follow = false;
+  el('cadMapDetails').textContent = 'Select a player or 911 call to inspect it.';
+  el('cadMapFollow').disabled = true;
+  el('cadMapFollow').setAttribute('aria-pressed', 'false');
 }
-function showMarker(item) {
+
+function showMarker(item, center = false) {
   selected = item.key;
   const detail = el('cadMapDetails');
-  if (!detail) return;
-  detail.replaceChildren();
   const header = document.createElement('h3'); header.textContent = item.title;
+  const coordinates = item.point ? `X ${item.x.toFixed(0)} / Z ${item.z.toFixed(0)}` : 'No position on this map';
   const lines = [item.type === 'call' ? `911 dispatch · ${item.status}` : item.team,
-    item.location || 'Location unavailable', `X ${item.x.toFixed(0)} / Z ${item.z.toFixed(0)}`,
+    item.location || 'Location unavailable', coordinates,
     item.type === 'call' ? item.details : item.callsign ? `Callsign: ${item.callsign}` : ''];
-  const list = document.createElement('div'); list.className = 'map-info-lines';
+  const list = document.createElement('div');
+  list.className = 'map-info-lines';
   for (const entry of lines.filter(Boolean)) {
     const line = document.createElement('p'); line.textContent = String(entry).slice(0, 450); list.append(line);
   }
-  detail.append(header, list);
-  document.querySelectorAll('.cad-map-marker').forEach(marker => marker.classList.toggle('selected', marker.dataset.key === item.key));
+  detail.replaceChildren(header, list);
+  for (const button of document.querySelectorAll('#cadMapPins button, #cadMapList button')) {
+    button.classList.toggle('selected', button.dataset.key === item.key);
+  }
+  el('cadMapFollow').disabled = item.type !== 'player' || !item.point;
+  el('cadMapFollow').setAttribute('aria-pressed', String(follow));
+  if (center || follow) centerMarker(item);
 }
-export function renderCadMap(data) {
-  const stage = el('cadMapStage'), pins = el('cadMapPins'), side = el('cadMapList');
-  if (!stage || !pins || !side) return;
-  snapshot = data;
-  const state = data?.state || {};
-  const age = Date.now() - Number(state.playerSyncAt || 0);
-  const fresh = Number.isFinite(age) && state.playerSyncAt && age <= 90_000 && state.serverOnline !== false;
-  const allPlayers = fresh ? (state.players || []) : [];
-  updateCalibrationPanel(data, allPlayers);
-  const shown = [];
-  for (const player of allPlayers) {
-    const location = asPosition(player.locationX, player.locationZ);
-    if (!location) continue;
-    const group = teamGroup(player.team);
-    if (currentFilter !== 'all' && currentFilter !== group) continue;
-    shown.push({ key:`player:${player.robloxId||player.player}`, type:'player', group,
-      title:player.player || 'Unknown player', team:player.team || 'Unknown team',
-      location:player.location, callsign:player.callsign, x:player.locationX,z:player.locationZ,point:location });
+
+function renderMarkerButtons(parent, entries, create, update) {
+  const existing = new Map([...parent.querySelectorAll('[data-key]')].map(button => [button.dataset.key, button]));
+  let cursor = parent.firstChild;
+  for (const marker of entries) {
+    const button = existing.get(marker.key) || create(marker);
+    existing.delete(marker.key);
+    update(button, marker);
+    if (cursor !== button) parent.insertBefore(button, cursor);
+    cursor = button.nextSibling;
   }
-  for (const call of state.calls || []) {
-    if (call.status === 'closed' || !Number.isFinite(call.positionX) || !Number.isFinite(call.positionZ)) continue;
-    const point = asPosition(call.positionX,call.positionZ);
-    if (!point) continue;
-    if (currentFilter !== 'all' && currentFilter !== 'calls') continue;
-    shown.push({key:`call:${call.id}`,type:'call',group:'calls',title:call.title||'Emergency call',
-      status:call.status||'open',details:call.details||'',location:call.location||'On map',
-      x:call.positionX,z:call.positionZ,point});
-  }
-  const stateLabel = el('cadMapState');
-  if (stateLabel) stateLabel.textContent = !state.playerSyncAt ? 'Waiting for first ER:LC sync' :
-    state.serverOnline === false ? 'ER:LC server offline — player positions hidden' :
-    !fresh ? 'Last player snapshot is stale — positions hidden' :
-    `API snapshot ${Math.max(0, Math.round(age / 1000))} seconds old · ${allPlayers.length} players in snapshot${data.mapTransform ? ' · calibrated map' : ' · map alignment approximate'}`;
-  el('cadMapPlayerCount').textContent = String(allPlayers.length);
-  el('cadMapCallCount').textContent = String((state.calls||[]).filter(c => c.status!=='closed').length);
-  el('cadMapPinCount').textContent = String(shown.length);
-  pins.replaceChildren(); side.replaceChildren();
-  if (!shown.length) {
-    const message=document.createElement('p');message.className='map-empty';
-    message.textContent=state.playerSyncAt ? 'No current positions match this filter. In-game coordinates are necessary to plot a marker.' : 'No snapshot yet. Connect your private server with /erlc setup.';
-    side.append(message);
-  }
-  for (const item of shown) {
-    const pin=document.createElement('button');pin.type='button';pin.className=`cad-map-marker ${item.group}`;
-    pin.dataset.key=item.key;pin.style.left=`${item.point.x}%`;pin.style.top=`${item.point.y}%`;
-    pin.textContent=item.type==='call'?'!':(item.callsign||item.title).slice(0,3).toUpperCase();
-    pin.setAttribute('aria-label',`${item.type==='call'?'911 incident':'Player'}: ${item.title}, ${item.location||''}`);
-    pin.title=`${item.title} · ${item.location||'Unknown street'}`;
-    pin.addEventListener('click',()=>showMarker(item));pins.append(pin);
-    const row=document.createElement('button');row.type='button';row.className='map-player-row';
-    const badge=document.createElement('span');badge.className=`map-team-dot ${item.group}`;
-    const text=document.createElement('span');text.className='map-player-copy';
-    const name=document.createElement('strong');name.textContent=item.title;
-    const location=document.createElement('small');location.textContent=item.location||`X ${item.x.toFixed(0)} Z ${item.z.toFixed(0)}`;
-    text.append(name,location);row.append(badge,text);
-    row.addEventListener('click',()=>showMarker(item));side.append(row);
-  }
-  if (selected) {
-    const match=shown.find(x=>x.key===selected);
-    if (match) showMarker(match);else {selected=null;clearDetails();}
+  while (cursor) {
+    const next = cursor.nextSibling;
+    cursor.remove();
+    cursor = next;
   }
 }
 
+function itemButton(item, className) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.dataset.key = item.key;
+  button.addEventListener('click', () => {
+    const marker = markers.find(entry => entry.key === button.dataset.key);
+    if (!marker) return;
+    if (selected !== marker.key) follow = false;
+    showMarker(marker, className === 'map-player-row');
+  });
+  return button;
+}
+
+function renderPins(entries) {
+  renderMarkerButtons(el('cadMapPins'), entries.filter(item => item.point), item => itemButton(item, 'cad-map-marker'), (pin, item) => {
+    pin.className = `cad-map-marker ${item.group}`;
+    pin.style.left = `${item.point.x}%`;
+    pin.style.top = `${item.point.y}%`;
+    pin.textContent = item.type === 'call' ? '!' : (item.callsign || item.title).slice(0, 3).toUpperCase();
+    pin.setAttribute('aria-label', `${item.type === 'call' ? '911 incident' : 'Player'}: ${item.title}, ${item.location || 'location unavailable'}`);
+    pin.title = `${item.title} · ${item.location || 'Location unavailable'}`;
+  });
+}
+
+function renderRoster(entries, message) {
+  const roster = el('cadMapList');
+  renderMarkerButtons(roster, entries, item => {
+    const button = itemButton(item, 'map-player-row');
+    const badge = document.createElement('span');
+    badge.setAttribute('aria-hidden', 'true');
+    const copy = document.createElement('span');
+    copy.className = 'map-player-copy';
+    copy.append(document.createElement('strong'), document.createElement('small'));
+    button.append(badge, copy);
+    return button;
+  }, (row, item) => {
+    const [badge, copy] = row.children;
+    badge.className = `map-team-dot ${item.group}`;
+    copy.children[0].textContent = item.title;
+    copy.children[1].textContent = [item.type === 'call' ? '911' : item.callsign || item.team, item.location || 'Location unavailable', item.point ? '' : 'No pin'].filter(Boolean).join(' · ');
+  });
+  if (!entries.length) {
+    const empty = document.createElement('p'); empty.className = 'map-empty'; empty.textContent = message;
+    roster.append(empty);
+  }
+}
+
+export function renderCadMap(data) {
+  const previousGuild = snapshot?.guild?.id;
+  if (previousGuild && previousGuild !== data?.guild?.id) clearDetails();
+  snapshot = data;
+  const state = data?.state || {};
+  const live = getPlayerSnapshot(state);
+  const tracking = data?.tracking;
+  const count = live.players.length;
+  const located = live.players.filter(player => Number.isFinite(player.locationX) && Number.isFinite(player.locationZ)).length;
+  const note = live.status === 'current' ? `Updated ${Math.round(live.age / 1000)}s ago`
+    : live.status === 'delayed' ? `Delayed · last update ${Math.round(live.age / 1000)}s ago`
+    : live.status === 'expired' ? 'Snapshot expired · player positions hidden'
+    : live.status === 'offline' ? 'Private server offline' : 'Waiting for the first snapshot';
+  const status = el('cadMapState');
+  const message = tracking?.message && tracking.status !== 'current' ? `${note}. ${tracking.message}` : note;
+  if (status.textContent !== message) status.textContent = message;
+  status.dataset.state = live.status;
+  el('cadMapPlayerCount').textContent = String(count);
+  el('cadMapLocatedCount').textContent = String(located);
+  el('cadMapCallCount').textContent = String((state.calls || []).filter(call => call.status !== 'closed').length);
+  const search = el('cadMapSearch').value;
+  markers = buildMapMarkers(state, data?.mapTransform, search, currentFilter);
+  renderPins(markers);
+  renderRoster(markers, search || currentFilter !== 'all' ? 'No results match these filters.' : tracking?.message || 'No current players or open calls.');
+  if (selected) {
+    const item = markers.find(marker => marker.key === selected);
+    if (item) showMarker(item);
+    else clearDetails();
+  }
+  if (data) updateCalibrationPanel(data, live.players);
+  else {
+    el('cadCalibrationPanel').hidden = true;
+    pendingLandmark = null;
+    clearDetails();
+  }
+}
+
+export function focusCadMapPlayer(id) {
+  const item = markers.find(marker => marker.key === 'player:' + id);
+  if (!item) return false;
+  showMarker(item, true);
+  return true;
+}
+
+function loadMapLayer() {
+  const image = el('cadMapImage');
+  if (!image) return;
+  el('cadMapImageError').hidden = true;
+  image.hidden = false;
+  image.dataset.fallback = '0';
+  image.src = '/cad/map-image/' + layer;
+}
 
 // Role-checked map alignment: the server saves reference points and fits the affine transform.
 // Client access to the controls does not grant manager permission; the API independently checks roles.
@@ -207,9 +272,30 @@ function initMapControls() {
     void sendCalibration(anchors);
   });
   if (!stage) return;
-  image?.addEventListener('error',()=>{
-    el('cadMapImageError').hidden=false;
+  image?.addEventListener('load', () => { el('cadMapImageError').hidden = true; });
+  image?.addEventListener('error', () => {
+    if (image.dataset.fallback !== '1') {
+      image.dataset.fallback = '1';
+      image.src = 'https://api.erlc.gg/maps/' + MAP_LAYERS[layer];
+      return;
+    }
+    image.hidden = true;
+    el('cadMapImageError').hidden = false;
   });
+  el('cadMapSeason')?.addEventListener('change', chooseLayer);
+  el('cadMapPostals')?.addEventListener('change', chooseLayer);
+  function chooseLayer() {
+    const value = el('cadMapSeason').value + (el('cadMapPostals').checked ? '-postals' : '');
+    if (Object.hasOwn(MAP_LAYERS, value)) { layer = value; loadMapLayer(); }
+  }
+  el('cadMapRetry')?.addEventListener('click', loadMapLayer);
+  el('cadMapSearch')?.addEventListener('input', () => { if (snapshot) renderCadMap(snapshot); });
+  el('cadMapFollow')?.addEventListener('click', () => {
+    follow = !follow;
+    const item = markers.find(marker => marker.key === selected);
+    if (item) showMarker(item);
+  });
+  loadMapLayer();
   el('cadMapFilter')?.addEventListener('change',event=>{currentFilter=event.target.value;selected=null;clearDetails();if(snapshot)renderCadMap(snapshot);});
   const setZoom=value=>{zoom=Math.max(1,Math.min(4,value));if(zoom===1){panX=0;panY=0;}applyTransform();};
   el('cadMapZoomIn')?.addEventListener('click',()=>setZoom(zoom+.3));
@@ -224,7 +310,7 @@ function initMapControls() {
   });
   stage.addEventListener('pointermove',event=>{if(!dragging)return;const bound=stage.clientWidth*(zoom-1)/2;
     panX=Math.max(-bound,Math.min(bound,dragging.px+event.clientX-dragging.x));
-    panY=Math.max(-bound,Math.min(bound,dragging.py+event.clientY-dragging.y));applyTransform();});
+    panY=dragging.py+event.clientY-dragging.y;applyTransform();});
   stage.addEventListener('pointerup',()=>{dragging=null;});
   stage.addEventListener('pointercancel',()=>{dragging=null;});
   applyTransform();

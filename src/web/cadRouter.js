@@ -18,7 +18,9 @@ import {
     assignCadCallUnit,
     updateCadUnit,
 } from '../services/cad/cadService.js';
-import { syncCadGuild } from '../services/cad/cadTrackingService.js';
+import { getCadTracking, syncCadGuild } from '../services/cad/cadTrackingService.js';
+import { cadMapSource, getCadMapImage } from '../services/cad/cadMapImages.js';
+import { getPlayerSnapshot, matchesPlayer } from './cad/assets/mapModel.js';
 import { beginWebsiteLogin, cadWebsiteOrigin, clearWebsiteChallenge, redeemCadTicket } from '../services/cad/websiteLogin.js';
 import { CadAuthService } from '../services/cad/cadAuthService.js';
 import {
@@ -62,6 +64,15 @@ router.use((req, res, next) => {
 });
 
 router.get('/', (req, res) => res.sendFile(path.join(webDirectory, 'cad', 'index.html')));
+router.get('/map-image/:layer', async (req, res) => {
+    if (!cadMapSource(req.params.layer)) return res.sendStatus(404);
+    try {
+        const image = await getCadMapImage(req.params.layer);
+        return res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400').type('webp').send(image);
+    } catch {
+        return res.set('Cache-Control', 'no-store').sendStatus(503);
+    }
+});
 router.use('/assets', express.static(path.join(webDirectory, 'cad', 'assets'), { fallthrough: false, maxAge: '1h' }));
 router.use('/api', express.json({ limit: '32kb', strict: true }));
 router.use('/auth', rateLimit({
@@ -185,6 +196,7 @@ async function requireGuild(req, res, permission = 'access') {
 router.get('/api/guilds/:guildId', async (req, res) => {
     const access = await requireGuild(req, res);
     if (!access) return;
+    if (req.query.tracking === '1' && (access.canDispatch || access.canCommand)) await syncCadGuild(req.params.guildId);
     const state = await getCadState(req.params.guildId);
     const dispatchActivity = access.canDispatch ? projectDispatchActivity(state.audit) : [];
     const publicState = projectCadGuildState(state, {
@@ -192,6 +204,7 @@ router.get('/api/guilds/:guildId', async (req, res) => {
     });
     const mdt = access.canDispatch ? await getMdtState(req.params.guildId) : null;
     return res.json({
+        tracking: access.canDispatch || access.canCommand ? getCadTracking(req.params.guildId) : null,
         calibration: mdt?.calibration || [],
         mapTransform: mdt ? fitMapCalibration(mdt.calibration) : null,
         guild: { id: access.guild.id, name: access.guild.name, icon: access.guild.iconURL({ size: 64 }) },
@@ -228,15 +241,15 @@ router.get('/api/guilds/:guildId/mdt', async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
     try {
         const [mdt, cad] = await Promise.all([searchMdt(req.params.guildId, q), getCadState(req.params.guildId)]);
-        const fresh = cad.playerSyncAt && Date.now() - cad.playerSyncAt <= 90_000 && cad.serverOnline !== false;
-        const players = fresh ? cad.players.filter(p => !q || [p.player,p.robloxId,p.callsign,p.team,p.location].some(v => String(v || '').toLowerCase().includes(q.toLowerCase()))).slice(0, 70) : [];
+        const snapshot = getPlayerSnapshot(cad);
+        const players = snapshot.players.filter(player => matchesPlayer(player, q)).slice(0, 70);
         const assignedCalls = cad.calls.filter(c => c.status !== 'closed' && (c.assignedUnitIds || []).includes(req.cadSession.profile.id)).slice(-20);
         return res.json({
             ...mdt, players, assignedCalls,
             calibrationTransform: fitMapCalibration(mdt.calibration),
             permissions: { manager: access.isManager, dispatch: access.canDispatch },
             base: { voice: getBaseStation(req.params.guildId), textChannelId: access.config.dispatchChannelId || null },
-            snapshotAt: fresh ? cad.playerSyncAt : null,
+            snapshotAt: ['current', 'delayed'].includes(snapshot.status) ? cad.playerSyncAt : null,
         });
     } catch(error) { return mdtFailure(res, error); }
 });
@@ -365,7 +378,7 @@ router.post('/api/guilds/:guildId/sync-players', async (req, res) => {
     try {
         const result = await syncCadGuild(req.params.guildId, req.cadSession.profile);
         if (!result) return res.status(409).json({ error: 'Connect ER:LC with `/erlc setup` before syncing players.' });
-        if (result.skipped) return res.status(202).json({ syncing: true });
+        if (result.skipped) return res.status(202).json({ tracking: getCadTracking(req.params.guildId) });
         return res.json(result);
     } catch (error) {
         return res.status(502).json({ error: error.userMessage || 'ER:LC player sync failed. Check the private-server connection.' });
