@@ -13,7 +13,7 @@
 <body class="control protection">
   <a class="skip" href="#main">Skip to content</a>
   <header class="control-header"><nav class="container control-nav" aria-label="Main navigation">
-    <a class="brand" href="/"><img src="/assets/aether-mark.webp" width="34" height="34" alt=""> Aether</a>
+    <a class="brand" href="/"><span class="brand-icon"><img src="/assets/aether-mark.webp" alt=""></span>Aether</a>
     <a href="/protection/">Protection</a><a href="/devlog/">Devlog</a><a href="/team/">Team</a><a href="/status/">Status</a><a href="/dashboard/">Dashboard</a>
   </nav></header>
   <main class="container control-main" id="main">
@@ -21,8 +21,8 @@
 
     <div class="control-actions"><a class="btn btn-primary" href="/dashboard/#guildSetup">Configure protection</a><a class="btn btn-ghost" href="/commands/">View commands</a></div>
     <div class="control-grid protection-grid">
-      <article class="control-card"><div class="protection-signal" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div><h2>Anti-raid</h2><p>Track join spikes, account age, and mention spam. Start with alerts, then use Discord commands to choose a response suited to your community.</p><p><code>/antiraid-setup</code></p></article>
-      <article class="control-card"><div class="protection-audit" aria-hidden="true"><i></i><i></i><i></i></div><h2>Anti-nuke</h2><p>Aether uses Discord’s audit log to attribute channel deletions, role deletions, repeated bans, and new webhooks. It checks the actor’s exemptions before taking the configured action.</p><p><code>/antinuke-setup</code></p></article>
+      <article class="control-card"><div class="protection-signal" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div><h2>Anti-raid</h2><p>Track join spikes, account age, per-message mention spam, and mention bursts across messages. Start with alerts, then use Discord commands to choose a response suited to your community.</p><p><code>/antiraid-setup</code></p></article>
+      <article class="control-card"><div class="protection-audit" aria-hidden="true"><i></i><i></i><i></i></div><h2>Anti-nuke</h2><p>Aether uses Discord’s audit log to attribute channel deletions, role deletions, repeated bans or kicks, new bots and webhooks, and role permission escalation. It checks the actor’s exemptions before taking the configured action.</p><p><code>/antinuke-setup</code></p></article>
       <article class="control-card"><div class="protection-lock" aria-hidden="true">◈</div><h2>Discord AutoMod</h2><p>Block messages that exceed your mention limit and turn on Discord’s mention-raid protection. Configure Aether’s rule from the dashboard.</p><p><a href="/dashboard/#guildSetup">Open server setup ↗</a></p></article>
     </div>
     <section class="control-card protection-preview" aria-labelledby="preview-title">

@@ -1,6 +1,7 @@
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { logger } from '../utils/logger.js';
 import { runServerCommand } from '../services/erlc/erlcService.js';
@@ -18,6 +19,7 @@ import {
     updateCadUnit,
 } from '../services/cad/cadService.js';
 import { syncCadGuild } from '../services/cad/cadTrackingService.js';
+import { beginWebsiteLogin, cadWebsiteOrigin, clearWebsiteChallenge, redeemCadTicket } from '../services/cad/websiteLogin.js';
 import { CadAuthService } from '../services/cad/cadAuthService.js';
 import {
     getMdtState, searchMdt, createMdtRecord, updateMdtRecord, archiveMdtRecord,
@@ -32,12 +34,13 @@ let discordClient;
 const webDirectory = path.dirname(fileURLToPath(import.meta.url));
 const idPattern = /^\d{17,20}$/;
 const callStatuses = new Set(['open', 'assigned', 'closed']);
+const websiteOrigin = cadWebsiteOrigin();
 const auth = new CadAuthService({
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CAD_DISCORD_CLIENT_SECRET,
     redirectUri: process.env.CAD_REDIRECT_URI,
-    sessionSecret: process.env.CAD_SESSION_SECRET,
-    secureCookies: process.env.NODE_ENV === 'production',
+    sessionSecret: process.env.CAD_SESSION_SECRET || (websiteOrigin ? randomBytes(32).toString('base64url') : undefined),
+    secureCookies: Boolean(websiteOrigin) || process.env.NODE_ENV === 'production',
 });
 const commandRateLimit = rateLimit({
     windowMs: 60 * 1000,
@@ -69,9 +72,16 @@ router.use('/auth', rateLimit({
     message: { error: 'Too many authentication attempts' },
 }));
 
-router.get('/auth/config', (req, res) => res.json({ enabled: auth.configured }));
+router.get('/auth/config', (req, res) => res.json({ enabled: auth.configured || Boolean(websiteOrigin) }));
 
 router.get('/auth/login', (req, res) => {
+    if (!auth.configured && websiteOrigin) {
+        const login = beginWebsiteLogin(websiteOrigin);
+        if (!login) return res.status(503).redirect('/cad/?authError=login_failed');
+        res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+        res.append('Set-Cookie', login.cookie);
+        return res.redirect(login.url);
+    }
     if (!auth.configured) return res.status(503).redirect('/cad/?authError=not_configured');
     try {
         const login = auth.beginLogin();
@@ -80,6 +90,17 @@ router.get('/auth/login', (req, res) => {
     } catch {
         return res.status(503).redirect('/cad/?authError=not_configured');
     }
+});
+
+router.get('/auth/website-callback', (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+    const approved = websiteOrigin && redeemCadTicket(req.query.ticket, req.headers.cookie);
+    if (!approved) return res.redirect('/cad/?authError=state');
+    try {
+        const session = auth.createSession(approved.profile, approved.guildIds);
+        res.append('Set-Cookie', [session.sessionCookie, clearWebsiteChallenge]);
+        return res.redirect('/cad/');
+    } catch { return res.redirect('/cad/?authError=login_failed'); }
 });
 
 router.get('/auth/callback', async (req, res) => {

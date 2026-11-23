@@ -16,12 +16,16 @@ const DEFAULT_CONFIG = Object.freeze({
     antiraid: {
         joinSpike: { enabled: false, threshold: 10, windowSeconds: 30, action: 'alert', alertChannelId: null },
         newAccount: { enabled: false, minAgeHours: 24, action: 'alert', alertChannelId: null },
+        mentionBurst: { enabled: false, threshold: 10, windowSeconds: 12, action: 'alert', alertChannelId: null },
         mentionSpam: { enabled: false, threshold: 5, action: 'timeout', alertChannelId: null },
     },
     antinuke: {
         channelDelete: { enabled: false, threshold: 3, windowSeconds: 60, action: 'alert', alertChannelId: null },
         roleDelete: { enabled: false, threshold: 3, windowSeconds: 60, action: 'alert', alertChannelId: null },
         banSpam: { enabled: false, threshold: 3, windowSeconds: 60, action: 'alert', alertChannelId: null },
+        kickSpam: { enabled: false, threshold: 3, windowSeconds: 45, action: 'alert', alertChannelId: null },
+        botAdd: { enabled: false, threshold: 1, windowSeconds: 60, action: 'alert', alertChannelId: null },
+        roleEscalation: { enabled: false, threshold: 1, windowSeconds: 60, action: 'alert', alertChannelId: null },
         webhookCreate: { enabled: false, threshold: 2, windowSeconds: 60, action: 'alert', alertChannelId: null },
     },
     whitelist: { userIds: [], roleIds: [] },
@@ -31,18 +35,12 @@ const DEFAULT_CONFIG = Object.freeze({
 
 function mergeConfig(existing) {
     if (!existing) return structuredClone(DEFAULT_CONFIG);
+    const mergeRules = system => Object.fromEntries(Object.entries(DEFAULT_CONFIG[system]).map(
+        ([rule, defaults]) => [rule, { ...defaults, ...existing[system]?.[rule] }],
+    ));
     return {
-        antiraid: {
-            joinSpike: { ...DEFAULT_CONFIG.antiraid.joinSpike, ...existing.antiraid?.joinSpike },
-            newAccount: { ...DEFAULT_CONFIG.antiraid.newAccount, ...existing.antiraid?.newAccount },
-            mentionSpam: { ...DEFAULT_CONFIG.antiraid.mentionSpam, ...existing.antiraid?.mentionSpam },
-        },
-        antinuke: {
-            channelDelete: { ...DEFAULT_CONFIG.antinuke.channelDelete, ...existing.antinuke?.channelDelete },
-            roleDelete: { ...DEFAULT_CONFIG.antinuke.roleDelete, ...existing.antinuke?.roleDelete },
-            banSpam: { ...DEFAULT_CONFIG.antinuke.banSpam, ...existing.antinuke?.banSpam },
-            webhookCreate: { ...DEFAULT_CONFIG.antinuke.webhookCreate, ...existing.antinuke?.webhookCreate },
-        },
+        antiraid: mergeRules('antiraid'),
+        antinuke: mergeRules('antinuke'),
         whitelist: {
             userIds: existing.whitelist?.userIds ?? [],
             roleIds: existing.whitelist?.roleIds ?? [],
@@ -50,6 +48,10 @@ function mergeConfig(existing) {
         quarantineRoleId: existing.quarantineRoleId ?? null,
         lockdown: { ...DEFAULT_CONFIG.lockdown, ...existing.lockdown },
     };
+}
+
+export function protectionTypes(system) {
+    return ['antiraid', 'antinuke'].includes(system) ? Object.keys(DEFAULT_CONFIG[system]) : [];
 }
 
 export const getSecurityConfig = wrapServiceBoundary(async function getSecurityConfig(guildId) {
@@ -63,6 +65,7 @@ export const getSecurityConfig = wrapServiceBoundary(async function getSecurityC
 export const setProtection = wrapServiceBoundary(async function setProtection(guildId, system, type, updates) {
     return Mutex.runExclusive(getSecurityConfigKey(guildId), async () => {
         const config = mergeConfig(await db.get(getSecurityConfigKey(guildId), null));
+        if (!protectionTypes(system).includes(type)) throw new Error('Unknown protection.');
         config[system][type] = { ...config[system][type], ...updates };
         await db.set(getSecurityConfigKey(guildId), config);
         return config[system][type];

@@ -61,7 +61,7 @@ export class CadAuthService {
     }
 
     _verify(token) {
-        if (!this.configured || typeof token !== 'string') return null;
+        if (typeof this.sessionSecret !== 'string' || this.sessionSecret.length < 32 || typeof token !== 'string') return null;
         const [encoded, signature, extra] = token.split('.');
         if (!encoded || !signature || extra !== undefined) return null;
 
@@ -136,6 +136,10 @@ export class CadAuthService {
         const guilds = await guildsResponse.json();
         if (!user?.id || !Array.isArray(guilds)) throw new Error('Discord returned an invalid CAD account response.');
 
+        return this.createSession({ id: user.id, username: user.global_name || user.username || 'Discord user', avatar: user.avatar || null }, guilds.map(guild => guild.id));
+    }
+
+    createSession(profile, guildIds) {
         const now = Date.now();
         for (const [sessionId, session] of this.sessions) {
             if (session.expiresAt <= now) this.sessions.delete(sessionId);
@@ -144,14 +148,9 @@ export class CadAuthService {
 
         const sessionId = randomBytes(32).toString('base64url');
         const expiresAt = now + SESSION_TTL_MS;
-        const profile = {
-            id: user.id,
-            username: user.global_name || user.username || 'Discord user',
-            avatar: user.avatar || null,
-        };
         this.sessions.set(sessionId, {
             profile,
-            guildIds: guilds.map((guild) => guild.id),
+            guildIds,
             expiresAt,
         });
 

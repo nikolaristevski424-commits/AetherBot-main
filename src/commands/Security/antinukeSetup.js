@@ -24,6 +24,9 @@ export default {
                 { name: 'Channel Delete (mass channel deletion)', value: 'channelDelete' },
                 { name: 'Role Delete (mass role deletion)', value: 'roleDelete' },
                 { name: 'Ban Spam (mass bans outside the bot)', value: 'banSpam' },
+                { name: 'Repeated kicks', value: 'kickSpam' },
+                { name: 'New Discord bot added', value: 'botAdd' },
+                { name: 'Dangerous role permission added', value: 'roleEscalation' },
                 { name: 'Webhook Create (unexpected new webhooks)', value: 'webhookCreate' },
             ))
         .addBooleanOption((opt) => opt.setName('enabled').setDescription('Turn this protection on or off').setRequired(true))
@@ -38,7 +41,7 @@ export default {
                 { name: 'Ban', value: 'ban' },
             ))
         .addChannelOption((opt) => opt.setName('alert_channel').setDescription('Where to send alerts').addChannelTypes(ChannelType.GuildText).setRequired(false))
-        .addIntegerOption((opt) => opt.setName('threshold').setDescription('Actions needed to trigger').setMinValue(2).setMaxValue(50).setRequired(false))
+        .addIntegerOption((opt) => opt.setName('threshold').setDescription('Actions needed to trigger').setMinValue(1).setMaxValue(50).setRequired(false))
         .addIntegerOption((opt) => opt.setName('window_seconds').setDescription('Time window in seconds').setMinValue(5).setMaxValue(600).setRequired(false)),
 
     async execute(interaction) {

@@ -1,43 +1,44 @@
-// securityMessageCreate.js
-//
-// Anti-raid mention-spam detection — registered as its own messageCreate
-// listener (see loadEvents — multiple files can share an event name) so
-// this never touches the existing messageCreate.js, which handles prefix
-// command parsing and stays untouched. This doesn't need the audit-log
-// attribution the other anti-nuke listeners use — the message author IS
-// the person to act on, no resolution needed.
-
 import { Events } from 'discord.js';
 import { getSecurityConfig, isWhitelisted } from '../services/security/securityConfigService.js';
+import { recordMentionAndCheck } from '../services/security/actionTracker.js';
 import { applyRaidAction, recordAndAlert } from '../services/security/securityActionsService.js';
 import { logger } from '../utils/logger.js';
 
 export default {
     name: Events.MessageCreate,
-    once: false,
     async execute(message) {
-        if (!message.guild || message.author.bot) return;
+        if (!message.guild || message.author.bot || message.webhookId) return;
+        const userMentions = message.mentions.parsedUsers?.size ?? message.mentions.users.size;
+        const mentionCount = userMentions + message.mentions.roles.size + Number(Boolean(message.mentions.everyone));
+        if (!mentionCount) return;
 
         try {
             const config = await getSecurityConfig(message.guild.id);
-            const { mentionSpam } = config.antiraid;
-            if (!mentionSpam.enabled) return;
-
-            const mentionCount = message.mentions.users.size + message.mentions.roles.size;
-            if (mentionCount < mentionSpam.threshold) return;
+            const { mentionSpam, mentionBurst } = config.antiraid;
+            if (!mentionSpam.enabled && !mentionBurst.enabled) return;
 
             const member = message.member || await message.guild.members.fetch(message.author.id).catch(() => null);
             if (!member || isWhitelisted(config, member)) return;
 
-            await message.delete().catch(() => {});
+            const burst = mentionBurst.enabled ? await recordMentionAndCheck(
+                message.guild.id, member.id, mentionBurst.windowSeconds, mentionBurst.threshold, message.id, mentionCount,
+            ) : null;
+            const spike = mentionSpam.enabled && mentionCount >= mentionSpam.threshold;
+            if (!spike && !burst?.breached) return;
 
-            const result = await applyRaidAction(member, mentionSpam.action, 'Anti-raid: mention spam', config.quarantineRoleId);
+            const rule = spike ? mentionSpam : mentionBurst;
+            const category = spike ? 'Mention Spam' : 'Mention Burst';
+            if ((spike || rule.action !== 'alert') && message.deletable) {
+                await message.delete().catch(() => {});
+            }
+
+            const result = await applyRaidAction(member, rule.action, `Anti-raid: ${category}`, config.quarantineRoleId);
             await recordAndAlert(message.guild, {
-                category: 'Mention Spam', targetId: member.id, count: mentionCount, threshold: mentionSpam.threshold,
-                actionResult: result, alertChannelId: mentionSpam.alertChannelId,
+                category, targetId: member.id, count: spike ? mentionCount : burst.count, threshold: rule.threshold,
+                actionResult: result, alertChannelId: rule.alertChannelId,
             });
         } catch (error) {
-            logger.error('[security] Error in anti-raid mention-spam handler:', error);
+            logger.error('[security] Error in anti-raid mention handler:', error);
         }
     },
 };

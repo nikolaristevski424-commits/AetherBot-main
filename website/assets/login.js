@@ -2,7 +2,7 @@
   const notice=document.querySelector('#loginNotice');const signin=document.querySelector('#discordSignIn');
   const query = new URLSearchParams(location.search);
   const err = query.get('error');
-  const destinations = ['/dashboard/', '/cad/', '/staff/', '/owner/', '/team/panel/'];
+  const destinations = ['/dashboard/', '/cad/', '/staff/', '/owner/', '/team/panel/', '/api/auth/cad/'];
   const next = destinations.includes(query.get('next')) ? query.get('next') : '/dashboard/';
   signin.href = '/api/auth/login?' + new URLSearchParams({ next });
   const errors={

@@ -42,3 +42,7 @@ body.header-dark .site-header .nav-links a[aria-current=page]{color:#91a9ff}
 .ops-readiness{margin:20px 0}
 .ops-readiness>.panel-head{align-items:center}
 @media(max-width:600px){.ops-triage{gap:6px;padding:10px}.ops-triage>div{padding:6px}.ops-triage small{font-size:10px}.ops-heading-actions .btn{min-height:34px;padding:0 10px}}
+
+/* Keep the complete Aether emblem inside the brand tile. */
+.brand-icon{flex:none;aspect-ratio:1;background:#151d42;border:1px solid #7c8ee366;box-shadow:0 0 12px #6986ff2e}
+.brand-icon img{width:100%;height:auto;max-width:100%;clip-path:inset(0 0 9% 0);transform:translateY(2%)}

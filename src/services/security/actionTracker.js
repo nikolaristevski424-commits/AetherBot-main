@@ -11,11 +11,12 @@ export function trackWindow(previous, event, now, windowSeconds, threshold, cool
         ? { events: previous.map(at => ({ at })), respondedAt: null }
         : previous || { events: [], respondedAt: null };
     const events = current.events.filter(item => item.at > cutoff);
+    const total = items => items.reduce((count, item) => count + (item.weight ?? 1), 0);
     if (event.at <= cutoff || (event.id && events.some(item => item.id === event.id))) {
-        return { state: current, count: events.length, breached: false };
+        return { state: current, count: total(events), breached: false };
     }
     events.push(event);
-    const count = Math.min(events.length, maxEntries);
+    const count = total(events.slice(-maxEntries));
     const breached = count >= threshold && (!cooldown || current.respondedAt === null || current.respondedAt <= cutoff);
     const state = { events: events.slice(-maxEntries), respondedAt: breached && cooldown ? now : current.respondedAt };
     return { state, count, breached };
@@ -36,4 +37,9 @@ export function recordJoinAndCheck(guildId, windowSeconds, threshold, member) {
 
 export function recordActionAndCheck(guildId, category, executorId, windowSeconds, threshold, event) {
     return record(getSecurityActionsKey(guildId, category, executorId), event, windowSeconds, threshold, true);
+}
+
+export function recordMentionAndCheck(guildId, authorId, windowSeconds, threshold, messageId, mentions) {
+    return record(getSecurityActionsKey(guildId, 'mentionBurst', authorId),
+        { id: messageId, at: Date.now(), weight: Math.min(mentions, 100) }, windowSeconds, threshold, true);
 }

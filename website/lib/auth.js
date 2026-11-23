@@ -74,4 +74,4 @@ export function ensureOrigin(req) {
 }
 export function newNonce() { return randomBytes(24).toString('base64url'); }
 
-export const loginDestinations = ['/dashboard/', '/cad/', '/staff/', '/owner/', '/team/panel/'];
+export const loginDestinations = ['/dashboard/', '/cad/', '/staff/', '/owner/', '/team/panel/', '/api/auth/cad/'];

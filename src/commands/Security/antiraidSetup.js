@@ -23,6 +23,7 @@ export default {
             .addChoices(
                 { name: 'Join Spike (mass joins in a short window)', value: 'joinSpike' },
                 { name: 'New Account (accounts younger than X)', value: 'newAccount' },
+                { name: 'Mention burst (mentions across messages)', value: 'mentionBurst' },
                 { name: 'Mention Spam (too many @mentions in one message)', value: 'mentionSpam' },
             ))
         .addBooleanOption((opt) => opt.setName('enabled').setDescription('Turn this protection on or off').setRequired(true))
@@ -60,7 +61,7 @@ export default {
             const updates = { enabled };
             if (action) updates.action = action;
             if (alertChannel) updates.alertChannelId = alertChannel.id;
-            if (protection === 'joinSpike') {
+            if (['joinSpike', 'mentionBurst'].includes(protection)) {
                 if (threshold) updates.threshold = threshold;
                 if (windowSeconds) updates.windowSeconds = windowSeconds;
             }
@@ -80,7 +81,7 @@ export default {
                 embeds: [successEmbed('Anti-Raid Updated', [
                     `**${protection}**: ${result.enabled ? 'Enabled ✅' : 'Disabled ❌'}`,
                     `Action: \`${result.action}\``,
-                    protection === 'joinSpike' ? `Threshold: ${result.threshold} joins / ${result.windowSeconds}s` : `Min age: ${result.minAgeHours}h`,
+                    protection === 'newAccount' ? `Min age: ${result.minAgeHours}h` : `Threshold: ${result.threshold}${result.windowSeconds ? ' / ' + result.windowSeconds + 's' : ' / message'}`,
                     result.alertChannelId ? `Alerts: <#${result.alertChannelId}>` : 'Alerts: not set',
                 ].join('\n'))],
             });
