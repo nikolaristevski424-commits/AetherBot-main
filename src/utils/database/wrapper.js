@@ -104,8 +104,8 @@ class DatabaseWrapper {
         return this.db.set(key, value, ttl);
     }
 
-    async get(key, defaultValue = null) {
-        return this.db.get(key, defaultValue);
+    async get(key, defaultValue = null, options) {
+        return this.db.get(key, defaultValue, options);
     }
 
     async delete(key) {
