@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getCadState, getCadGuildAccess, getCadGuildConfig, setCadGuildConfig, updateCadUnit, createCadCall, assignCadCallUnit, closeCadCall } from '../../services/cad/cadService.js';
 import { buildCadCallAnnouncement, cadModeLabel, cadWebUrl } from '../../services/cad/cadDiscordPresentation.js';
+import { buildCadTrackingReply } from '../../services/cad/cadTrackingPresentation.js';
 import { findCallByReference } from '../../services/cad/dispatchCore.js';
 import { handleCadExtended } from './modules/cadExtended.js';
 
@@ -31,7 +32,13 @@ export default {
     .addSubcommand(c => c.setName('panic').setDescription('On-duty roleplay unit: send a high-priority panic call to dispatch.')
       .addStringOption(o => o.setName('location').setDescription('In-game road, location or postal').setMinLength(3).setMaxLength(100).setRequired(true))
       .addStringOption(o => o.setName('details').setDescription('What happened? Roleplay details only').setMaxLength(240)))
-    .addSubcommand(c => c.setName('map').setDescription('Open live ER:LC position map (dispatchers only).'))
+    .addSubcommand(c => c.setName('map').setDescription('Render a position snapshot on the Liberty County map.')
+      .addStringOption(o => o.setName('player').setDescription('Optional Roblox name, callsign or postal').setMaxLength(70))
+      .addStringOption(o => o.setName('season').setDescription('Optional map season').addChoices(
+        {name:'Autumn',value:'fall-postals'},{name:'Winter',value:'snow-postals'},
+        {name:'Spring',value:'spring-postals'},{name:'Summer',value:'summer-postals'})))
+    .addSubcommand(c => c.setName('players').setDescription('Check the current ER:LC roster and locations.')
+      .addStringOption(o => o.setName('search').setDescription('Optional Roblox name, team, callsign or postal').setMaxLength(70)))
     .addSubcommand(c => c.setName('calls').setDescription('List active dispatch/911 calls.'))
     .addSubcommand(c => c.setName('unit').setDescription('Set your on-duty callsign and dispatch status.')
       .addStringOption(o => o.setName('status').setDescription('Your status').addChoices(...statuses).setRequired(true))
@@ -144,9 +151,15 @@ export default {
         }
         return interaction.editReply(`🚨 **Panic submitted** • #${call.id.slice(0,8).toUpperCase()} • ${call.location}\nThe urgent call was saved in CAD. The dispatch channel is notified when configured and accessible. This is roleplay only; contact local emergency services for real emergencies.`);
       }
-      if (sub === 'dashboard' || sub === 'map') {
+      if (sub === 'map' || sub === 'players') {
+        const image = sub === 'map';
+        const query = interaction.options.getString(image ? 'player' : 'search') || '';
+        const layer = image ? interaction.options.getString('season') || undefined : undefined;
+        return interaction.editReply(await buildCadTrackingReply(interaction.guildId, { image, query, layer }));
+      }
+      if (sub === 'dashboard') {
         const current=await getCadGuildConfig(interaction.guildId);
-        const url=cadWebUrl(sub==='map'?'map':'');
+        const url=cadWebUrl();
         const pref=current.experienceMode || 'hybrid';
         const message=pref==='discord'
           ? 'Your server prefers Discord commands: `/cad calls`, `/cad mdt search`, `/cad bolo list` and `/cad unit`. The web view is still available.'

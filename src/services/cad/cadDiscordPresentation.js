@@ -4,12 +4,14 @@ import { normalizeCadExperienceMode } from './cadService.js';
 // Present the SAME persistent CAD records in Discord. UI modes are preferences,
 // not separate stores, privilege levels, or a way around authorization.
 const clean = (value, limit = 900) => String(value ?? '—').replace(/[\r\n\u0000-\u001f]+/g, ' ').trim().slice(0, limit) || '—';
-export function cadWebUrl(view = '') {
-  const raw = process.env.CAD_PUBLIC_URL || process.env.CAD_REDIRECT_URI || '';
+export function cadWebUrl(view = '', options = {}) {
+  const raw = process.env.CAD_PUBLIC_URL || process.env.CAD_REDIRECT_URI || process.env.AETHER_CAD_SITE_ORIGIN || '';
   try {
     const url = new URL(raw);
     if (url.protocol !== 'https:' || url.username || url.password) return null;
-    return url.origin + '/cad/' + (view ? '?view=' + encodeURIComponent(view) : '');
+    const cad = new URL('/cad/', url);
+    for (const [name, value] of Object.entries({ view, ...options })) if (value) cad.searchParams.set(name, value);
+    return cad.href;
   } catch { return null; }
 }
 export function cadModeLabel(value) {

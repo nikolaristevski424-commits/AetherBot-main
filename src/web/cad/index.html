@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#49359B">
   <title>Aether CAD</title>
   <link rel="stylesheet" href="/cad/assets/styles.css">
-  <link rel="stylesheet" href="/cad/assets/map.css">
+  <link rel="stylesheet" href="/cad/assets/map.css?v=3.2.0">
   <link rel="stylesheet" href="/cad/assets/mdt.css">
   <link rel="stylesheet" href="/cad/assets/experience.css">
-  <script src="/cad/assets/app.js" type="module"></script>
+  <script src="/cad/assets/app.js?v=3.2.0" type="module"></script>
 </head>
 <body>
   <main id="loginView" class="login-view" hidden>
@@ -19,7 +19,7 @@
       <p class="login-copy">Computer-aided dispatch</p>
       <p id="loginError" class="notice" role="status" hidden></p>
       <a id="loginButton" class="button button-primary" href="/cad/auth/login">Continue with Discord</a>
-      <p class="cad-login-meta">Aether CAD runs independently on Wispbyte. The main website uses a separate login session and OAuth callback. Keep cookies enabled and complete sign-in on this domain.</p>
+      <p class="cad-login-meta">Use Discord to sign in. Aether may open its website to verify your account and bring you back to CAD. Keep browser cookies enabled.</p>
       <div class="cad-login-links"><a href="https://aetherbot-hq.vercel.app/">Aether website ↗</a><a href="/cad/auth/config">Check CAD OAuth setup ↗</a></div>
       <p id="setupNotice" class="muted small" hidden>CAD sign-in is not configured on this bot yet.</p>
     </section>
@@ -192,9 +192,9 @@
           </div>
           <div class="map-toolbar">
             <div class="map-summary">
-              <div class="map-stat"><strong id="cadMapPlayerCount">0</strong><small>Players located</small></div>
+              <div class="map-stat"><strong id="cadMapPlayerCount">0</strong><small>Online players</small></div>
               <div class="map-stat"><strong id="cadMapCallCount">0</strong><small>Active calls</small></div>
-              <div class="map-stat"><strong id="cadMapPinCount">0</strong><small>Visible markers</small></div>
+              <div class="map-stat"><strong id="cadMapLocatedCount">0</strong><small>With coordinates</small></div>
             </div>
             <p id="cadMapState" class="map-state-line" role="status">Waiting for ER:LC sync</p>
           </div>
@@ -202,7 +202,7 @@
             <section class="map-card" aria-label="Liberty County interactive dispatch map">
               <div class="map-head">
                 <div><p class="eyebrow">OFFICIAL PRC / FALL POSTALS</p><h2>Liberty County</h2></div>
-                <div class="map-controls" aria-label="Map zoom controls">
+                <div class="map-display"><label for="cadMapSeason">Map</label><select id="cadMapSeason"><option value="fall">Autumn</option><option value="snow">Winter</option><option value="spring">Spring</option><option value="summer">Summer</option></select><label class="map-postals"><input type="checkbox" id="cadMapPostals" checked> Postals</label></div><div class="map-controls" aria-label="Map zoom controls">
                   <button id="cadMapZoomOut" type="button" aria-label="Zoom out">−</button>
                   <span id="cadMapZoomValue">100%</span>
                   <button id="cadMapZoomIn" type="button" aria-label="Zoom in">+</button>
@@ -211,16 +211,16 @@
               </div>
               <div id="cadMapStage" class="map-stage">
                 <div id="cadMapCanvas" class="map-canvas">
-                  <img id="cadMapImage" src="https://api.policeroleplay.community/maps/fall_postals.png" loading="lazy" alt="Official ER:LC Liberty County postal map">
+                  <img id="cadMapImage" src="/cad/map-image/fall-postals" loading="lazy" alt="Official ER:LC Liberty County postal map">
                   <div id="cadMapPins" class="map-pins" aria-label="Player and incident markers"></div>
                 </div>
-                <div id="cadMapImageError" class="map-image-error" role="status" hidden>Map background unavailable. Player coordinates remain visible in the roster and marker list.</div>
+                <div id="cadMapImageError" class="map-image-error" role="status" hidden>The map image is temporarily unavailable. <button type="button" id="cadMapRetry">Retry map image</button></div>
               </div>
               <div class="map-hint">Scroll or use + / − to zoom · drag to pan. Markers are periodic API positions, not real-time GPS. The map is for ER:LC roleplay only.</div>
             </section>
             <aside class="map-card map-side">
               <section class="map-side-section">
-                <p class="map-label">FILTER MARKERS</p>
+                <p class="map-label">PLAYER AND CALL SEARCH</p><label class="visually-hidden" for="cadMapSearch">Player, callsign, postal or incident</label><input id="cadMapSearch" class="map-search" type="search" placeholder="Player, callsign or postal">
                 <label class="visually-hidden" for="cadMapFilter">Filter map markers by team</label>
                 <select id="cadMapFilter">
                   <option value="all">All players + calls</option>
@@ -235,11 +235,11 @@
               </section>
               <section class="map-side-section">
                 <p class="map-label">CURRENT MARKERS</p>
-                <div id="cadMapList" class="map-player-list" aria-live="polite"><p class="map-empty">Waiting for data</p></div>
+                <div id="cadMapList" class="map-player-list"><p class="map-empty">Waiting for data</p></div>
               </section>
               <section class="map-side-section">
                 <p class="map-label">MARKER DETAILS</p>
-                <div id="cadMapDetails" class="map-details">Select a player or incident marker to inspect it.</div>
+                <div id="cadMapDetails" class="map-details">Select a player or incident marker to inspect it.</div><button class="map-follow" id="cadMapFollow" type="button" aria-pressed="false" disabled>Follow player</button>
               </section>
               <section id="cadCalibrationPanel" class="map-side-section" hidden>
                 <p class="map-label">MAP CALIBRATION / MANAGER ONLY</p>

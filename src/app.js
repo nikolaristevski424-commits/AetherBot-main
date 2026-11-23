@@ -265,7 +265,7 @@ class AetherClient extends Client {
     cron.schedule('0 6 * * *', runSafeTask('birthday_check', () => checkBirthdays(this)));
     cron.schedule('* * * * *', runSafeTask('giveaway_check', () => checkGiveaways(this)));
     cron.schedule('*/15 * * * *', runSafeTask('counter_update', () => this.updateAllCounters()));
-    cron.schedule('*/30 * * * * *', runSafeTask('cad_player_tracking', () => syncAllCadGuilds(this)));
+    cron.schedule('*/15 * * * * *', runSafeTask('cad_player_tracking', () => syncAllCadGuilds(this)));
     void syncAllCadGuilds(this);
   }
 
