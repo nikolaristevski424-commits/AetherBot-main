@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#100e1b">
+  <title>Your Aether profile | Aether</title>
+  <meta name="description" content="Manage the name you use in the Aether community.">
+  <link rel="icon" href="/assets/aether-mark.webp">
+  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/theme.css">
+  <link rel="stylesheet" href="/assets/refined.css">
+  <link rel="stylesheet" href="/assets/aether-ui.css">
+  <script defer src="/assets/main.js"></script>
+  <script defer src="/assets/theme.js"></script>
+  <script defer src="/assets/community.js"></script>
+</head>
+<body data-community-page="profile">
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header" id="siteHeader"><div class="container nav-inner">
+    <a class="brand" href="/" aria-label="Aether home"><span class="brand-icon"><img src="/assets/aether-mark.webp" alt="" width="36" height="36"></span>Aether</a>
+    <nav class="nav-links" id="siteNav" aria-label="Main navigation">
+      <a href="/features/">Features</a><a href="/community/">Community</a>
+      <a href="/reviews/">Reviews</a><a href="/blog/">Blog</a><a href="/status/">Status</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-primary btn-small" href="/login/?next=%2Fprofile%2F" id="communityAccount">Sign in</a>
+      <button type="button" class="menu-toggle" id="menuToggle" aria-label="Toggle navigation" aria-controls="siteNav" aria-expanded="false">☰</button>
+    </div>
+  </div></header>
+  <main class="container publication-main" id="main">
+    <header class="publication-heading community-heading"><h1>Your Aether profile</h1><p>Manage the name you use in the Aether community.</p></header>
+    <div class="community-layout">
+      <section id="profileCard" class="community-card" aria-labelledby="profileIdentity">
+        <div class="profile-identity"><img id="profileAvatar" width="64" height="64" alt="" hidden><div><h2 id="profileIdentity">Discord account</h2><p id="profileDiscord">Loading your account…</p></div></div>
+        <p id="profileCounts"></p>
+        <a class="text-action" href="/dashboard/">Open your dashboard <span aria-hidden="true">↗</span></a>
+      </section>
+      <section class="community-card"><h2>Edit your profile</h2>
+        <form class="aether-form" id="profileForm" hidden>
+          <label>Community display name<input name="publicName" maxlength="48" required autocomplete="nickname"></label>
+          <p class="form-hint">New presets and reviews use this name as their public byline.</p>
+          <label>Bio <small>Private</small><textarea name="bio" maxlength="320" rows="4"></textarea></label>
+          <button class="btn btn-primary" type="submit">Save profile</button>
+        </form>
+        <p class="form-message" id="communityNotice" role="status"></p>
+      </section>
+    </div>
+  </main>
+  <footer class="footer"><div class="container"><div class="footer-bottom"><a href="/">Aether</a><nav class="publication-links" aria-label="Footer"><a href="/dashboard/">Dashboard</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a></nav></div></div></footer>
+</body>
+</html>

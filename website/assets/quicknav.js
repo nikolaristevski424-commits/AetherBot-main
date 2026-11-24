@@ -12,6 +12,9 @@
   {title:'System status',detail:'Service checks and incident reports',href:'/status/',icon:'◎'},
   {title:'Aether blog',detail:'Product updates and changelog',href:'/blog/',icon:'▤'},
   {title:'Incident history',detail:'Published outage and maintenance reports',href:'/status/incidents/',icon:'◉'},
+  {title:'Your profile',detail:'Manage your Aether community identity',href:'/profile/',icon:'◉'},
+  {title:'Community presets',detail:'Share and download protection settings',href:'/community/',icon:'▤'},
+  {title:'Reviews',detail:'Read or leave a community review',href:'/reviews/',icon:'✧'},
   {title:'Documentation',detail:'Configure Discord OAuth and Wispbyte',href:'/docs/',icon:'◷'},
   {title:'FAQ',detail:'Common questions',href:'/faq/',icon:'?'}
  ];

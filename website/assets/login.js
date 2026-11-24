@@ -4,6 +4,9 @@
   const query = new URLSearchParams(location.search);
   const destinations = new Map([
     ['/dashboard/', 'Open dashboard'],
+    ['/profile/', 'Open your profile'],
+    ['/community/', 'Open community presets'],
+    ['/reviews/', 'Open reviews'],
     ['/cad/', 'Open CAD'],
     ['/staff/', 'Open staff desk'],
     ['/owner/', 'Open owner panel'],

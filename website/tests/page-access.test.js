@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { cookieNames, seal } from '../lib/auth.js';
 import page from '../api/page.js';
 import { maintenanceFor, publicationView } from '../lib/publishing.js';
+import { policyView } from '../lib/policy-view.js';
 
 const originalFetch = globalThis.fetch;
 process.env.AETHER_BOT_ORIGIN = 'https://example.com';
@@ -20,7 +21,7 @@ function request(name, cookie = '') {
 }
 
 test('dashboard and privileged templates redirect unauthenticated visitors', async () => {
-    for (const name of ['dashboard', 'owner', 'staff', 'team-panel']) {
+    for (const name of ['dashboard', 'profile', 'owner', 'staff', 'team-panel']) {
         const result = await request(name);
         assert.equal(result.status, 302);
         assert.match(result.headers.get('Location'), /^\/login\/\?next=/);
@@ -64,9 +65,18 @@ test('publication rendering excludes drafts, escapes reports and preserves scope
     assert.equal(maintenanceFor({ maintenance: { all: { message: 'Paused' } } }, 'owner'), null);
 });
 
+test('policies render approved text, headings and HTTPS links without active markup', () => {
+    const output = policyView('privacy', { at: '2026-11-23T15:00:00Z', text: '## Data and safety\n<script>bad</script>\n- [Discord policy](https://discord.com/privacy)\n- [unsafe](javascript:bad)' });
+    assert.match(output, /<h2>Data and safety<\/h2>/);
+    assert.match(output, /<a href="https:\/\/discord\.com\/privacy">Discord policy<\/a>/);
+    assert.match(output, /&lt;script&gt;bad/);
+    assert.doesNotMatch(output, /href="javascript:|<script>/);
+    assert.match(policyView('terms'), /presets/);
+});
+
 test('Vercel rewrites the slash-ended page and explicit index path', () => {
     const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url)));
-    for (const [slug, name] of [['protection', 'protection'], ['dashboard', 'dashboard'], ['team/panel', 'team-panel'], ['blog', 'blog'], ['status/incidents', 'incidents'], ['terms', 'terms'], ['privacy', 'privacy']]) {
+    for (const [slug, name] of [['protection', 'protection'], ['dashboard', 'dashboard'], ['team/panel', 'team-panel'], ['blog', 'blog'], ['status/incidents', 'incidents'], ['terms', 'terms'], ['privacy', 'privacy'], ['profile', 'profile'], ['community', 'community'], ['reviews', 'reviews']]) {
         for (const path of ['/' + slug + '/', '/' + slug + '/index.html']) {
             assert.ok(config.rewrites.some(rule => rule.source === path && rule.destination === '/api/page?page=' + name));
         }

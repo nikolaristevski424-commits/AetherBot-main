@@ -35,6 +35,9 @@
       <div><h1>System status</h1><p>Check Aether’s services and read the latest incident reports.</p></div>
       <button type="button" class="btn btn-ghost" id="statusRefresh">Refresh checks</button>
     </header>
+    <div class="health-summary" id="healthSummary" data-tone="unknown" role="status">
+      <strong id="healthHeadline">Checking services…</strong><p id="healthDescription"></p>
+    </div>
     <div class="operations-grid">
       <section aria-labelledby="healthHeading">
         <h2 id="healthHeading">Current health</h2>
@@ -47,6 +50,11 @@
           <div class="service-row"><dt>Discord sign-in</dt><dd class="state-text wait" id="authState">Checking</dd></div>
         </dl>
         <p id="botProcessUptime" class="publication-meta"></p>
+        <section class="health-history" aria-labelledby="observationsTitle">
+          <h2 id="observationsTitle">Service observations</h2>
+          <p class="publication-meta">45 days of recorded checks. Grey marks days with no samples.</p>
+          <div id="observationBars" aria-busy="true"><p>Loading observations…</p></div>
+        </section>
       </section>
       <section aria-labelledby="incidentsHeading">
         <div class="operations-heading"><h2 id="incidentsHeading">Incident reports</h2><a class="text-action" href="/status/incidents/">View history <span aria-hidden="true">↗</span></a></div>

@@ -200,6 +200,30 @@
     {
       "source": "/status/incidents/:id/",
       "destination": "/api/page?page=incident&id=:id"
+    },
+    {
+      "source": "/profile/",
+      "destination": "/api/page?page=profile"
+    },
+    {
+      "source": "/profile/index.html",
+      "destination": "/api/page?page=profile"
+    },
+    {
+      "source": "/community/",
+      "destination": "/api/page?page=community"
+    },
+    {
+      "source": "/community/index.html",
+      "destination": "/api/page?page=community"
+    },
+    {
+      "source": "/reviews/",
+      "destination": "/api/page?page=reviews"
+    },
+    {
+      "source": "/reviews/index.html",
+      "destination": "/api/page?page=reviews"
     }
   ]
 }

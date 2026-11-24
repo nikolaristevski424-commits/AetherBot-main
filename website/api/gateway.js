@@ -3,7 +3,7 @@ import { siteContent } from '../lib/site-content.js';
 import { maintenanceFor } from '../lib/publishing.js';
 import { bridgeReady, botOrigin, signBridge } from '../lib/bridge.js';
 const METHODS = new Set(['GET','POST','PATCH']);
-const ROUTES = /^(?:site\/(?:access|team)|owner\/(?:site|guilds(?:\/\d{17,20}\/(?:invite|leave))?)|guilds|guilds\/\d{17,20}(?:\/(?:overview|setup|automod|remote|cad|mdt|staff|staff\/cases|staff\/members|staff\/moderate|cad\/calls|cad\/calls\/[0-9a-f-]{36}|cad\/units|cad\/config|erlc\/players|erlc\/moderate|mdt\/records|mdt\/bolos|mdt\/bolos\/[0-9a-f-]{36}\/clear))?)$/;
+const ROUTES = /^(?:site\/(?:access|team|profile|community)|owner\/(?:site|guilds(?:\/\d{17,20}\/(?:invite|leave))?)|guilds|guilds\/\d{17,20}(?:\/(?:overview|setup|automod|remote|share-config|cad|mdt|staff|staff\/cases|staff\/members|staff\/moderate|cad\/calls|cad\/calls\/[0-9a-f-]{36}|cad\/units|cad\/config|erlc\/players|erlc\/moderate|mdt\/records|mdt\/bolos|mdt\/bolos\/[0-9a-f-]{36}\/clear))?)$/;
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const who = session(req);
@@ -13,7 +13,11 @@ export default async function handler(req, res) {
   if (!bridgeReady()) return authResponse(res, 503, { error: 'The live Aether bot connection is not configured yet.', configured: false });
   const route = typeof req.query?.route === 'string' ? req.query.route : '';
   if (!ROUTES.test(route)) return authResponse(res, 404, { error: 'Unknown console API route.' });
-  const page = /^guilds\/\d{17,20}\/(overview|setup|automod|remote)$/.test(route) ? 'dashboard' : /^guilds\/\d{17,20}\/staff(?:\/|$)/.test(route) ? 'staff' : null;
+  const page = route === 'site/profile' ? 'profile' :
+    /^guilds\/\d{17,20}\/share-config$/.test(route) ? 'community' :
+    route === 'site/community' && req.method === 'POST' && req.body?.action === 'review' ? 'reviews' :
+    /^guilds\/\d{17,20}\/(overview|setup|automod|remote)$/.test(route) ? 'dashboard' :
+    /^guilds\/\d{17,20}\/staff(?:\/|$)/.test(route) ? 'staff' : null;
   if (page && maintenanceFor(await siteContent(), page)) return authResponse(res, 503, { error: 'This Aether page is under maintenance.' });
   const url = new URL(`/api/site-bridge/${route}`, botOrigin());
   if (req.method === 'GET' && typeof req.query?.q === 'string') url.searchParams.set('q', req.query.q.slice(0, 100));

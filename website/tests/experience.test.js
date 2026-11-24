@@ -41,7 +41,7 @@ test('the Wispbyte CAD setting has three choices and privacy-safe backend contro
  const html=read('cad/index.html');
  assert.match(html,/id="consoleRoot"/);
  const worker=read('companion/sw.js');
- assert.match(worker,/aether-companion-v7/);
+ assert.match(worker,/aether-companion-v8/);
  assert.match(worker,/\/assets\/experience\.css/);
 });
 

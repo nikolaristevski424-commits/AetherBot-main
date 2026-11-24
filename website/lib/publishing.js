@@ -11,7 +11,7 @@ const stamp = value => {
     return Number.isFinite(parsed.getTime()) ? '<time datetime="' + parsed.toISOString() + '">' + readableDate.format(parsed) + ' UTC</time>' : '';
 };
 const link = (path, title) => '<a href="' + path + '">' + escapeHtml(title) + '</a>';
-const controlled = new Set(['home', 'features', 'commands', 'docs', 'faq', 'status', 'incidents', 'incident', 'staff', 'team', 'team-panel', 'blog', 'article', 'devlog', 'protection', 'dashboard', 'companion', 'cad', 'privacy', 'terms']);
+const controlled = new Set(['home', 'features', 'commands', 'docs', 'faq', 'status', 'incidents', 'incident', 'staff', 'team', 'team-panel', 'blog', 'article', 'devlog', 'protection', 'dashboard', 'profile', 'community', 'reviews', 'companion', 'cad', 'privacy', 'terms']);
 const fallback = '<p class="publication-empty">Reports are temporarily unavailable.</p>';
 
 export function maintenanceFor(content, page, id) {

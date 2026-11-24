@@ -55,6 +55,8 @@ function getSelected(){try{return sessionStorage.getItem('aether_guild')||''}cat
 function permitted(key){const g=state.guilds.find(g=>g.id===state.guildId);return !!g?.permissions?.[key];}
 async function chooseGuild(guildId){
  stopCadPolling();state.guildId=guildId;state.data=null;saveSelected(guildId);
+ const share=$('shareWorkspaceConfig');
+ if(share)share.href=permitted('manager')?'/community/?'+new URLSearchParams({guild:guildId}):'/community/';
  document.dispatchEvent(new CustomEvent('aether:guild-selected', { detail: { guildId, manager: permitted('manager') } }));
  if(kind==='cad'){cadSnapshot=null;const calls=$('cadCallsList');if(calls)empty(calls,'Loading dispatch queue','Checking the selected server’s latest calls.');}
  if(!guildId){notice('Choose one of your connected Discord servers.');return;}
@@ -246,6 +248,7 @@ function bindForms(){
 }
 async function initialize(){if(!kind)return;bindForms();
  try{const me=await json('/api/auth/me');if(!me.authenticated)return goLogin();state.user=me.user;
+  const greeting=$('workspaceGreeting');if(greeting)greeting.textContent='Welcome, '+me.user.username+'. Choose a server to manage its settings.';
   const config=await json('/api/config');readinessConfig=config;if(kind==='dashboard')void showReadiness(config).catch(()=>{});if(!config.bridgeConfigured){connection('Bridge not configured',false);notice('The public website is ready, but its secure link to the Wispbyte bot is not configured. Complete the Aether website setup guide.',true);return;}
   const result=await gate('guilds');state.guilds=result.guilds||[];
   const picker=$('guildPicker');picker.replaceChildren();const none=elem('option','',state.guilds.length?'Select a server...':'No authorized servers yet');none.value='';picker.append(none);
