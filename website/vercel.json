@@ -38,6 +38,10 @@
   },
   "rewrites": [
     {
+      "source": "/media/erlc-postal-map.webp",
+      "destination": "https://aether.wispbyte.app/cad/map-image/fall-postals"
+    },
+    {
       "source": "/",
       "destination": "/api/page?page=home"
     },
@@ -156,6 +160,46 @@
     {
       "source": "/owner/index.html",
       "destination": "/api/page?page=owner"
+    },
+    {
+      "source": "/blog/",
+      "destination": "/api/page?page=blog"
+    },
+    {
+      "source": "/blog/index.html",
+      "destination": "/api/page?page=blog"
+    },
+    {
+      "source": "/status/incidents/",
+      "destination": "/api/page?page=incidents"
+    },
+    {
+      "source": "/status/incidents/index.html",
+      "destination": "/api/page?page=incidents"
+    },
+    {
+      "source": "/terms/",
+      "destination": "/api/page?page=terms"
+    },
+    {
+      "source": "/terms/index.html",
+      "destination": "/api/page?page=terms"
+    },
+    {
+      "source": "/privacy/",
+      "destination": "/api/page?page=privacy"
+    },
+    {
+      "source": "/privacy/index.html",
+      "destination": "/api/page?page=privacy"
+    },
+    {
+      "source": "/blog/:id/",
+      "destination": "/api/page?page=article&id=:id"
+    },
+    {
+      "source": "/status/incidents/:id/",
+      "destination": "/api/page?page=incident&id=:id"
     }
   ]
 }

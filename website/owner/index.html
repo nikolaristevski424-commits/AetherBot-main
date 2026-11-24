@@ -3,47 +3,84 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101329">
-  <title>Owner panel | Aether</title>
+  <meta name="theme-color" content="#100e18">
+  <title>Primary Owner Control Center | Aether</title>
   <link rel="icon" href="/assets/aether-mark.webp">
   <link rel="stylesheet" href="/assets/site.css">
   <link rel="stylesheet" href="/assets/control.css">
+  <link rel="stylesheet" href="/assets/aether-ui.css">
   <script defer src="/assets/control.js"></script>
 </head>
-<body class="control ">
+<body class="control owner-site">
   <a class="skip" href="#main">Skip to content</a>
-  <header class="control-header"><nav class="container control-nav" aria-label="Main navigation">
-    <a class="brand" href="/"><span class="brand-icon"><img src="/assets/aether-mark.webp" alt=""></span>Aether</a>
-    <a href="/protection/">Protection</a><a href="/devlog/">Devlog</a><a href="/team/">Team</a><a href="/status/">Status</a><a href="/dashboard/">Dashboard</a>
-  </nav></header>
+  <header class="control-header">
+    <nav class="container control-nav" aria-label="Main navigation">
+      <a class="brand" href="/"><span class="brand-icon"><img src="/assets/aether-mark.webp" alt=""></span>Aether</a>
+      <a href="/blog/">Public blog</a><a href="/status/">System status</a><a href="/dashboard/">Dashboard</a>
+    </nav>
+  </header>
   <main class="container control-main" id="main">
-    <div class="control-hero"><h1>Owner panel</h1><p>Manage Aether’s website and Discord installations.</p></div>
-
+    <header class="control-hero"><h1>Primary Owner Control Center</h1><p>Publish updates, communicate outages, and manage page availability.</p></header>
     <p role="status" id="controlNotice">Loading owner controls…</p>
-    <div class="control-grid" id="ownerPanel" hidden>
-      <section class="control-card"><h2>Displayed bot status</h2>
+    <div id="ownerPanel" hidden>
+      <nav class="owner-section-nav" aria-label="Owner workspace">
+        <a href="#ownerBlog">Blog</a><a href="#ownerIncidents">Incidents</a><a href="#ownerMaintenance">Maintenance</a><a href="#ownerOperations">Bot and staff</a>
+      </nav>
+      <section class="owner-workspace" id="ownerBlog" aria-labelledby="articleEditorTitle">
+        <div class="control-card">
+          <h2 id="articleEditorTitle">Write an article</h2>
+          <form class="control-form" data-owner="article">
+            <input type="hidden" name="id"><input type="hidden" name="revision">
+            <label>Title<input name="title" maxlength="100" required></label>
+            <label>Summary<input name="summary" maxlength="280" required></label>
+            <label>Category<select name="category"><option value="product">Product update</option><option value="changelog">Changelog</option><option value="community">Community</option></select></label>
+            <label>Article<textarea name="text" rows="8" maxlength="5000" required></textarea></label>
+            <label class="control-check"><input name="published" type="checkbox"> Publish on the public blog</label>
+            <div class="control-actions"><button class="btn btn-primary" type="submit">Save article</button><button class="btn btn-ghost" type="reset">New draft</button></div>
+          </form>
+        </div>
+        <aside class="control-card"><h2>Article library</h2><div class="control-list" id="ownerArticles"></div></aside>
+      </section>
+      <section class="owner-workspace" id="ownerIncidents" aria-labelledby="incidentEditorTitle">
+        <div class="control-card">
+          <h2 id="incidentEditorTitle">Publish an incident</h2>
+          <form class="control-form" data-owner="incident">
+            <input type="hidden" name="id"><input type="hidden" name="revision">
+            <label>Incident title<input name="title" maxlength="100" required></label>
+            <div class="owner-form-grid">
+              <label>Affected service<select name="service"><option value="website">Website</option><option value="discord">Discord bot</option><option value="cad">CAD / MDT</option><option value="erlc">ER:LC integration</option><option value="music">Music</option></select></label>
+              <label>Severity<select name="severity"><option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option><option value="maintenance">Maintenance</option></select></label>
+            </div>
+            <label>Phase<select name="phase"><option value="investigating">Investigating</option><option value="identified">Identified</option><option value="monitoring">Monitoring</option><option value="resolved">Resolved</option><option value="scheduled">Scheduled maintenance</option></select></label>
+            <label>Public update<textarea name="text" rows="6" maxlength="1400" required></textarea></label>
+            <div class="control-actions"><button class="btn btn-primary" type="submit">Publish incident</button><button class="btn btn-ghost" type="reset">New incident</button></div>
+          </form>
+        </div>
+        <aside class="control-card"><h2>Incident archive</h2><div class="control-list" id="ownerIncidentList"></div></aside>
+      </section>
+      <section class="owner-workspace" id="ownerMaintenance" aria-labelledby="maintenanceHeading">
+        <div class="control-card"><h2 id="maintenanceHeading">Page availability</h2>
+          <p>Paused pages display your message and return HTTP 404. Owner sign-in and this control center stay available.</p>
+          <form class="control-form" data-owner="maintenance">
+            <label>Page or section<select name="page" required id="maintenancePages"></select></label>
+            <label class="control-check"><input name="enabled" type="checkbox"> Pause this page</label>
+            <label>Public maintenance message<textarea name="message" maxlength="240" rows="3" placeholder="This page will be available again after maintenance."></textarea></label>
+            <button class="btn btn-primary" type="submit">Save availability</button>
+          </form>
+        </div>
+        <aside class="control-card"><h2>Paused pages</h2><div class="control-list" id="ownerPausedPages"></div></aside>
+      </section>
+      <section id="ownerOperations" aria-labelledby="ownerOperationsHeading">
+        <h2 id="ownerOperationsHeading">Bot and staff</h2>
+        <div class="control-grid">
+          <section class="control-card"><h2>Displayed bot status</h2>
         <form class="control-form" data-owner="status">
           <label>Status<select name="value"><option value="automatic">Automatic checks</option><option value="operational">Operational</option><option value="degraded">Degraded</option><option value="maintenance">Maintenance</option><option value="offline">Offline</option></select></label>
           <label>Public message<input name="message" maxlength="240"></label>
           <button class="btn btn-primary">Save status</button>
         </form>
       </section>
-      <section class="control-card"><h2>Page maintenance</h2>
-        <form class="control-form" data-owner="maintenance">
-          <label>Page<select name="page" required id="maintenancePages"></select></label>
-          <label class="control-check"><input name="enabled" type="checkbox"> Show maintenance page</label>
-          <label>Public message<input name="message" maxlength="240"></label>
-          <button class="btn btn-primary">Save maintenance</button>
-        </form>
-      </section>
-      <section class="control-card"><h2>Publish a devlog</h2>
-        <form class="control-form" data-owner="publish">
-          <label>Title<input name="title" maxlength="100" required></label>
-          <label>Update<textarea name="text" rows="5" maxlength="4000" required></textarea></label>
-          <button class="btn btn-primary">Publish devlog</button>
-        </form>
-      </section>
-      <section class="control-card"><h2>Aether staff</h2>
+          <section class="control-card"><h2>Aether staff</h2>
         <form class="control-form" data-owner="staff">
           <label>Discord user ID<input name="userId" pattern="[0-9]{17,20}" inputmode="numeric" required></label>
           <label>Display name<input name="name" maxlength="80" required></label>
@@ -54,11 +91,13 @@
         </form>
         <div id="ownerStaff" class="control-list"></div>
       </section>
-      <section class="control-card control-wide"><h2>Discord servers</h2>
+          <section class="control-card control-wide"><h2>Discord servers</h2>
         <p id="guildSummary" role="status">Loading installed servers…</p>
         <div id="ownerGuilds" class="control-list"></div>
       </section>
-      <section class="control-card control-wide"><h2>Owner activity</h2><div id="ownerAudit" class="control-list"></div></section>
+          <section class="control-card control-wide"><h2>Owner activity</h2><div id="ownerAudit" class="control-list"></div></section>
+        </div>
+      </section>
     </div>
   </main>
 </body>

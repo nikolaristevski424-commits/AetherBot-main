@@ -34,23 +34,23 @@ test('management pages retain the existing JS contracts and key controls',()=>{
 });
 
 test('redesign respects reduced motion and avoids fake health claims',()=>{
- const css=read('assets/refined.css');
- assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
+ const css=read('assets/aether-ui.css');
+ assert.match(css,/@media \(prefers-reduced-motion: no-preference\)/);
  assert.match(css,/html\[data-theme="dark"\]/);
  const home=read('index.html');
- assert.match(home,/ILLUSTRATIVE PRODUCT PREVIEW/);
- assert.match(css,/NOT LIVE DATA/);
+ assert.match(home,/liberty-dusk-small\.webp/);
+ assert.doesNotMatch(home,/ILLUSTRATIVE PRODUCT PREVIEW|pill-live/);
  assert.ok(!home.includes('600Servers'));
 });
 
 test('installed ER:LC companion caches the latest Aether theme layer',()=>{
  const worker=read('companion/sw.js');
- assert.match(worker,/\/assets\/refined\.css/);
- assert.match(worker,/aether-companion-v6/);
+ assert.match(worker,/\/assets\/aether-ui\.css/);
+ assert.match(worker,/aether-companion-v7/);
 });
 
 test('visual stylesheet syntax has balanced block delimiters',()=>{
- const css=read('assets/refined.css').replace(/\/\*[\s\S]*?\*\//g,'').replace(/"[^"]*"/g,'').replace(/'[^']*'/g,'');
+ const css=read('assets/aether-ui.css').replace(/\/\*[\s\S]*?\*\//g,'').replace(/"[^"]*"/g,'').replace(/'[^']*'/g,'');
  let balance=0;
  for(const c of css){if(c==='{')balance++;if(c==='}')balance--;assert.ok(balance>=0,'unexpected closing brace');}
  assert.equal(balance,0,'unclosed CSS blocks');

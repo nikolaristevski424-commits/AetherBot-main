@@ -13,7 +13,11 @@
       set('cadState',x.cad==='gateway_configured'?'Gateway configured':'Not connected',x.cad==='gateway_configured'?'good':'wait');
       set('authState',x.auth==='configured'?'Configured':'Not configured',x.auth==='configured'?'good':'wait');
       el('statusUpdated').textContent=`Checked ${new Date(x.updatedAt).toLocaleString()}. ${x.note||''}`;
-    }catch{el('statusUpdated').textContent='Unable to complete status checks right now.';set('webState','Unknown','wait');}
+    }catch{
+      el('statusUpdated').textContent='Unable to complete status checks right now.';
+      for (const id of ['webState','botState','readyState','cadState','authState']) set(id,'Unknown','wait');
+      el('botProcessUptime').textContent='';
+    }
     finally{el('statusRefresh').disabled=false;}}
   el('statusRefresh')?.addEventListener('click',refresh);await refresh();
 })();

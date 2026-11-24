@@ -10,6 +10,7 @@ import { signBridge } from '../website/lib/bridge.js';
 
 const owner = '51000000000000001';
 const staff = '51000000000000002';
+const coOwner = '51000000000000006';
 const guildId = '51000000000000003';
 const channelId = '51000000000000004';
 const botId = '51000000000000005';
@@ -44,7 +45,7 @@ const client = {
 before(async () => {
     directory = await mkdtemp(path.join(os.tmpdir(), 'aether-site-control-'));
     process.env.DATA_DIR = directory;
-    process.env.OWNER_IDS = owner;
+    process.env.OWNER_IDS = owner + ',' + coOwner;
     process.env.AETHER_BRIDGE_SECRET = 'test-bridge-secret-for-aether-tests-only';
     ({ db } = await import('../src/utils/database.js'));
     await db.initialize();
@@ -89,6 +90,30 @@ test('owner settings, staff grants and maintenance are audited and projected pub
     assert.equal((await signed(owner, 'owner/site', { action: 'remove_staff', userId: staff })).status, 200);
     assert.equal((await signed(staff, 'site/team')).status, 403);
     assert.ok((await (await signed(owner, 'owner/site')).json()).audit.length >= 3);
+});
+
+test('primary owner publishing keeps drafts private and preserves the incident timeline', async () => {
+    const route = 'owner/site';
+    const draft = { action: 'article', title: 'Release notes', summary: 'A short update', text: '<script>Draft</script>', category: 'changelog', published: false };
+    assert.equal((await signed(coOwner, route)).status, 403);
+    assert.equal((await signed(coOwner, route, draft)).status, 403);
+    assert.deepEqual(await (await signed(coOwner, 'site/access')).json(), { access: 'owner', primaryOwner: false });
+    assert.equal((await signed(owner, route, draft)).status, 200);
+    assert.deepEqual((await (await fetch(origin + '/public')).json()).articles, []);
+    const created = (await (await signed(owner, route)).json()).articles[0];
+    const publish = { ...draft, id: created.id, revision: created.revision, published: true };
+    assert.equal((await signed(owner, route, publish)).status, 200);
+    assert.equal((await signed(owner, route, publish)).status, 409);
+
+    assert.equal((await signed(owner, route, { action: 'incident', title: 'CAD interruptions', service: 'cad', severity: 'minor', phase: 'investigating', text: 'Checking the gateway.' })).status, 200);
+    const incident = (await (await signed(owner, route)).json()).incidents[0];
+    assert.equal((await signed(owner, route, { action: 'incident_update', id: incident.id, revision: incident.revision, phase: 'resolved', text: 'CAD is responding again.' })).status, 200);
+    assert.equal((await signed(owner, route, { action: 'maintenance', page: 'article:' + created.id, enabled: true, message: 'Scheduled update' })).status, 200);
+    const content = await (await fetch(origin + '/public')).json();
+    assert.equal(content.articles[0].id, created.id);
+    assert.equal(content.articles[0].revision, undefined);
+    assert.deepEqual(content.incidents[0].updates.map(item => item.phase), ['resolved', 'investigating']);
+    assert.equal(content.maintenance['article:' + created.id].message, 'Scheduled update');
 });
 
 test('invite creation rechecks permissions and leave requires typed confirmation', async () => {

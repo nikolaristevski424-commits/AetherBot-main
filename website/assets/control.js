@@ -23,6 +23,8 @@
     const date = value => new Date(value).toLocaleString();
     const actionLabels = {
         status: 'Displayed status updated', maintenance: 'Page maintenance updated', publish: 'Devlog published',
+        'article.draft': 'Article draft saved', 'article.publish': 'Article published',
+        'incident.publish': 'Incident published', 'incident.update': 'Incident update published',
         'staff.update': 'Staff access updated', 'staff.remove': 'Staff member removed',
         'invite.attempt': 'Server invite requested', 'invite.created': 'Server invite created',
         'leave.attempt': 'Bot removal requested', 'leave.applied': 'Bot removed from server',
@@ -68,12 +70,81 @@
         const statusForm = formFor('owner', 'status');
         const maintenanceForm = formFor('owner', 'maintenance');
         const staffForm = formFor('owner', 'staff');
+        const articleForm = formFor('owner', 'article');
+        const incidentForm = formFor('owner', 'incident');
+        const pageLabels = {
+            all: 'Entire website', home: 'Home', blog: 'Blog and articles', incidents: 'Incident history and reports',
+            status: 'System status and incidents', cad: 'Website CAD gateway', 'team-panel': 'Aether staff panel',
+        };
         let current;
 
         function showMaintenance() {
             const saved = current.maintenance[field(maintenanceForm, 'page').value];
             field(maintenanceForm, 'enabled').checked = Boolean(saved);
             field(maintenanceForm, 'message').value = saved?.message || '';
+        }
+
+        function availability() {
+            const select = byId('maintenancePages');
+            const selected = select.value;
+            const choices = new Map(current.pages.map(id => [id, pageLabels[id] || id[0].toUpperCase() + id.slice(1)]));
+            for (const item of [...current.articles.filter(article => article.published), ...current.devlogs]) choices.set('article:' + item.id, 'Article · ' + item.title);
+            for (const item of current.incidents) choices.set('incident:' + item.id, 'Incident · ' + item.title);
+            for (const id of Object.keys(current.maintenance)) if (!choices.has(id)) choices.set(id, id);
+            options(select, [...choices].map(([id, name]) => ({ id, name })), 'Choose a page');
+            if (choices.has(selected)) select.value = selected;
+            showMaintenance();
+            const paused = byId('ownerPausedPages');
+            paused.replaceChildren();
+            for (const id of Object.keys(current.maintenance)) {
+                const row = node('div', '', 'control-row');
+                row.append(node('span', choices.get(id)), button('Edit availability', () => {
+                    select.value = id;
+                    showMaintenance();
+                    select.focus();
+                }, notice));
+                paused.append(row);
+            }
+            if (!paused.children.length) paused.textContent = 'No pages are paused.';
+        }
+
+        function incidentEditor(item = null) {
+            for (const name of ['title', 'service', 'severity']) {
+                const input = field(incidentForm, name);
+                input.disabled = Boolean(item);
+                if (item) input.value = item[name];
+            }
+            if (item) field(incidentForm, 'phase').value = item.phase;
+            field(incidentForm, 'id').value = item?.id || '';
+            field(incidentForm, 'revision').value = item?.revision || '';
+            field(incidentForm, 'text').value = '';
+            byId('incidentEditorTitle').textContent = item ? 'Post an incident update' : 'Publish an incident';
+            incidentForm.querySelector('button[type="submit"]').textContent = item ? 'Publish update' : 'Publish incident';
+        }
+
+        function showPublications() {
+            const articles = byId('ownerArticles');
+            const incidents = byId('ownerIncidentList');
+            articles.replaceChildren(...current.articles.map(item => {
+                const row = node('div', '', 'control-row');
+                row.append(node('span', item.title + (item.published ? ' · Published' : ' · Draft')), button('Edit article', () => {
+                    for (const name of ['id', 'revision', 'title', 'summary', 'category', 'text']) field(articleForm, name).value = item[name];
+                    field(articleForm, 'published').checked = item.published;
+                    byId('articleEditorTitle').textContent = 'Edit article';
+                    field(articleForm, 'title').focus();
+                }, notice));
+                return row;
+            }));
+            incidents.replaceChildren(...current.incidents.map(item => {
+                const row = node('div', '', 'control-row');
+                row.append(node('span', item.title + ' · ' + item.phase), button('Post update', () => {
+                    incidentEditor(item);
+                    field(incidentForm, 'phase').focus();
+                }, notice));
+                return row;
+            }));
+            if (!articles.children.length) articles.textContent = 'No articles have been saved.';
+            if (!incidents.children.length) incidents.textContent = 'No incidents have been published.';
         }
 
         function showStaff() {
@@ -103,8 +174,8 @@
                 field(statusForm, 'value').value = current.status.value;
                 field(statusForm, 'message').value = current.status.message;
             }
-            if (!section) options(byId('maintenancePages'), current.pages.map(id => ({ id, name: id[0].toUpperCase() + id.slice(1) })));
-            if (!section || section === 'maintenance') showMaintenance();
+            if (!section || ['maintenance', 'article', 'incident', 'incident_update'].includes(section)) availability();
+            if (!section || ['article', 'incident', 'incident_update'].includes(section)) showPublications();
             if (!section || section === 'staff') showStaff();
             activity(byId('ownerAudit'), current.audit, entry => {
                 const target = typeof entry.target === 'string' ? entry.target : `${entry.target.guildId} · ${entry.target.reason}`;
@@ -185,15 +256,22 @@
             void loadGuilds();
         } catch (error) { notice.textContent = error.message; }
         byId('maintenancePages').addEventListener('change', showMaintenance);
+        articleForm.addEventListener('reset', () => { byId('articleEditorTitle').textContent = 'Write an article'; });
+        incidentForm.addEventListener('reset', () => incidentEditor());
         for (const form of panel.querySelectorAll('[data-owner]')) {
             handleSubmit(form, async () => {
-                const action = form.dataset.owner;
+                let action = form.dataset.owner;
                 const fields = Object.fromEntries(new FormData(form));
                 for (const checkbox of form.querySelectorAll('[type="checkbox"]')) fields[checkbox.name] = checkbox.checked;
+                if (action === 'incident' && fields.id) action = 'incident_update';
+                if (fields.revision) fields.revision = Number(fields.revision);
+                if (action === 'maintenance' && fields.enabled && fields.page === 'all' && !current.maintenance.all
+                    && !confirm('Pause all website pages covered by maintenance? The owner panel and sign-in will remain available.')) return;
                 await gate('owner/site', 'POST', { ...fields, action });
-                if (action === 'publish' || action === 'staff') form.reset();
+                if (['article', 'incident', 'incident_update', 'staff'].includes(action)) form.reset();
                 await loadSite(action);
-                notice.textContent = action === 'publish' ? 'Devlog published.' : 'Changes saved.';
+                const saved = { article: fields.published ? 'Article published.' : 'Draft saved.', incident: 'Incident published.', incident_update: 'Incident update published.' };
+                notice.textContent = saved[action] || 'Changes saved.';
             }, notice);
         }
     }
@@ -201,6 +279,10 @@
     function dashboardSetup() {
         const container = byId('guildSetupForms');
         if (!container) return;
+        const ownerShortcut = byId('ownerShortcut');
+        if (ownerShortcut) {
+            void gate('site/access').then(({ primaryOwner }) => { ownerShortcut.hidden = primaryOwner !== true; }).catch(() => {});
+        }
         const notice = byId('setupNotice');
         const protection = formFor('setup', 'setup');
         const automod = formFor('setup', 'automod');
@@ -303,14 +385,19 @@
                 if (!content.staff.length) staff.textContent = 'No team members are listed yet.';
             }
             if (devlog) {
-                devlog.replaceChildren(...content.devlogs.map(post => {
+                const posts = [
+                    ...content.devlogs,
+                    ...(content.articles ?? []).filter(post => post.category === 'changelog')
+                        .map(post => ({ ...post, at: post.publishedAt })),
+                ].sort((a, b) => new Date(b.at) - new Date(a.at));
+                devlog.replaceChildren(...posts.map(post => {
                     const card = node('article', '', 'control-card');
                     const time = node('time', date(post.at));
                     time.dateTime = post.at;
                     card.append(node('h2', post.title), time, node('p', post.text, 'control-post'));
                     return card;
                 }));
-                if (!content.devlogs.length) devlog.textContent = 'No devlogs have been published yet.';
+                if (!posts.length) devlog.textContent = 'No devlogs have been published yet.';
             }
             if (status && content.status.value !== 'automatic') {
                 const value = content.status.value;

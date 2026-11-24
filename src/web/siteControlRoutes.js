@@ -6,7 +6,7 @@ import { cadWebsiteOrigin, issueCadTicket } from '../services/cad/websiteLogin.j
 import { Mutex } from '../utils/mutex.js';
 import { getSecurityConfig, getSecurityLog, protectionTypes, setProtection } from '../services/security/securityConfigService.js';
 import {
-    auditSiteAction, checkedText, ControlError, discordId, maintenancePages,
+    auditSiteAction, checkedText, ControlError, discordId, isPrimaryOwner, maintenancePages,
     publicSiteControl, readSiteControl, siteAccess, updateSiteControl,
 } from '../services/siteControlService.js';
 
@@ -82,7 +82,7 @@ export function mountSiteControlRoutes(router, client) {
         if (!ticket) throw new ControlError(409, 'CAD sign-in expired. Start again from CAD.');
         return response(res, { ticket });
     });
-    router.get('/site/access', readLimit, async (req, res) => response(res, { access: await siteAccess(req.siteUserId) }));
+    router.get('/site/access', readLimit, async (req, res) => response(res, { access: await siteAccess(req.siteUserId), primaryOwner: isPrimaryOwner(req.siteUserId) }));
     router.get('/site/team', readLimit, async (req, res) => {
         if (!await siteAccess(req.siteUserId)) throw new ControlError(403, 'Aether staff access is required.');
         const state = await readSiteControl();
@@ -95,7 +95,18 @@ export function mountSiteControlRoutes(router, client) {
         if (!isBotOwner(req.siteUserId)) throw new ControlError(403, 'Bot owner access is required.');
         next();
     });
-    router.get('/owner/site', readLimit, async (req, res) => response(res, { ...await readSiteControl(), pages: maintenancePages }));
+    router.use('/owner/site', (req, res, next) => {
+        if (!isPrimaryOwner(req.siteUserId)) throw new ControlError(403, 'Primary owner access is required.');
+        next();
+    });
+    router.get('/owner/site', readLimit, async (req, res) => {
+        const state = await readSiteControl();
+        return response(res, {
+            ...state, pages: maintenancePages,
+            devlogs: state.devlogs.map(({ id, title }) => ({ id, title })),
+            incidents: state.incidents.map(({ updates, ...incident }) => incident),
+        });
+    });
     router.post('/owner/site', writeLimit, async (req, res) => {
         if (req.siteBody.action === 'staff') {
             const { userId } = req.siteBody;

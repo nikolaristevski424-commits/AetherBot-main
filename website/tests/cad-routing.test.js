@@ -24,8 +24,8 @@ test('accessible sign-in page distinguishes the two Discord OAuth sessions',()=>
  const html=file('login/index.html');
  assert.match(html,/id="discordSignIn"/);
  assert.match(html,/https:\/\/aether\.wispbyte\.app\/cad\/auth\/login/);
- assert.match(html,/https:\/\/aetherbot-hq\.vercel\.app\/api\/auth\/callback/);
- assert.match(html,/https:\/\/aether\.wispbyte\.app\/cad\/auth\/callback/);
+ assert.match(html,/href="\/api\/auth\/login\?next=/);
+ assert.match(html,/CAD uses a separate Discord sign-in/);
 });
 test('logo and animation use contained artwork and reduced-motion protection',()=>{
  const css=file('assets/refined.css');

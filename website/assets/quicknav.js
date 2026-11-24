@@ -9,7 +9,9 @@
   {title:'ER:LC companion',detail:'Installable staff companion interface',href:'/companion/',icon:'◉'},
   {title:'Staff moderation',detail:'Case history, actions and role settings',href:'/staff/',icon:'⌘'},
   {title:'Bot commands',detail:'Find Aether slash commands',href:'/commands/',icon:'⌕'},
-  {title:'Connection status',detail:'Website and bot health',href:'/status/',icon:'◎'},
+  {title:'System status',detail:'Service checks and incident reports',href:'/status/',icon:'◎'},
+  {title:'Aether blog',detail:'Product updates and changelog',href:'/blog/',icon:'▤'},
+  {title:'Incident history',detail:'Published outage and maintenance reports',href:'/status/incidents/',icon:'◉'},
   {title:'Documentation',detail:'Configure Discord OAuth and Wispbyte',href:'/docs/',icon:'◷'},
   {title:'FAQ',detail:'Common questions',href:'/faq/',icon:'?'}
  ];
