@@ -6,6 +6,7 @@ const key = 'site:observations';
 const components = ['website', 'discord', 'storage'];
 const dayMs = 86400_000;
 const intervalMs = 15 * 60_000;
+const websiteProbePath = '/api/config/';
 const utcDay = time => new Date(time).toISOString().slice(0, 10);
 
 export function mergeObservation(history, at, statuses) {
@@ -42,7 +43,7 @@ async function websiteCheck() {
     const origin = cadWebsiteOrigin();
     if (!origin) return null;
     try {
-        const response = await fetch(origin + '/api/config', { signal: AbortSignal.timeout(4500), redirect: 'error' });
+        const response = await fetch(origin + websiteProbePath, { signal: AbortSignal.timeout(4500), redirect: 'error' });
         return response.ok && Boolean(response.headers.get('content-type')?.includes('application/json'));
     } catch { return false; }
 }
@@ -52,9 +53,10 @@ export async function sampleStatus(client) {
     return Mutex.runExclusive(key, async () => {
         const at = Date.now();
         const history = await db.get(key, null, { throwOnError: true }) ?? {};
-        if (history.lastAt && at - history.lastAt < intervalMs - 1000) return;
+        if (history.websiteProbePath === websiteProbePath && history.lastAt && at - history.lastAt < intervalMs - 1000) return;
         const status = { website: await websiteCheck(), discord: client.isReady(), storage: true };
-        if (await db.set(key, mergeObservation(history, at, status)) === false) throw new Error('Observation could not be persisted');
+        const next = { ...mergeObservation(history, at, status), websiteProbePath };
+        if (await db.set(key, next) === false) throw new Error('Observation could not be persisted');
         db.flush();
     });
 }

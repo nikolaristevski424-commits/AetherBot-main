@@ -1,6 +1,6 @@
 {
   "name": "aether-bot",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Aether — modular all-in-one Discord bot",
   "main": "src/app.js",
   "type": "module",

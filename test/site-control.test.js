@@ -158,6 +158,29 @@ test('status observations keep only real samples within the 45-day window', asyn
     assert.deepEqual(data.days, { '2026-11-23': { website: { passed: 1, failed: 0 }, discord: { passed: 1, failed: 1 } } });
 });
 
+test('website observations probe the canonical URL and refresh after the probe changes', async t => {
+    const { readObservations, sampleStatus } = await import('../src/services/siteObservations.js');
+    const previousOrigin = process.env.AETHER_CAD_SITE_ORIGIN;
+    const previousKey = process.env.AETHER_BRIDGE_PUBLIC_KEY;
+    process.env.AETHER_CAD_SITE_ORIGIN = 'https://aether.example';
+    process.env.AETHER_BRIDGE_PUBLIC_KEY = 'test-key';
+    t.after(() => {
+        if (previousOrigin === undefined) delete process.env.AETHER_CAD_SITE_ORIGIN;
+        else process.env.AETHER_CAD_SITE_ORIGIN = previousOrigin;
+        if (previousKey === undefined) delete process.env.AETHER_BRIDGE_PUBLIC_KEY;
+        else process.env.AETHER_BRIDGE_PUBLIC_KEY = previousKey;
+    });
+    const fetchProbe = t.mock.method(globalThis, 'fetch', async () => Response.json({}));
+    await db.set('site:observations', { lastAt: Date.now(), days: {} });
+    await sampleStatus(client);
+    await sampleStatus(client);
+    assert.equal(fetchProbe.mock.callCount(), 1);
+    const [url, options] = fetchProbe.mock.calls[0].arguments;
+    assert.equal(url, 'https://aether.example/api/config/');
+    assert.equal(options.redirect, 'error');
+    assert.deepEqual((await readObservations()).days.at(-1).checks.website, { passed: 1, failed: 0 });
+});
+
 test('invite creation rechecks permissions and leave requires typed confirmation', async () => {
     const route = 'owner/guilds/' + guildId;
     assert.equal((await signed(owner, route + '/invite', { channelId })).status, 403);
