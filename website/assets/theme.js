@@ -9,7 +9,7 @@
   function apply(value,persist=false){
     document.documentElement.dataset.theme=value;
     document.documentElement.style.colorScheme=value;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',value==='dark'?'#101729':'#f8f9fe');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',value==='dark'?'#131020':'#f4f0fa');
     const button=document.getElementById('themeToggle');
     if(button){button.textContent=value==='dark'?'☀ Light mode':'☾ Dark mode';button.setAttribute('aria-label',value==='dark'?'Switch to light mode':'Switch to dark mode');button.setAttribute('aria-pressed',String(value==='dark'));}
     if(persist)try{localStorage.setItem(key,value)}catch{}
@@ -22,6 +22,7 @@
     btn.addEventListener('click',()=>apply(document.documentElement.dataset.theme==='dark'?'light':'dark',true));
     const nav=document.querySelector('.nav-actions')||document.querySelector('.comp-top')||document.querySelector('.comp-head');
     if(nav)nav.prepend(btn);
+    else if(document.querySelector('.control-nav'))document.querySelector('.control-nav').append(btn);
     else{btn.classList.add('aether-theme-floating');document.body.append(btn);}
     apply(document.documentElement.dataset.theme);
   };

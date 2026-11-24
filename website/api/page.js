@@ -3,15 +3,16 @@ import { session } from '../lib/auth.js';
 import { bridgeReady, botOrigin, signBridge } from '../lib/bridge.js';
 import { siteContent } from '../lib/site-content.js';
 import { escapeHtml, maintenanceFor, publicationId, publicationView } from '../lib/publishing.js';
+import { policyView } from '../lib/policy-view.js';
 
 const pages = {
     home: '/', features: '/features/', commands: '/commands/', docs: '/docs/', faq: '/faq/',
     status: '/status/', staff: '/staff/', team: '/team/', devlog: '/devlog/', protection: '/protection/',
     dashboard: '/dashboard/', companion: '/companion/', cad: '/cad/', owner: '/owner/', 'team-panel': '/team/panel/',
     blog: '/blog/', article: '/blog/', incidents: '/status/incidents/', incident: '/status/incidents/',
-    privacy: '/privacy/', terms: '/terms/',
+    privacy: '/privacy/', terms: '/terms/', profile: '/profile/', community: '/community/', reviews: '/reviews/',
 };
-const privatePages = new Set(['staff', 'dashboard', 'cad', 'owner', 'team-panel']);
+const privatePages = new Set(['staff', 'dashboard', 'profile', 'cad', 'owner', 'team-panel']);
 const publicationPages = new Set(['blog', 'article', 'incidents', 'incident', 'status']);
 
 function message(res, status, title, body) {
@@ -64,6 +65,9 @@ export default async function handler(req, res) {
     try {
         const filename = new URL(page === 'home' ? '../index.html' : '..' + pages[page] + 'index.html', import.meta.url);
         let html = await readFile(filename, 'utf8');
+        if (page === 'terms' || page === 'privacy') {
+            html = html.replace('<!-- legal -->', () => policyView(page, content?.policies?.[page]));
+        }
         if (publicationPages.has(page)) {
             const view = publicationView(page, content, id);
             if (view.missing) return message(res, 404, 'Report unavailable', 'That Aether page could not be found.');

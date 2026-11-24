@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#100e1b">
+  <title>Community presets | Aether</title>
+  <meta name="description" content="Share and download anti-raid and anti-nuke settings for your Discord server.">
+  <link rel="icon" href="/assets/aether-mark.webp">
+  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/theme.css">
+  <link rel="stylesheet" href="/assets/refined.css">
+  <link rel="stylesheet" href="/assets/aether-ui.css">
+  <script defer src="/assets/main.js"></script>
+  <script defer src="/assets/theme.js"></script>
+  <script defer src="/assets/community.js"></script>
+</head>
+<body data-community-page="presets">
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header" id="siteHeader"><div class="container nav-inner">
+    <a class="brand" href="/" aria-label="Aether home"><span class="brand-icon"><img src="/assets/aether-mark.webp" alt="" width="36" height="36"></span>Aether</a>
+    <nav class="nav-links" id="siteNav" aria-label="Main navigation">
+      <a href="/features/">Features</a><a href="/community/" aria-current="page">Community</a>
+      <a href="/reviews/">Reviews</a><a href="/blog/">Blog</a><a href="/status/">Status</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-primary btn-small" href="/login/?next=%2Fprofile%2F" id="communityAccount">Sign in</a>
+      <button type="button" class="menu-toggle" id="menuToggle" aria-label="Toggle navigation" aria-controls="siteNav" aria-expanded="false">☰</button>
+    </div>
+  </div></header>
+  <main class="container publication-main" id="main">
+    <header class="publication-heading community-heading"><h1>Community presets</h1><p>Share and download anti-raid and anti-nuke settings for your Discord server.</p></header>
+    <div class="community-layout">
+      <section aria-labelledby="feedTitle"><h2 id="feedTitle">Shared presets</h2><div class="community-feed" id="communityFeed" aria-busy="true"><p>Loading presets…</p></div></section>
+      <aside class="community-card">
+        <h2>Publish a preset</h2>
+        <p>Share detection settings from a server you manage. Aether exports rule thresholds, time windows, and enabled settings.</p>
+        <a class="btn btn-primary" href="/login/?next=%2Fcommunity%2F" id="communitySignin">Sign in to share</a>
+        <form class="aether-form" id="presetForm" hidden>
+          <label>Discord server<select name="guild" required><option value="">Choose a server</option></select></label>
+          <label>Preset title<input name="title" maxlength="80" required></label>
+          <label>Description<textarea name="description" maxlength="420" rows="4" required></textarea></label>
+          <button class="btn btn-primary" type="submit">Publish preset</button>
+        </form>
+        <p class="form-message" id="communityNotice" role="status"></p>
+      </aside>
+    </div>
+  </main>
+  <footer class="footer"><div class="container"><div class="footer-bottom"><a href="/">Aether</a><nav class="publication-links" aria-label="Footer"><a href="/dashboard/">Dashboard</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a></nav></div></div></footer>
+</body>
+</html>

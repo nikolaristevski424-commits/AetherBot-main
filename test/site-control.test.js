@@ -116,6 +116,48 @@ test('primary owner publishing keeps drafts private and preserves the incident t
     assert.equal(content.maintenance['article:' + created.id].message, 'Scheduled update');
 });
 
+test('policy drafts are private until published and stale writes are rejected', async () => {
+    const { updateSiteControl } = await import('../src/services/siteControlService.js');
+    const text = '## Draft terms\n\n' + 'Use Aether and its roleplay features responsibly within your community. '.repeat(2);
+    assert.equal((await signed(coOwner, 'owner/site', { action: 'policy', document: 'terms', text, publish: true, revision: 0 })).status, 403);
+    await updateSiteControl(owner, { action: 'policy', document: 'terms', text, revision: 0, publish: false });
+    const before = await (await fetch(origin + '/public')).json();
+    assert.equal(before.policies.terms, undefined);
+    await updateSiteControl(owner, { action: 'policy', document: 'terms', text, revision: 1, publish: true });
+    const { policies } = await (await fetch(origin + '/public')).json();
+    assert.deepEqual(Object.keys(policies.terms).sort(), ['at', 'text']);
+    assert.equal(policies.terms.text, text.trim());
+    await assert.rejects(updateSiteControl(owner, { action: 'policy', document: 'terms', text, revision: 0, publish: true }), { status: 409 });
+});
+
+test('community profiles, review edits and preset exports keep private data out of public feeds', async () => {
+    const { exportProtectionPreset, publishPreset, publicCommunity, personalCommunity } = await import('../src/services/siteCommunityService.js');
+    assert.equal((await fetch(origin + '/api/site-bridge/site/profile')).status, 401);
+    assert.equal((await signed(staff, 'site/profile', { publicName: 'Aether reviewer', bio: 'Private biography' }, 'PATCH')).status, 200);
+    assert.equal((await signed(staff, 'site/community', { action: 'review', rating: 5, text: 'Helpful dashboard' })).status, 200);
+    assert.equal((await signed(staff, 'site/community', { action: 'review', rating: 4, text: 'Updated review' })).status, 200);
+    const reviews = await publicCommunity('reviews');
+    assert.equal(reviews.count, 1);
+    assert.equal(reviews.average, 4);
+    assert.equal(reviews.items[0].author, 'Aether reviewer');
+    assert.equal(reviews.items[0].authorId, undefined);
+    assert.doesNotMatch(JSON.stringify(reviews), /Private biography/);
+    assert.equal((await personalCommunity(staff)).review.id, reviews.items[0].id);
+    assert.equal((await signed(staff, 'guilds/' + guildId + '/share-config', { title: 'Other server', description: 'No permission' })).status, 403);
+    const privateConfig = { antiraid: { joinSpike: { enabled: true, threshold: 10, windowSeconds: 30, alertChannelId: channelId } }, whitelist: { userIds: [owner] }, serverKey: 'secret' };
+    assert.deepEqual(exportProtectionPreset(privateConfig), { version: 1, protections: { antiraid: { joinSpike: { enabled: true, threshold: 10, windowSeconds: 30 } }, antinuke: {} } });
+    await publishPreset(owner, { title: 'Sample preset', description: 'Test configuration' }, privateConfig);
+    assert.doesNotMatch(JSON.stringify(await publicCommunity('presets')), new RegExp([guildId, owner, channelId, 'secret'].join('|')));
+});
+
+test('status observations keep only real samples within the 45-day window', async () => {
+    const { mergeObservation } = await import('../src/services/siteObservations.js');
+    const today = Date.parse('2026-11-23T15:00:00Z');
+    let data = mergeObservation({ days: { '2026-10-09': { discord: { passed: 1, failed: 0 } } } }, today, { website: true, discord: false });
+    data = mergeObservation(data, today + 1000, { discord: true, storage: null });
+    assert.deepEqual(data.days, { '2026-11-23': { website: { passed: 1, failed: 0 }, discord: { passed: 1, failed: 1 } } });
+});
+
 test('invite creation rechecks permissions and leave requires typed confirmation', async () => {
     const route = 'owner/guilds/' + guildId;
     assert.equal((await signed(owner, route + '/invite', { channelId })).status, 403);

@@ -20,7 +20,8 @@ import { shutdownMusic } from './services/music/playerHandler.js';
 import { syncAllCadGuilds } from './services/cad/cadTrackingService.js';
 import { createCadRouter } from './web/cadRouter.js';
 import { createSiteBridgeRouter } from './web/siteBridgeRouter.js';
-import { servePublicSiteContent } from './web/siteControlRoutes.js';
+import { servePublicSiteContent, servePublicCommunity } from './web/siteControlRoutes.js';
+import { sampleStatus, readObservations } from './services/siteObservations.js';
 import pkg from '../package.json' with { type: 'json' };
 import { EXPECTED_SCHEMA_VERSION, EXPECTED_SCHEMA_LABEL } from './config/database/schemaVersion.js';
 
@@ -166,6 +167,12 @@ class AetherClient extends Client {
     app.use('/api/site-bridge', createSiteBridgeRouter(this));
 
     app.get('/api/site-content', servePublicSiteContent);
+    app.get('/api/site-community', servePublicCommunity);
+    app.get('/api/site-observations', async (req, res) => {
+      res.set('Cache-Control', 'public, max-age=60');
+      try { return res.json(await readObservations()); }
+      catch { return res.status(503).json({ error: 'Observation history is unavailable.' }); }
+    });
     app.use('/cad', createCadRouter(this));
 
     app.get('/health', (req, res) => {
@@ -262,6 +269,9 @@ class AetherClient extends Client {
   }
 
   setupCronJobs() {
+    const observe = runSafeTask('site_health_observation', () => sampleStatus(this));
+    void observe();
+    cron.schedule('*/15 * * * *', observe);
     cron.schedule('0 6 * * *', runSafeTask('birthday_check', () => checkBirthdays(this)));
     cron.schedule('* * * * *', runSafeTask('giveaway_check', () => checkGiveaways(this)));
     cron.schedule('*/15 * * * *', runSafeTask('counter_update', () => this.updateAllCounters()));

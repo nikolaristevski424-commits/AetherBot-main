@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/assets/control.css">
   <link rel="stylesheet" href="/assets/aether-ui.css">
   <script defer src="/assets/control.js"></script>
+  <script defer src="/assets/theme.js"></script>
 </head>
 <body class="control owner-site">
   <a class="skip" href="#main">Skip to content</a>
@@ -24,7 +25,7 @@
     <p role="status" id="controlNotice">Loading owner controls…</p>
     <div id="ownerPanel" hidden>
       <nav class="owner-section-nav" aria-label="Owner workspace">
-        <a href="#ownerBlog">Blog</a><a href="#ownerIncidents">Incidents</a><a href="#ownerMaintenance">Maintenance</a><a href="#ownerOperations">Bot and staff</a>
+        <a href="#ownerBlog">Blog</a><a href="#ownerIncidents">Incidents</a><a href="#ownerMaintenance">Maintenance</a><a href="#ownerPolicies">Terms and privacy</a><a href="#ownerOperations">Bot and staff</a>
       </nav>
       <section class="owner-workspace" id="ownerBlog" aria-labelledby="articleEditorTitle">
         <div class="control-card">
@@ -69,6 +70,20 @@
           </form>
         </div>
         <aside class="control-card"><h2>Paused pages</h2><div class="control-list" id="ownerPausedPages"></div></aside>
+      </section>
+      <section id="ownerPolicies" class="owner-workspace" aria-labelledby="policyHeading">
+        <div class="control-card">
+          <h2 id="policyHeading">Terms and privacy</h2>
+          <form class="control-form" data-owner="policy">
+            <input name="revision" type="hidden" value="0">
+            <label>Document<select name="document"><option value="terms">Terms of Service</option><option value="privacy">Privacy Policy</option></select></label>
+            <label>Policy text<textarea name="text" rows="14" minlength="80" maxlength="8000" required></textarea></label>
+            <p>Use <code>##</code> for headings, <code>-</code> for lists, and HTTPS links.</p>
+            <label class="control-check"><input name="publish" type="checkbox"> Publish to the website</label>
+            <button class="btn btn-primary" type="submit">Save policy</button>
+          </form>
+        </div>
+        <aside class="control-card"><h2>Public versions</h2><p id="policyStatus"></p><div class="control-actions"><a class="btn btn-ghost" href="/terms/">Terms of Service</a><a class="btn btn-ghost" href="/privacy/">Privacy Policy</a></div></aside>
       </section>
       <section id="ownerOperations" aria-labelledby="ownerOperationsHeading">
         <h2 id="ownerOperationsHeading">Bot and staff</h2>

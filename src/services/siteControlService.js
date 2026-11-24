@@ -4,7 +4,7 @@ import { Mutex } from '../utils/mutex.js';
 import { getBotOwners, isBotOwner } from '../config/bot.js';
 
 const key = 'site:control';
-export const maintenancePages = ['all', 'home', 'features', 'commands', 'docs', 'faq', 'status', 'incidents', 'staff', 'team', 'team-panel', 'blog', 'devlog', 'protection', 'dashboard', 'companion', 'cad', 'privacy', 'terms'];
+export const maintenancePages = ['all', 'home', 'features', 'commands', 'docs', 'faq', 'status', 'incidents', 'staff', 'team', 'team-panel', 'blog', 'devlog', 'protection', 'dashboard', 'profile', 'community', 'reviews', 'companion', 'cad', 'privacy', 'terms'];
 export const statusValues = ['automatic', 'operational', 'degraded', 'maintenance', 'offline'];
 export const discordId = /^\d{17,20}$/;
 const publicationId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
@@ -40,7 +40,7 @@ export async function readSiteControl() {
     });
     return {
         status: { value: 'automatic', message: '' }, maintenance: {}, staff: {},
-        devlogs: [], articles: [], incidents: [], audit: [],
+        devlogs: [], articles: [], incidents: [], policies: {}, audit: [],
         ...saved,
     };
 }
@@ -56,6 +56,9 @@ export function publicSiteControl(state) {
         devlogs: state.devlogs,
         articles: articles.map(({ revision, ...article }) => article),
         incidents: state.incidents.map(({ revision, ...incident }) => incident),
+        policies: Object.fromEntries(Object.entries(state.policies)
+            .filter(([, policy]) => policy.published)
+            .map(([name, policy]) => [name, policy.published])),
     };
 }
 
@@ -95,6 +98,21 @@ export async function updateSiteControl(userId, body) {
         case 'publish': {
             const post = { id: randomUUID(), title: checkedText(body.title, 100), text: checkedText(body.text, 4000), at: new Date().toISOString() };
             return writeSiteControl(userId, 'publish', post.id, state => { state.devlogs = [post, ...state.devlogs].slice(0, 100); });
+        }
+        case 'policy': {
+            if (!['terms', 'privacy'].includes(body.document) || typeof body.publish !== 'boolean'
+                || !Number.isSafeInteger(body.revision) || body.revision < 0) {
+                throw new ControlError(400, 'Choose a policy and publication setting.');
+            }
+            const text = checkedText(body.text, 8000, 80);
+            return writeSiteControl(userId, body.publish ? 'policy.publish' : 'policy.draft', body.document, state => {
+                const old = state.policies[body.document] ?? { revision: 0 };
+                if (old.revision !== body.revision) throw new ControlError(409, 'This policy changed. Reload it before editing again.');
+                state.policies[body.document] = {
+                    ...old, draft: text, revision: old.revision + 1,
+                    ...(body.publish && { published: { text, at: new Date().toISOString() } }),
+                };
+            });
         }
         case 'article': {
             if (!articleCategories.includes(body.category) || typeof body.published !== 'boolean') throw new ControlError(400, 'Choose a category and publication setting.');

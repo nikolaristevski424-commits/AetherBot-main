@@ -25,6 +25,7 @@
         status: 'Displayed status updated', maintenance: 'Page maintenance updated', publish: 'Devlog published',
         'article.draft': 'Article draft saved', 'article.publish': 'Article published',
         'incident.publish': 'Incident published', 'incident.update': 'Incident update published',
+        'policy.draft': 'Policy draft saved', 'policy.publish': 'Policy published',
         'staff.update': 'Staff access updated', 'staff.remove': 'Staff member removed',
         'invite.attempt': 'Server invite requested', 'invite.created': 'Server invite created',
         'leave.attempt': 'Bot removal requested', 'leave.applied': 'Bot removed from server',
@@ -72,11 +73,25 @@
         const staffForm = formFor('owner', 'staff');
         const articleForm = formFor('owner', 'article');
         const incidentForm = formFor('owner', 'incident');
+        const policyForm = formFor('owner', 'policy');
         const pageLabels = {
             all: 'Entire website', home: 'Home', blog: 'Blog and articles', incidents: 'Incident history and reports',
             status: 'System status and incidents', cad: 'Website CAD gateway', 'team-panel': 'Aether staff panel',
         };
         let current;
+
+        async function showPolicy() {
+            const selected = field(policyForm, 'document').value;
+            const saved = current.policies?.[selected];
+            const { policyCopy } = await import('/assets/policy-copy.js');
+            if (field(policyForm, 'document').value !== selected) return;
+            field(policyForm, 'text').value = saved?.draft ?? saved?.published?.text ?? policyCopy[selected];
+            field(policyForm, 'revision').value = saved?.revision ?? 0;
+            field(policyForm, 'publish').checked = false;
+            byId('policyStatus').textContent = saved?.published
+                ? 'Published ' + date(saved.published.at)
+                : 'The bundled policy is published.';
+        }
 
         function showMaintenance() {
             const saved = current.maintenance[field(maintenanceForm, 'page').value];
@@ -176,6 +191,7 @@
             }
             if (!section || ['maintenance', 'article', 'incident', 'incident_update'].includes(section)) availability();
             if (!section || ['article', 'incident', 'incident_update'].includes(section)) showPublications();
+            if (!section || section === 'policy') await showPolicy();
             if (!section || section === 'staff') showStaff();
             activity(byId('ownerAudit'), current.audit, entry => {
                 const target = typeof entry.target === 'string' ? entry.target : `${entry.target.guildId} · ${entry.target.reason}`;
@@ -256,6 +272,9 @@
             void loadGuilds();
         } catch (error) { notice.textContent = error.message; }
         byId('maintenancePages').addEventListener('change', showMaintenance);
+        field(policyForm, 'document').addEventListener('change', () => {
+            void showPolicy().catch(error => { notice.textContent = error.message; });
+        });
         articleForm.addEventListener('reset', () => { byId('articleEditorTitle').textContent = 'Write an article'; });
         incidentForm.addEventListener('reset', () => incidentEditor());
         for (const form of panel.querySelectorAll('[data-owner]')) {
@@ -270,7 +289,7 @@
                 await gate('owner/site', 'POST', { ...fields, action });
                 if (['article', 'incident', 'incident_update', 'staff'].includes(action)) form.reset();
                 await loadSite(action);
-                const saved = { article: fields.published ? 'Article published.' : 'Draft saved.', incident: 'Incident published.', incident_update: 'Incident update published.' };
+                const saved = { article: fields.published ? 'Article published.' : 'Draft saved.', incident: 'Incident published.', incident_update: 'Incident update published.', policy: fields.publish ? 'Policy published.' : 'Policy draft saved.' };
                 notice.textContent = saved[action] || 'Changes saved.';
             }, notice);
         }

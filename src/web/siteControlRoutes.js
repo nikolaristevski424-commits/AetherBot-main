@@ -9,6 +9,7 @@ import {
     auditSiteAction, checkedText, ControlError, discordId, isPrimaryOwner, maintenancePages,
     publicSiteControl, readSiteControl, siteAccess, updateSiteControl,
 } from '../services/siteControlService.js';
+import { getProfile, saveProfile, personalCommunity, publicCommunity, publishPreset, saveReview, removeCommunityItem } from '../services/siteCommunityService.js';
 
 const automodName = 'Aether • Mention protection';
 const textChannels = new Set([ChannelType.GuildText, ChannelType.GuildAnnouncement]);
@@ -83,6 +84,14 @@ export function mountSiteControlRoutes(router, client) {
         return response(res, { ticket });
     });
     router.get('/site/access', readLimit, async (req, res) => response(res, { access: await siteAccess(req.siteUserId), primaryOwner: isPrimaryOwner(req.siteUserId) }));
+    router.get('/site/profile', readLimit, async (req, res) => response(res, await getProfile(req.siteUserId)));
+    router.patch('/site/profile', writeLimit, async (req, res) => response(res, await saveProfile(req.siteUserId, req.siteBody)));
+    router.get('/site/community', readLimit, async (req, res) => response(res, await personalCommunity(req.siteUserId)));
+    router.post('/site/community', writeLimit, async (req, res) => {
+        if (req.siteBody.action === 'review') return response(res, await saveReview(req.siteUserId, req.siteBody));
+        if (req.siteBody.action === 'remove') return response(res, await removeCommunityItem(req.siteUserId, req.siteBody));
+        throw new ControlError(400, 'Choose a supported community action.');
+    });
     router.get('/site/team', readLimit, async (req, res) => {
         if (!await siteAccess(req.siteUserId)) throw new ControlError(403, 'Aether staff access is required.');
         const state = await readSiteControl();
@@ -172,6 +181,13 @@ export function mountSiteControlRoutes(router, client) {
         });
     });
 
+    router.post('/guilds/:guildId/share-config', writeLimit, async (req, res) => {
+        const guild = req.siteGuild;
+        await manager(guild, req.siteUserId);
+        const config = await getSecurityConfig(guild.id);
+        return response(res, await publishPreset(req.siteUserId, req.siteBody, config));
+    });
+
     router.patch('/guilds/:guildId/setup', writeLimit, async (req, res) => {
         const guild = req.siteGuild;
         const actor = await manager(guild, req.siteUserId);
@@ -243,5 +259,14 @@ export async function servePublicSiteContent(req, res) {
         return response(res, publicSiteControl(await readSiteControl()));
     } catch {
         return res.status(503).set('Cache-Control', 'no-store').json({ error: 'Site content storage is unavailable.' });
+    }
+}
+
+export async function servePublicCommunity(req, res) {
+    try {
+        res.set('Cache-Control', 'no-store');
+        return response(res, await publicCommunity(req.query.kind));
+    } catch (error) {
+        return res.status(error instanceof ControlError ? error.status : 503).json({ error: 'Community posts are unavailable.' });
     }
 }
